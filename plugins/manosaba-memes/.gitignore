@@ -17,4 +17,5 @@ tsconfig.tsbuildinfo
 *.njsproj
 *.sln
 nonebot-plugin-manosaba-memes-main/*
+nonebot-plugin-manosaba-memes/*
 plugins/manosaba-memes/temp/*
