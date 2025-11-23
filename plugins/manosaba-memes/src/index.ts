@@ -50,8 +50,8 @@ export function apply(ctx: Context, config: Config) {
 
     // 字体文件的 CDN URL
     const FONT_URLS = {
-      bold: 'https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-plugins-assets-temp@main/plugins/fonts/SourceHanSansSC-Bold.otf',
-      serif: 'https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-plugins-assets-temp@main/plugins/fonts/SourceHanSerifSC.otf'
+      bold: 'https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-plugins-assets-temp@main/plugins/fonts/subset/SourceHanSansSC-Bold-subset.otf',
+      serif: 'https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-plugins-assets-temp@main/plugins/fonts/subset/SourceHanSerifSC-subset.otf'
     };
     ctx
       .command("manosaba.安安说 [text:text]")
