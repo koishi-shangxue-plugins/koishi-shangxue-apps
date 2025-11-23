@@ -1,5 +1,6 @@
 import { Context, h, Schema } from 'koishi'
 import { } from 'koishi-plugin-puppeteer'
+import { } from 'koishi-plugin-basedata'
 
 import { promises as fs, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -7,7 +8,7 @@ import { resolve } from 'node:path'
 export const name = 'manosaba-memes'
 export const inject = {
   //  optional: [''],
-  required: ['logger', 'puppeteer']
+  required: ['logger', 'puppeteer', 'basedata']
 }
 
 const readme = readFileSync(resolve(__dirname, '../readme.md'), 'utf-8')
@@ -37,6 +38,15 @@ export function apply(ctx: Context, config: Config) {
   ctx.on('ready', async () => {
     const logger = ctx.logger('manosaba-memes');
     const assetPath = resolve(__dirname, '../assets');
+
+    // 使用 basedata 服务下载字体文件
+    const downloader = ctx.basedata.scope(name);
+
+    // 字体文件的 CDN URL
+    const FONT_URLS = {
+      bold: 'https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-plugins-assets-temp@main/plugins/fonts/SourceHanSansSC-Bold.otf',
+      serif: 'https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-plugins-assets-temp@main/plugins/fonts/SourceHanSerifSC.otf'
+    };
     ctx
       .command("manosaba.安安说 [text:text]")
       .example("manosaba.安安说 吾辈命令你现在【猛击自己的魔丸一百下】")
@@ -69,7 +79,8 @@ export function apply(ctx: Context, config: Config) {
         try {
           // 实时加载HTML模板和所需资源
           const ananTemplate = await fs.readFile(resolve(assetPath, 'html/anan-meme-generator.html'), 'utf-8');
-          const fontData = await loadAssetAsBase64(resolve(assetPath, 'fonts/SourceHanSansSC-Bold.otf'));
+          // 使用 basedata 下载字体文件
+          const fontData = await downloader.read('SourceHanSansSC-Bold.otf', FONT_URLS.bold);
           const overlayData = await loadAssetAsBase64(resolve(assetPath, 'anan/base_overlay.png'));
 
           let htmlContent = ananTemplate
@@ -145,7 +156,8 @@ export function apply(ctx: Context, config: Config) {
         try {
           // 实时加载HTML模板和所需资源
           const trialTemplate = await fs.readFile(resolve(assetPath, 'html/trial-meme-generator.html'), 'utf-8');
-          const fontData = await loadAssetAsBase64(resolve(assetPath, 'fonts/SourceHanSerifSC.otf'));
+          // 使用 basedata 下载字体文件
+          const fontData = await downloader.read('SourceHanSerifSC.otf', FONT_URLS.serif);
 
           let htmlContent = trialTemplate
             .replace('{{FONT_DATA_URL}}', fontData)
