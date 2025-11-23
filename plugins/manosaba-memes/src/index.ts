@@ -66,7 +66,6 @@ export function apply(ctx: Context, config: Config) {
         }
 
         let page;
-        let hasError = false;
         try {
           // 实时加载HTML模板和所需资源
           const ananTemplate = await fs.readFile(resolve(assetPath, 'html/anan-meme-generator.html'), 'utf-8');
@@ -92,7 +91,6 @@ export function apply(ctx: Context, config: Config) {
           const imageBuffer = await canvas.screenshot({ type: 'png' });
           return h.image(imageBuffer, 'image/png');
         } catch (error) {
-          hasError = true;
           logger.error('渲染安安表情包失败:', error);
           if (config.debug) {
             session.send('渲染失败，调试模式已开启，页面未关闭。');
@@ -144,7 +142,6 @@ export function apply(ctx: Context, config: Config) {
         }
 
         let page;
-        let hasError = false;
         try {
           // 实时加载HTML模板和所需资源
           const trialTemplate = await fs.readFile(resolve(assetPath, 'html/trial-meme-generator.html'), 'utf-8');
@@ -171,7 +168,6 @@ export function apply(ctx: Context, config: Config) {
           const imageBuffer = await canvas.screenshot({ type: 'png' });
           return h.image(imageBuffer, 'image/png');
         } catch (error) {
-          hasError = true;
           logger.error('渲染审判表情包失败:', error);
           if (config.debug) {
             session.send('渲染失败，调试模式已开启，页面未关闭。');
