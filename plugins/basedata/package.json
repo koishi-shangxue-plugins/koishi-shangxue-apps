@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-basedata",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A Koishi plugin for download & read files",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -18,7 +18,7 @@
     "service",
     "files"
   ],
-  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/basedata",
   "bugs": {
     "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
   },
