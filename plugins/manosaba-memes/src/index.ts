@@ -23,6 +23,12 @@ ${readme}
 </details>
 
 ---
+
+必须依赖：logger, puppeteer, basedata
+
+请前往插件市场安装：basedata
+
+---
 `
 
 export interface Config {
