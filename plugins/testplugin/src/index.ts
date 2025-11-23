@@ -1,5 +1,4 @@
 import { Context, h, Schema, sleep, Universal } from 'koishi'
-import { } from 'koishi-plugin-downloads-url'
 import { } from '@koishijs/assets';
 import { inspect } from 'node:util'
 
@@ -49,9 +48,12 @@ export function apply(ctx: Context) {
   // })
 
   command
-    .subcommand('.服务 [id]')
+    .subcommand('.base [id]')
     .action(async ({ session }, id) => {
-      ctx.downloadsurl
+      const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg")
+      const filedata = await file.data
+      const base64data = await Buffer.from(filedata).toString("base64")
+      await session.send(h.image(base64data))
       return
     })
 

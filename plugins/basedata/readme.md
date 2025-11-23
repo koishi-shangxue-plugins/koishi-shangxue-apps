@@ -1,6 +1,6 @@
-# koishi-plugin-downloads-url
+# koishi-plugin-basedata
 
-[![npm](https://img.shields.io/npm/v/koishi-plugin-downloads-url?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-downloads-url)
+[![npm](https://img.shields.io/npm/v/koishi-plugin-basedata?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-basedata)
 
 为 Koishi 设计的一款强大而灵活的文件下载服务插件。
 
@@ -16,7 +16,7 @@
 
 ## 📖 API
 
-该插件向 Koishi 的上下文中注入了 `ctx.downloadsurl` 服务，提供以下核心方法：
+该插件向 Koishi 的上下文中注入了 `ctx.basedata` 服务，提供以下核心方法：
 
 - `read(fileName: string, downloadsurl?: string): Promise<string>`
   - **缓存优先**。会优先尝试读取本地文件。如果文件不存在，则会自动下载并存入本地，然后返回其 Base64 Data URL。
@@ -39,7 +39,7 @@ export function apply(ctx: Context) {
     try {
       const imageUrl = 'https://koishi.chat/logo.png'
       // 如果 logo.png 已存在，则直接读取；否则，先下载再读取
-      const imageBase64 = await ctx.downloadsurl.read('logo.png', imageUrl)
+      const imageBase64 = await ctx.basedata.read('logo.png', imageUrl)
       return <img src={imageBase64} />
     } catch (error) {
       ctx.logger('my-plugin').error('图片加载失败', error)
@@ -62,7 +62,7 @@ export function apply(ctx: Context) {
   const logger = ctx.logger(name)
 
   // 使用你的插件名作为 scope
-  const downloader = ctx.downloadsurl.scope(name)
+  const downloader = ctx.basedata.scope(name)
 
   ctx.command('update-asset', '更新并显示资源').action(async () => {
     try {
@@ -80,13 +80,19 @@ export function apply(ctx: Context) {
 
 ### 获得完整的类型提示
 
-为了在你的插件中获得 `ctx.downloadsurl` 服务的完整 TypeScript 类型提示，你可以从本插件导入 `DownloadsURL` 服务类。
+为了在你的插件中获得 `ctx.basedata` 服务的完整 TypeScript 类型提示，你可以从本插件导入 `BaseData` 服务类。
 
 ```typescript
 import { Context } from 'koishi'
-import { } from 'koishi-plugin-downloadsurl'
+import type { BaseData } from 'koishi-plugin-basedata'
+
+declare module 'koishi' {
+  interface Context {
+    basedata: BaseData
+  }
+}
 
 export function apply(ctx: Context) {
-  // 现在 ctx.downloadsurl 将拥有完整的类型提示
+  // 现在 ctx.basedata 将拥有完整的类型提示
 }
 ```

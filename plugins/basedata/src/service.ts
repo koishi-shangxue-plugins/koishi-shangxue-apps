@@ -4,9 +4,9 @@ import { resolve, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Config } from '.'
 
-export class DownloadsURL extends Service {
+export class BaseData extends Service {
   constructor(ctx: Context, config: Config) {
-    super(ctx, 'downloadsurl', true)
+    super(ctx, 'basedata', true)
     this.config = config
   }
 
@@ -25,10 +25,10 @@ export class DownloadsURL extends Service {
       return response
     } catch (error) {
       if (retries > 0) {
-        this.ctx.logger('downloadsurl').warn(`请求 ${url} 失败，正在重试... (剩余 ${retries} 次)`)
+        this.ctx.logger('basedata').warn(`请求 ${url} 失败，正在重试... (剩余 ${retries} 次)`)
         return this.fetchWithRetry(url, retries - 1)
       }
-      this.ctx.logger('downloadsurl').error(`请求 ${url} 在多次重试后仍然失败。`)
+      this.ctx.logger('basedata').error(`请求 ${url} 在多次重试后仍然失败。`)
       throw error
     }
   }
@@ -40,7 +40,7 @@ export class DownloadsURL extends Service {
    * @returns 文件的绝对路径
    */
   private getLocalPath(fileName: string, scope?: string): string {
-    const baseDir = resolve(this.ctx.baseDir, 'data', 'downloadsurl')
+    const baseDir = resolve(this.ctx.baseDir, 'data', 'basedata')
     if (scope) {
       return resolve(baseDir, scope, fileName)
     }
@@ -67,7 +67,7 @@ export class DownloadsURL extends Service {
     const buffer = Buffer.from(await response.arrayBuffer())
     await fs.writeFile(filePath, buffer)
 
-    this.ctx.logger('downloadsurl').info(`文件 ${fileName} 已下载到 ${filePath}`)
+    this.ctx.logger('basedata').info(`文件 ${fileName} 已下载到 ${filePath}`)
     return filePath
   }
 
@@ -93,7 +93,7 @@ export class DownloadsURL extends Service {
       await fs.access(filePath)
     } catch (error) {
       if (error.code === 'ENOENT') {
-        this.ctx.logger('downloadsurl').info(`本地未找到文件 ${fileName}，尝试下载。`)
+        this.ctx.logger('basedata').info(`本地未找到文件 ${fileName}，尝试下载。`)
         await this._download(scope, fileName, downloadsurl)
       } else {
         throw error

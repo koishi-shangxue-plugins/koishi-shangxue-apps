@@ -1,5 +1,5 @@
 {
-  "name": "koishi-plugin-downloads-url",
+  "name": "koishi-plugin-basedata",
   "version": "0.1.0",
   "description": "A Koishi plugin for download & read files",
   "main": "lib/index.js",
@@ -14,7 +14,7 @@
     "chatbot",
     "koishi",
     "plugin",
-    "downloads-url",
+    "basedata",
     "service",
     "files"
   ],
@@ -24,7 +24,7 @@
     },
     "service": {
       "implements": [
-        "downloadsurl"
+        "basedata"
       ]
     }
   },

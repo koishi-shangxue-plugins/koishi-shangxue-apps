@@ -1,9 +1,9 @@
 import { Context, Schema } from 'koishi'
-import { DownloadsURL } from './service'
+import { BaseData } from './service'
 
-export const name = 'downloadsurl'
+export const name = 'basedata'
 
-export { DownloadsURL }
+export { BaseData }
 
 export interface Config {
   retryCount: number
@@ -15,12 +15,12 @@ export const Config: Schema<Config> = Schema.object({
 
 declare module 'koishi' {
   interface Context {
-    downloadsurl: DownloadsURL
+    basedata: BaseData
   }
 }
 
 export function apply(ctx: Context, config: Config) {
   ctx.on("ready", async () => {
-    ctx.plugin(DownloadsURL, config)
+    ctx.plugin(BaseData, config)
   })
 }
