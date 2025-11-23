@@ -18,14 +18,26 @@ export class BaseData extends Service {
    */
   private async fetchWithRetry(url: string, retries: number): Promise<Response> {
     try {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`HTTP 请求失败，状态码: ${response.status}`)
+      // 创建超时控制器
+      const controller = new AbortController()
+      const dispose = this.ctx.setTimeout(() => controller.abort(), this.config.requestTimeout)
+
+      try {
+        const response = await fetch(url, { signal: controller.signal })
+        dispose()
+
+        if (!response.ok) {
+          throw new Error(`HTTP 请求失败，状态码: ${response.status}`)
+        }
+        return response
+      } catch (fetchError) {
+        dispose()
+        throw fetchError
       }
-      return response
     } catch (error) {
       if (retries > 0) {
-        this.ctx.logger('basedata').warn(`请求 ${url} 失败，正在重试... (剩余 ${retries} 次)`)
+        const errorMsg = error.name === 'AbortError' ? '请求超时' : error.message
+        this.ctx.logger('basedata').warn(`请求 ${url} 失败 (${errorMsg})，正在重试... (剩余 ${retries} 次)`)
         return this.fetchWithRetry(url, retries - 1)
       }
       this.ctx.logger('basedata').error(`请求 ${url} 在多次重试后仍然失败。`)
