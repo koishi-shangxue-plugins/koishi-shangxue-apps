@@ -53,6 +53,24 @@ export function apply(ctx: Context, config: Config) {
       bold: 'https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-plugins-assets-temp@main/plugins/fonts/subset/SourceHanSansSC-Bold-subset.otf',
       serif: 'https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-plugins-assets-temp@main/plugins/fonts/subset/SourceHanSerifSC-subset.otf'
     };
+
+    // 魔法角色映射
+    const magicMap = {
+      '梅露露': 'magic_chiyusaisei',
+      '诺亚': 'magic_ekitaisousa',
+      '汉娜': 'magic_fuyuu',
+      '奈叶香': 'magic_genshi',
+      '亚里沙': 'magic_hakka',
+      '米莉亚': 'magic_irekawari',
+      '雪莉': 'magic_kairiki',
+      '艾玛': 'magic_majogoroshi',
+      '玛格': 'magic_monomane',
+      '安安': 'magic_sennou',
+      '可可': 'magic_senrigan',
+      '希罗': 'magic_shinimodori',
+      '蕾雅': 'magic_shisenyuudou',
+    };
+
     ctx
       .command("manosaba.安安说 [text:text]")
       .example("manosaba.安安说 吾辈命令你现在【猛击自己的魔丸一百下】")
@@ -125,6 +143,7 @@ export function apply(ctx: Context, config: Config) {
       .example("manosaba.审判 赞同：一定是汉娜干的")
       .example("manosaba.审判 --role hiro 伪证：我和艾玛不是恋人；赞同：我们初中的时候就确认关系了")
       .example("manosaba.审判 -r 艾玛 疑问：汉娜和雪莉约会没有邀请我很可疑")
+      .example("manosaba.审判 --role 希罗 伪证：我和艾玛不是恋人；魔法-汉娜：肯定是汉娜干的")
       .option('role', '-r <role:string>', { fallback: 'ema' })
       .action(async ({ session, options }, text) => {
         // 处理角色别名
@@ -141,21 +160,32 @@ export function apply(ctx: Context, config: Config) {
           return '请输入选项内容，使用分号分隔，例如: "赞同:你好;疑问:再见"';
         }
 
+        // 基础陈述类型映射
         const statementMap = { '赞同': 'agreement', '疑问': 'doubt', '伪证': 'perjury', '反驳': 'refutation' };
 
         // 解析选项，源于指令的主要参数 text，同时支持全角/半角分号和冒号
         const parsedOptions = text.split(/[;；]/).map(opt => {
           const parts = opt.split(/[:：]/);
           if (parts.length < 2) return null;
-          const statementKey = parts[0];
-          const text = parts.slice(1).join(':'); // 允许文本中包含冒号
+          const statementKey = parts[0].trim();
+          const optText = parts.slice(1).join(':').trim(); // 允许文本中包含冒号
+
+          // 检查是否是魔法选项（格式：魔法-角色名）
+          if (statementKey.startsWith('魔法-') || statementKey.startsWith('魔法－')) {
+            const characterName = statementKey.replace(/^魔法[-－]/, '');
+            const statement = magicMap[characterName];
+            if (!statement || !optText) return null;
+            return { statement, text: optText };
+          }
+
+          // 普通陈述类型
           const statement = statementMap[statementKey];
-          if (!statement || !text) return null;
-          return { statement, text: text.trim() };
+          if (!statement || !optText) return null;
+          return { statement, text: optText };
         }).filter(Boolean);
 
         if (parsedOptions.length === 0) {
-          return '无效的选项格式。示例: "赞同:你好;疑问:再见"';
+          return '无效的选项格式。示例: "赞同:你好;疑问:再见" 或 "魔法-汉娜:使用浮游魔法"';
         }
 
         let page;
@@ -175,9 +205,16 @@ export function apply(ctx: Context, config: Config) {
             .replace('{{SELECTED_CHARACTER}}', role) // 使用处理别名后的 role
             .replace('{{OPTIONS_JSON}}', JSON.stringify(parsedOptions));
 
+          // 加载基础陈述类型图标
           for (const statement of Object.values(statementMap)) {
             const statementData = await loadAssetAsBase64(resolve(assetPath, `trial/${statement}.png`));
             htmlContent = htmlContent.replace(`{{STATEMENT_${statement.toUpperCase()}_DATA_URL}}`, statementData);
+          }
+
+          // 加载所有魔法图标
+          for (const magicStatement of Object.values(magicMap)) {
+            const magicData = await loadAssetAsBase64(resolve(assetPath, `trial/${magicStatement}.png`));
+            htmlContent = htmlContent.replace(`{{STATEMENT_${magicStatement.toUpperCase()}_DATA_URL}}`, magicData);
           }
 
           page = await ctx.puppeteer.page();
