@@ -85,7 +85,7 @@ export async function getSteamUserInfoByDatabase(
     return undefined;
   }
 }
-import { SteamProfile } from "./types";
+import { RecentlyPlayedGamesInfo, SteamProfile } from "./types";
 
 /**
  * 使用 Puppeteer 抓取用户的 Steam 个人主页信息
@@ -100,14 +100,14 @@ export async function getSteamProfile(
   const url = `https://steamcommunity.com/profiles/${steamId}`;
   const page = await ctx.puppeteer.page();
   try {
-    await page.goto(url);
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 120000 });
 
     // 等待页面加载完成
-    await page.waitForSelector(".profile_player_name");
+    await page.waitForSelector(".actual_persona_name", { timeout: 120000 });
 
     const profile = await page.evaluate(() => {
       const name = (
-        document.querySelector(".profile_player_name") as HTMLElement
+        document.querySelector(".actual_persona_name") as HTMLElement
       )?.innerText;
       const avatar = (
         document.querySelector(
@@ -137,11 +137,52 @@ export async function getSteamProfile(
       return { name, avatar, level, status, recentGames };
     });
 
+    const recentlyPlayed = await getRecentlyPlayedGames(
+      ctx,
+      ctx.config.SteamApiKey,
+      steamId,
+    );
+    profile.recentGames = recentlyPlayed.games.map((game) => ({
+      name: game.name,
+      // 将分钟转换为小时
+      hours: `${(game.playtime_forever / 60).toFixed(1)} 小时`,
+      // 构建游戏横幅图片的URL
+      img: `https://cdn.akamai.steamstatic.com/steam/apps/${game.appid}/header.jpg`,
+    }));
+
     return profile;
   } catch (error) {
     ctx.logger.error(`抓取 Steam 个人主页失败 (SteamID: ${steamId}):`, error);
     return null;
   } finally {
     await page.close();
+  }
+}
+
+/**
+ * 使用 Steam Web API 获取用户最近玩过的游戏
+ * @param ctx Koishi context
+ * @param apiKey Steam Web API Key
+ * @param steamId 用户的 Steam64 ID
+ * @returns 返回包含最近游戏信息的 Promise
+ */
+export async function getRecentlyPlayedGames(
+  ctx: Context,
+  apiKey: string,
+  steamId: string,
+): Promise<RecentlyPlayedGamesInfo> {
+  const url = `http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json`;
+  try {
+    const response = await ctx.http.get(url);
+    if (response && response.response.games) {
+      return response.response;
+    }
+    return { total_count: 0, games: [] };
+  } catch (error) {
+    ctx.logger.error(
+      `获取最近玩过的游戏失败 (SteamID: ${steamId}):`,
+      error,
+    );
+    return { total_count: 0, games: [] };
   }
 }

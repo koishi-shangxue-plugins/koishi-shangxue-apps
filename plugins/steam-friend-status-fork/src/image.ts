@@ -315,25 +315,30 @@ export async function getSteamProfileImg(
   const templatePath = path.resolve(__dirname, '..', 'data', 'html', 'steamProfile.html');
   let htmlContent = fs.readFileSync(templatePath, "utf8");
 
+  // 替换基础信息
   htmlContent = htmlContent
-    .replace('{{avatar}}', profileData.avatar)
-    .replace('{{name}}', profileData.name)
-    .replace('{{level}}', profileData.level)
-    .replace('{{status}}', profileData.status);
+    .replace("{{avatar}}", profileData.avatar)
+    .replace("{{name}}", profileData.name)
+    .replace("{{level}}", profileData.level)
+    .replace("{{status}}", profileData.status);
 
-  let gamesHtml = '';
-  if (profileData.recentGames) {
+  // 构建最近游戏列表的 HTML
+  let gamesHtml = "";
+  if (profileData.recentGames && profileData.recentGames.length > 0) {
     for (const game of profileData.recentGames) {
-      gamesHtml += `<div class="game">
-        <img class="game-img" src="${game.img}">
-        <div class="game-info">
+      gamesHtml += `
+        <div class="game">
+          <img class="game-banner" src="${game.img}">
+          <div class="game-details">
             <div class="game-name">${game.name}</div>
             <div class="game-hours">${game.hours}</div>
-        </div>
-      </div>`;
+          </div>
+        </div>`;
     }
+  } else {
+    gamesHtml = "<p>最近没有玩过游戏。</p>";
   }
-  htmlContent = htmlContent.replace('{{recentGames}}', gamesHtml);
+  htmlContent = htmlContent.replace("{{recentGames}}", gamesHtml);
 
   const page = await ctx.puppeteer.page();
   await page.setContent(htmlContent);

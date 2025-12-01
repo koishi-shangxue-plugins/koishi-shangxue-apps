@@ -203,7 +203,7 @@ export function apply(ctx: Context, config) {
   ctx
     .command("steam-friend-status.解绑steam [user]", "解绑steam账号")
     .action(async ({ session }, user) => {
-      let targetUserId = session.event.user?.id;
+      let targetUserId = session.userId;
       if (user) {
         const parsedUser = h.parse(user)[0];
         if (parsedUser?.type !== "at" || !parsedUser.attrs.id) {
@@ -211,7 +211,7 @@ export function apply(ctx: Context, config) {
         }
         targetUserId = parsedUser.attrs.id;
       }
-      return await unbindPlayer(ctx, targetUserId, session.event.channel.id);
+      return await unbindPlayer(ctx, targetUserId, session.channelId);
     });
 
   ctx
@@ -303,7 +303,30 @@ export function apply(ctx: Context, config) {
   ctx
     .command("steam-friend-status.steam信息", "查看自己的好友码和ID")
     .action(async ({ session }) => {
-      return `你的好友码为: ${await getSelfFriendcode(ctx, session)}`;
+      // 从数据库获取用户信息
+      const userdata = await ctx.database.get("SteamUser", {
+        userId: session.userId,
+      });
+
+      // 检查用户是否绑定
+      if (userdata.length === 0) {
+        return "用户未绑定,无法获得好友码";
+      }
+
+      const steamID = userdata[0].steamId;
+      const steamFriendCode = BigInt(steamID) - BigInt(config.steamIdOffset);
+
+      // 发送好友码文本
+      await session.send(`你的好友码为: ${steamFriendCode.toString()}`);
+
+      // 获取并发送 Steam 个人主页图片
+      const profileData = await getSteamProfile(ctx, steamID);
+      if (profileData) {
+        const profileImg = await getSteamProfileImg(ctx, profileData);
+        await session.send(profileImg);
+      } else {
+        ctx.logger.warn(`无法获取 Steam 个人主页信息: ${steamID}`);
+      }
     });
 
   // 循环检测玩家状态
@@ -393,18 +416,6 @@ export function apply(ctx: Context, config) {
     }
   }
 
-  // 获取自己的好友码
-  async function getSelfFriendcode(ctx: Context, session): Promise<string> {
-    const userdata = await ctx.database.get("SteamUser", {
-      userId: session.event.user.id,
-    });
-    if (userdata.length === 0) {
-      return "用户未绑定,无法获得好友码";
-    }
-    const steamID = userdata[0].steamId;
-    const steamFriendCode = BigInt(steamID) - BigInt(config.steamIdOffset);
-    return steamFriendCode.toString();
-  }
 
   // 筛选在特定群组中的用户
   function selectUsersByGroup(

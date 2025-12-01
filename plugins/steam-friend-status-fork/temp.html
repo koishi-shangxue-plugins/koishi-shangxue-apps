@@ -1,0 +1,729 @@
+<html class=" responsive DesktopUI" lang="zh-cn" style="">
+
+<body class="flat_page profile_page has_profile_background GameProfileTheme responsive_page ">
+
+
+  <div class="responsive_page_frame with_header">
+    <div role="navigation" class="responsive_page_menu_ctn mainmenu" aria-label="手机菜单">
+      <div class="responsive_page_menu" id="responsive_page_menu">
+        <div class="mainmenu_contents">
+          <div class="mainmenu_contents_items">
+            <a class="menuitem" href="https://steamcommunity.com/login/home/?goto=profiles%2F76561198404673952">
+              登录 </a>
+            <a class="menuitem supernav" href="https://store.steampowered.com/" data-tooltip-type="selector"
+              data-tooltip-content=".submenu_Store">
+              商店 </a>
+            <div class="submenu_Store" style="display: none;" data-submenuid="Store">
+              <a class="submenuitem" href="https://store.steampowered.com/">
+                主页 </a>
+              <a class="submenuitem" href="https://store.steampowered.com/explore/">
+                探索队列 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/my/wishlist/">
+                愿望单 </a>
+              <a class="submenuitem" href="https://store.steampowered.com/points/shop/">
+                点数商店 </a>
+              <a class="submenuitem" href="https://store.steampowered.com/news/">
+                新闻 </a>
+              <a class="submenuitem" href="https://store.steampowered.com/stats/">
+                统计数据 </a>
+            </div>
+            <a class="menuitem supernav supernav_active" href="https://steamcommunity.com/" data-tooltip-type="selector"
+              data-tooltip-content=".submenu_Community">
+              社区 </a>
+            <div class="submenu_Community" style="display: none;" data-submenuid="Community">
+              <a class="submenuitem" href="https://steamcommunity.com/">
+                主页 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/discussions/">
+                讨论 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/workshop/">
+                创意工坊 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/market/">
+                市场 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/?subsection=broadcasts">
+                实况直播 </a>
+            </div>
+            <a class="menuitem " href="https://store.steampowered.com/about/">
+              关于 </a>
+            <a class="menuitem " href="https://help.steampowered.com/zh-cn/">
+              客服 </a>
+
+            <div class="minor_menu_items">
+              <div class="menuitem change_language_action">
+                更改语言 </div>
+              <a class="menuitem" href="https://store.steampowered.com/mobile" target="_blank" rel="noreferrer">获取 Steam
+                手机应用</a>
+              <div class="menuitem" role="link" onclick="Responsive_RequestDesktopView();">
+                查看桌面版网站 </div>
+            </div>
+          </div>
+          <div class="mainmenu_footer_spacer  "></div>
+          <div class="mainmenu_footer">
+            <div class="mainmenu_footer_logo"><img
+                src="https://community.fastly.steamstatic.com/public/shared/images/responsive/footerLogo_valve_new.png">
+            </div>
+            © Valve Corporation。保留所有权利。所有商标均为其在美国及其它国家/地区的各自持有者所有。 <span class="mainmenu_valve_links">
+              <a href="https://store.steampowered.com/privacy_agreement/" target="_blank">隐私政策</a>
+              &nbsp;| &nbsp;<a href="http://www.valvesoftware.com/legal.htm" target="_blank">法律信息</a>
+              &nbsp;| &nbsp;<a href="https://help.steampowered.com/faqs/view/10BB-D27A-6378-4436"
+                target="_blank">无障碍</a>
+              &nbsp;| &nbsp;<a href="https://store.steampowered.com/subscriber_agreement/" target="_blank">Steam
+                订户协议</a>
+              &nbsp;| &nbsp;<a href="https://store.steampowered.com/steam_refunds/" target="_blank">退款</a>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="responsive_local_menu_tab"></div>
+
+    <div class="responsive_page_menu_ctn localmenu">
+      <div class="responsive_page_menu" id="responsive_page_local_menu"
+        data-panel="{&quot;onOptionsActionDescription&quot;:&quot;#filter_toggle&quot;,&quot;onOptionsButton&quot;:&quot;Responsive_ToggleLocalMenu()&quot;,&quot;onCancelButton&quot;:&quot;Responsive_ToggleLocalMenu()&quot;}">
+        <div class="localmenu_content"
+          data-panel="{&quot;maintainY&quot;:true,&quot;bFocusRingRoot&quot;:true,&quot;flow-children&quot;:&quot;column&quot;}">
+        </div>
+      </div>
+    </div>
+
+
+
+    <div class="responsive_header">
+      <div class="responsive_header_content">
+        <div id="responsive_menu_logo">
+          <img src="https://community.fastly.steamstatic.com/public/shared/images/responsive/header_menu_hamburger.png"
+            height="100%">
+        </div>
+        <div class="responsive_header_logo">
+          <a href="https://store.steampowered.com/">
+            <img src="https://community.fastly.steamstatic.com/public/shared/images/responsive/header_logo.png"
+              height="36" border="0" alt="STEAM">
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="responsive_page_content_overlay">
+
+    </div>
+
+    <div class="responsive_fixonscroll_ctn nonresponsive_hidden ">
+    </div>
+
+    <div class="responsive_page_content">
+
+      <div role="banner" id="global_header" data-panel="{&quot;flow-children&quot;:&quot;row&quot;}">
+        <div class="content">
+          <div class="logo">
+            <span id="logo_holder">
+              <a href="https://store.steampowered.com/" aria-label="Steam 主页链接">
+                <img src="https://community.fastly.steamstatic.com/public/shared/images/header/logo_steam.svg?t=962016"
+                  width="176" height="44" alt="Steam 主页链接">
+              </a>
+            </span>
+          </div>
+
+          <div role="navigation" class="supernav_container" aria-label="全局菜单">
+            <a class="menuitem supernav" href="https://store.steampowered.com/" data-tooltip-type="selector"
+              data-tooltip-content=".submenu_Store">
+              商店 </a>
+            <div class="submenu_Store" style="display: none;" data-submenuid="Store">
+              <a class="submenuitem" href="https://store.steampowered.com/">
+                主页 </a>
+              <a class="submenuitem" href="https://store.steampowered.com/explore/">
+                探索队列 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/my/wishlist/">
+                愿望单 </a>
+              <a class="submenuitem" href="https://store.steampowered.com/points/shop/">
+                点数商店 </a>
+              <a class="submenuitem" href="https://store.steampowered.com/news/">
+                新闻 </a>
+              <a class="submenuitem" href="https://store.steampowered.com/stats/">
+                统计数据 </a>
+            </div>
+            <a class="menuitem supernav supernav_active" href="https://steamcommunity.com/" data-tooltip-type="selector"
+              data-tooltip-content=".submenu_Community">
+              社区 </a>
+            <div class="submenu_Community" style="display: none;" data-submenuid="Community">
+              <a class="submenuitem" href="https://steamcommunity.com/">
+                主页 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/discussions/">
+                讨论 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/workshop/">
+                创意工坊 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/market/">
+                市场 </a>
+              <a class="submenuitem" href="https://steamcommunity.com/?subsection=broadcasts">
+                实况直播 </a>
+            </div>
+            <a class="menuitem " href="https://store.steampowered.com/about/">
+              关于 </a>
+            <a class="menuitem " href="https://help.steampowered.com/zh-cn/">
+              客服 </a>
+          </div>
+          <script type="text/javascript">
+            jQuery(function ($) {
+              $('#global_header .supernav').v_tooltip({ 'location': 'bottom', 'destroyWhenDone': false, 'tooltipClass': 'supernav_content', 'offsetY': -6, 'offsetX': 1, 'horizontalSnap': 4, 'tooltipParent': '#global_header .supernav_container', 'correctForScreenSize': false });
+            });
+          </script>
+
+          <div id="global_actions">
+            <div role="navigation" id="global_action_menu" aria-label="帐户菜单">
+              <a class="header_installsteam_btn header_installsteam_btn_green"
+                href="https://store.steampowered.com/about/">
+                <div class="header_installsteam_btn_content">
+                  安装 Steam </div>
+              </a>
+
+
+              <a class="global_action_link"
+                href="https://steamcommunity.com/login/home/?goto=profiles%2F76561198404673952">登录</a>
+              &nbsp;|&nbsp;
+              <span class="pulldown global_action_link" id="language_pulldown"
+                onclick="ShowMenu( this, 'language_dropdown', 'right' );">语言</span>
+              <div class="popup_block_new" id="language_dropdown" style="display: none;">
+                <div class="popup_body popup_menu">
+                  <a class="popup_menu_item tight" href="?l=tchinese"
+                    onclick="ChangeLanguage( 'tchinese' ); return false;">繁體中文（繁体中文）</a>
+                  <a class="popup_menu_item tight" href="?l=japanese"
+                    onclick="ChangeLanguage( 'japanese' ); return false;">日本語（日语）</a>
+                  <a class="popup_menu_item tight" href="?l=koreana"
+                    onclick="ChangeLanguage( 'koreana' ); return false;">한국어（韩语）</a>
+                  <a class="popup_menu_item tight" href="?l=thai"
+                    onclick="ChangeLanguage( 'thai' ); return false;">ไทย（泰语）</a>
+                  <a class="popup_menu_item tight" href="?l=bulgarian"
+                    onclick="ChangeLanguage( 'bulgarian' ); return false;">български（保加利亚语）</a>
+                  <a class="popup_menu_item tight" href="?l=czech"
+                    onclick="ChangeLanguage( 'czech' ); return false;">Čeština（捷克语）</a>
+                  <a class="popup_menu_item tight" href="?l=danish"
+                    onclick="ChangeLanguage( 'danish' ); return false;">Dansk（丹麦语）</a>
+                  <a class="popup_menu_item tight" href="?l=german"
+                    onclick="ChangeLanguage( 'german' ); return false;">Deutsch（德语）</a>
+                  <a class="popup_menu_item tight" href="?l=english"
+                    onclick="ChangeLanguage( 'english' ); return false;">English（英语）</a>
+                  <a class="popup_menu_item tight" href="?l=spanish"
+                    onclick="ChangeLanguage( 'spanish' ); return false;">Español-España（西班牙语 - 西班牙）</a>
+                  <a class="popup_menu_item tight" href="?l=latam"
+                    onclick="ChangeLanguage( 'latam' ); return false;">Español - Latinoamérica（西班牙语 - 拉丁美洲）</a>
+                  <a class="popup_menu_item tight" href="?l=greek"
+                    onclick="ChangeLanguage( 'greek' ); return false;">Ελληνικά（希腊语）</a>
+                  <a class="popup_menu_item tight" href="?l=french"
+                    onclick="ChangeLanguage( 'french' ); return false;">Français（法语）</a>
+                  <a class="popup_menu_item tight" href="?l=italian"
+                    onclick="ChangeLanguage( 'italian' ); return false;">Italiano（意大利语）</a>
+                  <a class="popup_menu_item tight" href="?l=indonesian"
+                    onclick="ChangeLanguage( 'indonesian' ); return false;">Bahasa Indonesia（印度尼西亚语）</a>
+                  <a class="popup_menu_item tight" href="?l=hungarian"
+                    onclick="ChangeLanguage( 'hungarian' ); return false;">Magyar（匈牙利语）</a>
+                  <a class="popup_menu_item tight" href="?l=dutch"
+                    onclick="ChangeLanguage( 'dutch' ); return false;">Nederlands（荷兰语）</a>
+                  <a class="popup_menu_item tight" href="?l=norwegian"
+                    onclick="ChangeLanguage( 'norwegian' ); return false;">Norsk（挪威语）</a>
+                  <a class="popup_menu_item tight" href="?l=polish"
+                    onclick="ChangeLanguage( 'polish' ); return false;">Polski（波兰语）</a>
+                  <a class="popup_menu_item tight" href="?l=portuguese"
+                    onclick="ChangeLanguage( 'portuguese' ); return false;">Português（葡萄牙语 - 葡萄牙）</a>
+                  <a class="popup_menu_item tight" href="?l=brazilian"
+                    onclick="ChangeLanguage( 'brazilian' ); return false;">Português-Brasil（葡萄牙语 - 巴西）</a>
+                  <a class="popup_menu_item tight" href="?l=romanian"
+                    onclick="ChangeLanguage( 'romanian' ); return false;">Română（罗马尼亚语）</a>
+                  <a class="popup_menu_item tight" href="?l=russian"
+                    onclick="ChangeLanguage( 'russian' ); return false;">Русский（俄语）</a>
+                  <a class="popup_menu_item tight" href="?l=finnish"
+                    onclick="ChangeLanguage( 'finnish' ); return false;">Suomi（芬兰语）</a>
+                  <a class="popup_menu_item tight" href="?l=swedish"
+                    onclick="ChangeLanguage( 'swedish' ); return false;">Svenska（瑞典语）</a>
+                  <a class="popup_menu_item tight" href="?l=turkish"
+                    onclick="ChangeLanguage( 'turkish' ); return false;">Türkçe（土耳其语）</a>
+                  <a class="popup_menu_item tight" href="?l=vietnamese"
+                    onclick="ChangeLanguage( 'vietnamese' ); return false;">Tiếng Việt（越南语）</a>
+                  <a class="popup_menu_item tight" href="?l=ukrainian"
+                    onclick="ChangeLanguage( 'ukrainian' ); return false;">Українська（乌克兰语）</a>
+                  <a class="popup_menu_item tight"
+                    href="https://www.valvesoftware.com/en/contact?contact-person=Translation%20Team%20Feedback"
+                    target="_blank">报告翻译问题</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script type="text/javascript">
+        g_sessionID = "6b45b129277f028ff0d3d9be";
+        g_steamID = false;
+        g_strLanguage = "schinese";
+        g_SNR = '2_100300_profile_';
+        g_bAllowAppImpressions = true;
+        g_ContentDescriptorPreferences = [1, 3, 4];
+
+
+
+        // We always want to have the timezone cookie set for PHP to use
+        setTimezoneCookies();
+
+        $J(function () {
+
+          InitMiniprofileHovers(('https%3A%2F%2Fsteamcommunity.com'));
+          InitEmoticonHovers();
+          ApplyAdultContentPreferences();
+        });
+
+        $J(function () { InitEconomyHovers("https:\/\/community.fastly.steamstatic.com\/public\/css\/skin_1\/economy.css?v=rbw2FTiaLS06&l=schinese&_cdn=fastly", "https:\/\/community.fastly.steamstatic.com\/public\/javascript\/economy_common.js?v=GYFVZLtXyAJC&l=schinese&_cdn=fastly", "https:\/\/community.fastly.steamstatic.com\/public\/javascript\/economy.js?v=Cv90VwaDeyst&l=schinese&_cdn=fastly"); });</script>
+      <div id="webui_config" style="display: none;"
+        data-config="{&quot;EUNIVERSE&quot;:1,&quot;WEB_UNIVERSE&quot;:&quot;public&quot;,&quot;LANGUAGE&quot;:&quot;schinese&quot;,&quot;COUNTRY&quot;:&quot;HK&quot;,&quot;MEDIA_CDN_COMMUNITY_URL&quot;:&quot;https:\/\/cdn.fastly.steamstatic.com\/steamcommunity\/public\/&quot;,&quot;MEDIA_CDN_URL&quot;:&quot;https:\/\/cdn.fastly.steamstatic.com\/&quot;,&quot;VIDEO_CDN_URL&quot;:&quot;https:\/\/video.fastly.steamstatic.com\/&quot;,&quot;COMMUNITY_CDN_URL&quot;:&quot;https:\/\/community.fastly.steamstatic.com\/&quot;,&quot;COMMUNITY_CDN_ASSET_URL&quot;:&quot;https:\/\/cdn.fastly.steamstatic.com\/steamcommunity\/public\/assets\/&quot;,&quot;STORE_CDN_URL&quot;:&quot;https:\/\/store.fastly.steamstatic.com\/&quot;,&quot;PUBLIC_SHARED_URL&quot;:&quot;https:\/\/community.fastly.steamstatic.com\/public\/shared\/&quot;,&quot;COMMUNITY_BASE_URL&quot;:&quot;https:\/\/steamcommunity.com\/&quot;,&quot;CHAT_BASE_URL&quot;:&quot;https:\/\/steamcommunity.com\/&quot;,&quot;STORE_BASE_URL&quot;:&quot;https:\/\/store.steampowered.com\/&quot;,&quot;STORE_CHECKOUT_BASE_URL&quot;:&quot;https:\/\/checkout.steampowered.com\/&quot;,&quot;IMG_URL&quot;:&quot;https:\/\/community.fastly.steamstatic.com\/public\/images\/&quot;,&quot;STEAMTV_BASE_URL&quot;:&quot;https:\/\/steam.tv\/&quot;,&quot;HELP_BASE_URL&quot;:&quot;https:\/\/help.steampowered.com\/&quot;,&quot;PARTNER_BASE_URL&quot;:&quot;https:\/\/partner.steamgames.com\/&quot;,&quot;STATS_BASE_URL&quot;:&quot;https:\/\/partner.steampowered.com\/&quot;,&quot;INTERNAL_STATS_BASE_URL&quot;:&quot;https:\/\/steamstats.valve.org\/&quot;,&quot;IN_CLIENT&quot;:false,&quot;USE_POPUPS&quot;:false,&quot;STORE_ICON_BASE_URL&quot;:&quot;https:\/\/shared.fastly.steamstatic.com\/store_item_assets\/steam\/apps\/&quot;,&quot;STORE_ITEM_BASE_URL&quot;:&quot;https:\/\/shared.fastly.steamstatic.com\/store_item_assets\/&quot;,&quot;WEBAPI_BASE_URL&quot;:&quot;https:\/\/api.steampowered.com\/&quot;,&quot;TOKEN_URL&quot;:&quot;https:\/\/steamcommunity.com\/chat\/clientjstoken&quot;,&quot;BUILD_TIMESTAMP&quot;:1764270847,&quot;PAGE_TIMESTAMP&quot;:1764604040,&quot;IN_TENFOOT&quot;:false,&quot;IN_GAMEPADUI&quot;:false,&quot;IN_CHROMEOS&quot;:false,&quot;IN_MOBILE_WEBVIEW&quot;:false,&quot;PLATFORM&quot;:&quot;windows&quot;,&quot;BASE_URL_STORE_CDN_ASSETS&quot;:&quot;https:\/\/cdn.fastly.steamstatic.com\/store\/&quot;,&quot;EREALM&quot;:1,&quot;LOGIN_BASE_URL&quot;:&quot;https:\/\/login.steampowered.com\/&quot;,&quot;AVATAR_BASE_URL&quot;:&quot;https:\/\/avatars.fastly.steamstatic.com\/&quot;,&quot;FROM_WEB&quot;:true,&quot;WEBSITE_ID&quot;:&quot;Community&quot;,&quot;BASE_URL_SHARED_CDN&quot;:&quot;https:\/\/shared.fastly.steamstatic.com\/&quot;,&quot;CLAN_CDN_ASSET_URL&quot;:&quot;https:\/\/clan.fastly.steamstatic.com\/&quot;,&quot;COMMUNITY_ASSETS_BASE_URL&quot;:&quot;https:\/\/shared.fastly.steamstatic.com\/community_assets\/&quot;,&quot;SNR&quot;:&quot;2_100300_profile_&quot;}"
+        data-userinfo="{&quot;logged_in&quot;:false,&quot;country_code&quot;:&quot;HK&quot;,&quot;excluded_content_descriptors&quot;:[1,3,4]}">
+      </div>
+      <div id="application_config" style="display: none;"
+        data-config="{&quot;EUNIVERSE&quot;:1,&quot;WEB_UNIVERSE&quot;:&quot;public&quot;,&quot;LANGUAGE&quot;:&quot;schinese&quot;,&quot;COUNTRY&quot;:&quot;HK&quot;,&quot;MEDIA_CDN_COMMUNITY_URL&quot;:&quot;https:\/\/cdn.fastly.steamstatic.com\/steamcommunity\/public\/&quot;,&quot;MEDIA_CDN_URL&quot;:&quot;https:\/\/cdn.fastly.steamstatic.com\/&quot;,&quot;VIDEO_CDN_URL&quot;:&quot;https:\/\/video.fastly.steamstatic.com\/&quot;,&quot;COMMUNITY_CDN_URL&quot;:&quot;https:\/\/community.fastly.steamstatic.com\/&quot;,&quot;COMMUNITY_CDN_ASSET_URL&quot;:&quot;https:\/\/cdn.fastly.steamstatic.com\/steamcommunity\/public\/assets\/&quot;,&quot;STORE_CDN_URL&quot;:&quot;https:\/\/store.fastly.steamstatic.com\/&quot;,&quot;PUBLIC_SHARED_URL&quot;:&quot;https:\/\/community.fastly.steamstatic.com\/public\/shared\/&quot;,&quot;COMMUNITY_BASE_URL&quot;:&quot;https:\/\/steamcommunity.com\/&quot;,&quot;CHAT_BASE_URL&quot;:&quot;https:\/\/steamcommunity.com\/&quot;,&quot;STORE_BASE_URL&quot;:&quot;https:\/\/store.steampowered.com\/&quot;,&quot;STORE_CHECKOUT_BASE_URL&quot;:&quot;https:\/\/checkout.steampowered.com\/&quot;,&quot;IMG_URL&quot;:&quot;https:\/\/community.fastly.steamstatic.com\/public\/images\/&quot;,&quot;STEAMTV_BASE_URL&quot;:&quot;https:\/\/steam.tv\/&quot;,&quot;HELP_BASE_URL&quot;:&quot;https:\/\/help.steampowered.com\/&quot;,&quot;PARTNER_BASE_URL&quot;:&quot;https:\/\/partner.steamgames.com\/&quot;,&quot;STATS_BASE_URL&quot;:&quot;https:\/\/partner.steampowered.com\/&quot;,&quot;INTERNAL_STATS_BASE_URL&quot;:&quot;https:\/\/steamstats.valve.org\/&quot;,&quot;IN_CLIENT&quot;:false,&quot;USE_POPUPS&quot;:false,&quot;STORE_ICON_BASE_URL&quot;:&quot;https:\/\/shared.fastly.steamstatic.com\/store_item_assets\/steam\/apps\/&quot;,&quot;STORE_ITEM_BASE_URL&quot;:&quot;https:\/\/shared.fastly.steamstatic.com\/store_item_assets\/&quot;,&quot;WEBAPI_BASE_URL&quot;:&quot;https:\/\/api.steampowered.com\/&quot;,&quot;TOKEN_URL&quot;:&quot;https:\/\/steamcommunity.com\/chat\/clientjstoken&quot;,&quot;BUILD_TIMESTAMP&quot;:1764270847,&quot;PAGE_TIMESTAMP&quot;:1764604040,&quot;IN_TENFOOT&quot;:false,&quot;IN_GAMEPADUI&quot;:false,&quot;IN_CHROMEOS&quot;:false,&quot;IN_MOBILE_WEBVIEW&quot;:false,&quot;PLATFORM&quot;:&quot;windows&quot;,&quot;BASE_URL_STORE_CDN_ASSETS&quot;:&quot;https:\/\/cdn.fastly.steamstatic.com\/store\/&quot;,&quot;EREALM&quot;:1,&quot;LOGIN_BASE_URL&quot;:&quot;https:\/\/login.steampowered.com\/&quot;,&quot;AVATAR_BASE_URL&quot;:&quot;https:\/\/avatars.fastly.steamstatic.com\/&quot;,&quot;FROM_WEB&quot;:true,&quot;WEBSITE_ID&quot;:&quot;Community&quot;,&quot;BASE_URL_SHARED_CDN&quot;:&quot;https:\/\/shared.fastly.steamstatic.com\/&quot;,&quot;CLAN_CDN_ASSET_URL&quot;:&quot;https:\/\/clan.fastly.steamstatic.com\/&quot;,&quot;COMMUNITY_ASSETS_BASE_URL&quot;:&quot;https:\/\/shared.fastly.steamstatic.com\/community_assets\/&quot;,&quot;SNR&quot;:&quot;2_100300_profile_&quot;}"
+        data-userinfo="{&quot;logged_in&quot;:false,&quot;country_code&quot;:&quot;HK&quot;,&quot;excluded_content_descriptors&quot;:[1,3,4]}"
+        data-community="[]" data-loyaltystore="{&quot;webapi_token&quot;:&quot;&quot;}" data-steam_notifications="null">
+      </div>
+      <link
+        href="https://community.fastly.steamstatic.com/public/css/applications/community/main.css?v=Y8R5p6tGEw71&amp;l=schinese&amp;_cdn=fastly"
+        rel="stylesheet" type="text/css">
+      <script type="text/javascript"
+        src="https://community.fastly.steamstatic.com/public/javascript/applications/community/manifest.js?v=ir0Yxhaq6Tus&amp;l=schinese&amp;_cdn=fastly"></script>
+      <script type="text/javascript"
+        src="https://community.fastly.steamstatic.com/public/javascript/applications/community/libraries~b28b7af69.js?v=ZVt373dPtfky&amp;l=schinese&amp;_cdn=fastly"></script>
+      <script type="text/javascript"
+        src="https://community.fastly.steamstatic.com/public/javascript/applications/community/main.js?v=oRagt0r9Cv27&amp;l=schinese&amp;_cdn=fastly"></script>
+      <div data-featuretarget="profile-rewards">
+        <div></div>
+      </div>
+      <div id="application_root"></div>
+
+      <div role="main" class="responsive_page_template_content" id="responsive_page_template_content"
+        data-panel="{&quot;autoFocus&quot;:true}">
+
+        <script type="text/javascript">
+          g_rgProfileData = { "url": "https:\/\/steamcommunity.com\/profiles\/76561198404673952\/", "steamid": "76561198404673952", "personaname": "Koakuma", "summary": "" };
+          const g_bViewingOwnProfile = 0;
+          $J(function () {
+            window.Responsive_ReparentItemsInResponsiveMode && Responsive_ReparentItemsInResponsiveMode('.responsive_groupfriends_element', $J('#responsive_groupfriends_element_ctn'));
+
+
+            SetupAnimateOnHoverImages();
+          });
+        </script>
+
+        <style>
+          body.GameProfileTheme {
+            --gradient-right: rgba(255, 255, 255, 0);
+            --gradient-left: rgba(255, 255, 255, 0);
+            --gradient-background: rgba(255, 255, 255, 0);
+            --gradient-background-right: rgba(255, 255, 255, 0);
+            --gradient-background-left: rgba(255, 255, 255, 0);
+            --color-showcase-header: rgba(255, 255, 255, 0);
+            --gradient-showcase-header-left: rgba(255, 255, 255, 0);
+            --btn-background: rgba(0, 0, 0, .2);
+            --btn-background-hover: rgb(255, 255, 255, .1);
+            --btn-outline: rgb(255, 255, 255, .1);
+          }
+        </style>
+
+
+        <div class="no_header profile_page has_profile_background  " style="">
+
+          <div class="profile_animated_background">
+            <video playsinline="" autoplay="" muted="" loop=""
+              poster="https://shared.fastly.steamstatic.com/community_assets/images/items/2139460/0803912d8a7dd5a6db695680a75c9acec56b162c.jpg"
+              data-single-file-video="0">
+              <source
+                src="https://shared.fastly.steamstatic.com/community_assets/images/items/2139460/c5e6a75b2e1671453b2c60bc0966b34a1fb9d5fb.webm"
+                type="video/webm">
+              <source
+                src="https://shared.fastly.steamstatic.com/community_assets/images/items/2139460/44e80c65cbbf011d3c80e8ac7f0a7d3376507249.mp4"
+                type="video/mp4">
+            </video>
+          </div>
+
+
+
+
+          <div class="profile_header_bg">
+
+            <div class="profile_header_bg_texture">
+
+              <div class="profile_header">
+
+
+
+                <div class="profile_header_content" data-panel="{&quot;flow-children&quot;:&quot;row&quot;}">
+
+
+                  <div class="playerAvatar profile_header_size online" data-miniprofile="444408224">
+                    <div class="playerAvatarAutoSizeInner">
+                      <img
+                        src="https://avatars.fastly.steamstatic.com/fb00a3c67a73926f216e50ae6f06fe40cd8fe90a_full.jpg">
+                    </div>
+                  </div>
+
+                  <div class="profile_header_centered_col">
+                    <div class="profile_header_centered_persona">
+                      <div class="persona_name" style="font-size: 24px;">
+                        <span class="actual_persona_name">Koakuma</span>
+                        <span class="namehistory_link" onclick="ShowAliasPopup( this );">
+                          <img id="getnamehistory_arrow"
+                            src="https://community.fastly.steamstatic.com/public/images/skin_1/arrowDn9x5.gif" width="9"
+                            height="5" border="0">
+                        </span>
+                        <div id="NamePopup" class="popup_block_new" style="display: none;">
+                          <div class="popup_body popup_menu">
+                            <div>此用户也使用过以下名称：</div>
+                            <div id="NamePopupAliases">
+
+                            </div>
+                            <div style="display:none" id="NamePopupClearAliases">
+                            </div>
+                            <div style="clear:both"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="header_real_name ellipsis">
+                        <bdi>上学</bdi>
+                        <div class="header_location">
+                          <img class="profile_flag"
+                            src="https://community.fastly.steamstatic.com/public/images/countryflags/cn.gif">
+                          China
+                        </div>
+                      </div>
+                    </div>
+                    <div class="profile_header_summary desktop">
+                    </div>
+                  </div>
+
+                  <div class="profile_header_summary mobile">
+                  </div>
+
+                  <div class="profile_header_badgeinfo" data-panel="{&quot;flow-children&quot;:&quot;column&quot;}">
+                    <div class="profile_header_badgeinfo_badge_area">
+                      <a data-panel="{&quot;focusable&quot;:true,&quot;clickOnActivate&quot;:true}" role="button"
+                        class="persona_level_btn" href="https://steamcommunity.com/profiles/76561198404673952/badges">
+                        <div class="persona_name persona_level">
+                          <div class="friendPlayerLevel lvl_0"><span class="friendPlayerLevelNum">7</span></div> 级
+                        </div>
+                      </a>
+                    </div>
+                    <div class="profile_header_actions">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <script
+                type="text/javascript"> $J(function () { InitProfileSummary(g_rgProfileData['summary']); }); </script>
+            </div>
+          </div>
+
+          <div class="profile_content has_profile_background">
+            <div class="profile_content_inner">
+
+
+
+
+
+
+
+              <div class="profile_rightcol">
+                <div class="responsive_status_info">
+                  <div class="profile_in_game persona online">
+                    <div class="profile_in_game_header">当前在线</div>
+                  </div>
+                </div>
+
+                <div class="responsive_count_link_area">
+
+
+                  <div
+                    data-panel="{&quot;maintainX&quot;:true,&quot;bFocusRingRoot&quot;:true,&quot;flow-children&quot;:&quot;row&quot;}"
+                    class="profile_awards">
+                    <div class="profile_count_link_preview_ctn"
+                      data-panel="{&quot;focusable&quot;:true,&quot;clickOnActivate&quot;:true}" role="button">
+                      <div data-panel="{&quot;focusable&quot;:true,&quot;clickOnActivate&quot;:true}" role="button"
+                        class="profile_count_link ellipsis">
+                        <a href="https://steamcommunity.com/profiles/76561198404673952/awards/">
+                          <span class="count_link_label">个人资料奖励</span>&nbsp;
+                          <span class="profile_count_link_total">
+                            2 </span>
+                        </a>
+                      </div>
+                      <div class="profile_count_link_preview">
+                        <div class="profile_badges_badge " data-tooltip-html="该用户的个人资料已获得 12 次“点数拿去”奖。">
+                          <a
+                            href="javascript:AddProfileAward( 0, 'https://steamcommunity.com/login/home/?goto=https%3A%2F%2Fsteamcommunity.com%2Fprofiles%2F76561198404673952%2F%3FinsideModal%3D0', '76561198404673952', 17 )">
+                            <img
+                              src="https://store.fastly.steamstatic.com/public/images/loyalty/reactions/still/17.png?v=5"
+                              class="award_icon small"
+                              data-animate-on-hover-src="https://store.fastly.steamstatic.com/public/images/loyalty/reactions/animated/17.png?v=5">
+                          </a>
+                        </div>
+                        <div class="profile_badges_badge " data-tooltip-html="该用户的个人资料已获得 2 次“就是有范儿”奖。">
+                          <a
+                            href="javascript:AddProfileAward( 0, 'https://steamcommunity.com/login/home/?goto=https%3A%2F%2Fsteamcommunity.com%2Fprofiles%2F76561198404673952%2F%3FinsideModal%3D0', '76561198404673952', 20 )">
+                            <img
+                              src="https://store.fastly.steamstatic.com/public/images/loyalty/reactions/still/20.png?v=5"
+                              class="award_icon small"
+                              data-animate-on-hover-src="https://store.fastly.steamstatic.com/public/images/loyalty/reactions/animated/20.png?v=5">
+                          </a>
+                        </div>
+                        <div style="clear: left;"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    data-panel="{&quot;maintainX&quot;:true,&quot;bFocusRingRoot&quot;:true,&quot;flow-children&quot;:&quot;row&quot;}"
+                    class="profile_badges">
+                    <div class="profile_count_link_preview_ctn"
+                      data-panel="{&quot;focusable&quot;:true,&quot;clickOnActivate&quot;:true}" role="button">
+                      <div data-panel="{&quot;focusable&quot;:true,&quot;clickOnActivate&quot;:true}" role="button"
+                        class="profile_count_link ellipsis">
+                        <a href="https://steamcommunity.com/profiles/76561198404673952/badges/">
+                          <span class="count_link_label">徽章</span>&nbsp;
+                          <span class="profile_count_link_total">
+                            5 </span>
+                        </a>
+                      </div>
+                      <div class="profile_count_link_preview">
+                        <div class="profile_badges_badge " data-tooltip-html="社区贡献者&lt;br&gt;
+Steam 社区已经给您发放了 14 项奖励。大家都很喜欢您向社区添加的内容！祝贺！">
+                          <a href="https://steamcommunity.com/profiles/76561198404673952/badges/48">
+                            <img
+                              src="https://community.fastly.steamstatic.com/public/images/badges/48_communitycontributor/1_80.png?v=2"
+                              class="badge_icon small">
+                          </a>
+                        </div>
+                        <div class="profile_badges_badge " data-tooltip-html="帐户服务年资&lt;br&gt;
+自2017 年 7 月 16 日以来的成员。">
+                          <a href="https://steamcommunity.com/profiles/76561198404673952/badges/1">
+                            <img
+                              src="https://community.fastly.steamstatic.com/public/images/badges/02_years/steamyears8_80.png"
+                              class="badge_icon small">
+                          </a>
+                        </div>
+                        <div class="profile_badges_badge " data-tooltip-html="2024 年 Steam 回顾&lt;br&gt;
+因查看您的 2024 年 Steam 回顾而获得奖励">
+                          <a href="https://steamcommunity.com/profiles/76561198404673952/badges/68">
+                            <img
+                              src="https://community.fastly.steamstatic.com/public/images/badges/generic/YIR2024_80.png"
+                              class="badge_icon small">
+                          </a>
+                        </div>
+                        <div class="profile_badges_badge last" data-tooltip-html="2023 年 Steam 回顾&lt;br&gt;
+因查看您的 2023 年 Steam 回顾而获得奖励">
+                          <a href="https://steamcommunity.com/profiles/76561198404673952/badges/66">
+                            <img
+                              src="https://community.fastly.steamstatic.com/public/images/badges/generic/YIR2023_80.png"
+                              class="badge_icon small">
+                          </a>
+                        </div>
+                        <div style="clear: left;"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    data-panel="{&quot;maintainX&quot;:true,&quot;bFocusRingRoot&quot;:true,&quot;flow-children&quot;:&quot;row&quot;}"
+                    id="responsive_groupfriends_element_ctn">
+                  </div>
+
+                  <div
+                    data-panel="{&quot;maintainX&quot;:true,&quot;bFocusRingRoot&quot;:true,&quot;flow-children&quot;:&quot;row&quot;}"
+                    class="profile_item_links">
+                    <div data-panel="{&quot;focusable&quot;:true,&quot;clickOnActivate&quot;:true}" role="button"
+                      class="profile_count_link ellipsis">
+                      <a href="https://steamcommunity.com/profiles/76561198404673952/inventory/">
+                        <span class="count_link_label">库存</span>&nbsp;
+                        <span class="profile_count_link_total">
+                          &nbsp; <!-- so the line spaces like the rest -->
+                        </span>
+                      </a>
+                    </div>
+                    <div data-panel="{&quot;focusable&quot;:true,&quot;clickOnActivate&quot;:true}" role="button"
+                      class="profile_count_link ellipsis">
+                      <a href="https://steamcommunity.com/profiles/76561198404673952/myworkshopfiles/">
+                        <span class="count_link_label">创意工坊物品</span>&nbsp;
+                        <span class="profile_count_link_total">
+                          5 </span>
+                      </a>
+                    </div>
+                    <div data-panel="{&quot;focusable&quot;:true,&quot;clickOnActivate&quot;:true}" role="button"
+                      class="profile_count_link ellipsis">
+                      <a href="https://steamcommunity.com/profiles/76561198404673952/images/">
+                        <span class="count_link_label">艺术作品</span>&nbsp;
+                        <span class="profile_count_link_total">
+                          1 </span>
+                      </a>
+                    </div>
+                    <div style="clear: left;"></div>
+                  </div>
+                </div>
+
+
+
+              </div>
+
+
+              <div class="profile_leftcol">
+
+                <div class="profile_customization_area">
+                  <div class="profile_customization myart">
+                    <div class="profile_customization_header">精选艺术作品展柜</div>
+
+                    <div class="profile_customization_block">
+                      <div class="screenshot_showcase">
+                        <div class="screenshot_showcase_primary single showcase_slot ">
+                          <a class="screenshot_showcase_screenshot modalContentLink ugc" data-appid="767"
+                            data-publishedfileid="3607512548"
+                            href="https://steamcommunity.com/sharedfiles/filedetails/?id=3607512548">
+                            <img style="max-width: 630px;"
+                              src="https://images.steamusercontent.com/ugc/18121887257078383959/93195AEB75672F440DEE5BF2F4DD4BE7A8DB9DD3/?imw=630&amp;&amp;ima=fit&amp;impolicy=Letterbox&amp;imcolor=%23000000&amp;letterbox=false">
+                          </a>
+                          <div class="screenshot_showcase_itemname">
+                          </div>
+                          <div class="screenshot_showcase_stats">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div data-panel="{&quot;type&quot;:&quot;PanelGroup&quot;}" class="profile_customization">
+                    <div class="profile_customization_header">
+                      创意工坊展柜 </div>
+                    <div class="myworkshop_showcase_header">
+                      <div class="playerAvatar online">
+                        <a href="https://steamcommunity.com/profiles/76561198404673952"
+                          data-miniprofile="444408224"><img
+                            src="https://avatars.fastly.steamstatic.com/fb00a3c67a73926f216e50ae6f06fe40cd8fe90a.jpg"></a>
+                      </div>
+                      <a href="https://steamcommunity.com/profiles/76561198404673952/myworkshopfiles/"
+                        class="myworkshop_playerName">
+                        Koakuma 的创意工坊 </a>
+                    </div>
+                    <div class="profile_customization_block">
+                      <div class="myworkshop_showcase">
+                        <div class="workshop_showcase_mutiitem_ctn">
+                          <div class="workshop_showcase_multiitem showcase_slot ">
+                            <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3607525800" title="gbc1"
+                              class="ugc" data-appid="480" data-publishedfileid="3607525800">
+                              <img class="workshop_showcase_item_image"
+                                src="https://images.steamusercontent.com/ugc/15379336891821647044/3030ACA5C4089F00EA5A0EAEA9B615010E4A261A/?imw=150&amp;imh=150&amp;ima=fit&amp;impolicy=Letterbox&amp;imcolor=%23000000&amp;letterbox=true">
+                            </a>
+                          </div>
+                        </div>
+                        <div class="workshop_showcase_mutiitem_ctn">
+                          <div class="workshop_showcase_multiitem showcase_slot ">
+                            <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3607525981" title="gbc2"
+                              class="ugc" data-appid="480" data-publishedfileid="3607525981">
+                              <img class="workshop_showcase_item_image"
+                                src="https://images.steamusercontent.com/ugc/14350907517158270027/CA301202A1A1C4CA9ECCF6DDD952F5FBEF0609FF/?imw=150&amp;imh=150&amp;ima=fit&amp;impolicy=Letterbox&amp;imcolor=%23000000&amp;letterbox=true">
+                            </a>
+                          </div>
+                        </div>
+                        <div class="workshop_showcase_mutiitem_ctn">
+                          <div class="workshop_showcase_multiitem showcase_slot ">
+                            <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3607526063" title="gbc3"
+                              class="ugc" data-appid="480" data-publishedfileid="3607526063">
+                              <img class="workshop_showcase_item_image"
+                                src="https://images.steamusercontent.com/ugc/16189953678507410781/AA0A38898C8B7C6CF00C18E7A2AB4685BE1C098C/?imw=150&amp;imh=150&amp;ima=fit&amp;impolicy=Letterbox&amp;imcolor=%23000000&amp;letterbox=true">
+                            </a>
+                          </div>
+                        </div>
+                        <div class="workshop_showcase_mutiitem_ctn">
+                          <div class="workshop_showcase_multiitem showcase_slot ">
+                            <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3607526133" title="gbc4"
+                              class="ugc" data-appid="480" data-publishedfileid="3607526133">
+                              <img class="workshop_showcase_item_image"
+                                src="https://images.steamusercontent.com/ugc/16245384492060067659/A4C2DDF036B8F9C046B63FF3AB5FDB25B03ACAD0/?imw=150&amp;imh=150&amp;ima=fit&amp;impolicy=Letterbox&amp;imcolor=%23000000&amp;letterbox=true">
+                            </a>
+                          </div>
+                        </div>
+                        <div class="workshop_showcase_mutiitem_ctn">
+                          <div class="workshop_showcase_multiitem showcase_slot ">
+                            <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3607526203" title="gbc5"
+                              class="ugc" data-appid="480" data-publishedfileid="3607526203">
+                              <img class="workshop_showcase_item_image"
+                                src="https://images.steamusercontent.com/ugc/17540578388363415840/16684DB3A163270A093B124D94F96BC3B3413603/?imw=150&amp;imh=150&amp;ima=fit&amp;impolicy=Letterbox&amp;imcolor=%23000000&amp;letterbox=true">
+                            </a>
+                          </div>
+                        </div>
+                        <div style="clear: left;"></div>
+                        <div class="showcase_stats_row showcase_content_bg">
+                          <a class="showcase_stat"
+                            href="https://steamcommunity.com/profiles/76561198404673952/myworkshopfiles/">
+                            <div class="value">5</div>
+                            <div class="label">提交作品数</div>
+                          </a>
+                          <div style="clear: left;"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+                <div class="profile_comment_area">
+                </div>
+              </div>
+
+              <div style="clear: both;"></div>
+            </div>
+          </div>
+
+        </div>
+
+
+      </div> <!-- responsive_page_legacy_content -->
+
+      <div id="footer_spacer" class=""></div>
+      <div id="footer_responsive_optin_spacer"></div>
+      <div id="footer">
+        <div class="footer_content">
+          <span id="footerLogo"><img
+              src="https://community.fastly.steamstatic.com/public/images/skin_1/footerLogo_valve.png?v=1" width="96"
+              height="26" border="0" alt="Valve 徽标"></span>
+          <span id="footerText">
+            © Valve Corporation。保留所有权利。所有商标均为其在美国及其它国家/地区的各自持有者所有。 本网站上部分地理空间数据由 <a
+              href="https://steamcommunity.com/linkfilter/?u=http%3A%2F%2Fwww.geonames.org" target="_blank"
+              rel=" noopener">geonames.org</a> 提供。 <br>
+            <span class="valve_links">
+              <a href="http://store.steampowered.com/privacy_agreement/" target="_blank">隐私政策</a>
+              &nbsp; | &nbsp;<a href="https://store.steampowered.com/legal/" target="_blank">法律信息</a>
+              &nbsp; | &nbsp;<a href="https://help.steampowered.com/faqs/view/10BB-D27A-6378-4436"
+                target="_blank">无障碍</a>
+              &nbsp;| &nbsp;<a href="http://store.steampowered.com/subscriber_agreement/" target="_blank">Steam 订户协议</a>
+              &nbsp;| &nbsp;<a href="http://store.steampowered.com/account/cookiepreferences/"
+                target="_blank">Cookie</a>
+            </span>
+          </span>
+        </div>
+        <div class="responsive_optin_link">
+          <div class="btn_medium btnv6_grey_black" role="link" onclick="Responsive_RequestMobileView()">
+            <span>查看移动版网站</span>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- responsive_page_content -->
+
+  </div> <!-- responsive_page_frame -->
+
+  <div class="miniprofile_hover" style="display: none;">
+    <div class="shadow_ul"></div>
+    <div class="shadow_top"></div>
+    <div class="shadow_ur"></div>
+    <div class="shadow_left"></div>
+    <div class="shadow_right"></div>
+    <div class="shadow_bl"></div>
+    <div class="shadow_bottom"></div>
+    <div class="shadow_br"></div>
+    <div class="miniprofile_hover_inner shadow_content"></div>
+  </div>
+  <div class="FullModalOverlay" style="display: none;">
+    <div class="ModalOverlayContent ModalOverlayBackground"></div>
+  </div>
+</body><singlefile-logs-window class="single-file-ui-element"
+  style="accent-color: initial !important; place-content: initial !important; place-items: initial !important; place-self: initial !important; alignment-baseline: initial !important; anchor-name: initial !important; anchor-scope: initial !important; animation-composition: initial !important; animation: initial !important; app-region: initial !important; appearance: initial !important; backdrop-filter: initial !important; backface-visibility: initial !important; background: initial !important; background-blend-mode: initial !important; baseline-shift: initial !important; baseline-source: initial !important; block-size: initial !important; border-block: initial !important; border: initial !important; border-radius: initial !important; border-collapse: initial !important; border-end-end-radius: initial !important; border-end-start-radius: initial !important; border-inline: initial !important; border-start-end-radius: initial !important; border-start-start-radius: initial !important; inset: initial !important; box-decoration-break: initial !important; box-shadow: initial !important; box-sizing: initial !important; break-after: initial !important; break-before: initial !important; break-inside: initial !important; buffered-rendering: initial !important; caption-side: initial !important; caret-animation: initial !important; caret-color: initial !important; clear: initial !important; clip: initial !important; clip-path: initial !important; clip-rule: initial !important; color: initial !important; color-interpolation: initial !important; color-interpolation-filters: initial !important; color-rendering: initial !important; columns: initial !important; gap: initial !important; column-rule: initial !important; column-span: initial !important; contain-intrinsic-block-size: initial !important; contain-intrinsic-size: initial !important; contain-intrinsic-inline-size: initial !important; container: initial !important; content: initial !important; corner-shape: initial !important; corner-block-end-shape: initial !important; corner-block-start-shape: initial !important; cursor: initial !important; cx: initial !important; cy: initial !important; d: initial !important; direction: initial !important; display: initial !important; dominant-baseline: initial !important; dynamic-range-limit: initial !important; empty-cells: initial !important; field-sizing: initial !important; fill: initial !important; fill-opacity: initial !important; fill-rule: initial !important; filter: initial !important; flex: initial !important; flex-flow: initial !important; float: initial !important; flood-color: initial !important; flood-opacity: initial !important; font-family: initial !important; font-kerning: initial !important; font-optical-sizing: initial !important; font-palette: initial !important; font-size: initial !important; font-size-adjust: initial !important; font-stretch: initial !important; font-style: initial !important; font-synthesis: initial !important; font-variant: initial !important; font-weight: initial !important; grid: initial !important; grid-area: initial !important; height: initial !important; hyphenate-character: initial !important; hyphenate-limit-chars: initial !important; hyphens: initial !important; image-orientation: initial !important; image-rendering: initial !important; initial-letter: initial !important; inline-size: initial !important; inset-block: initial !important; inset-inline: initial !important; interactivity: initial !important; interest-delay: initial !important; interpolate-size: initial !important; isolation: initial !important; letter-spacing: initial !important; lighting-color: initial !important; line-break: initial !important; line-height: initial !important; list-style: initial !important; margin-block: initial !important; margin: initial !important; margin-inline: initial !important; marker: initial !important; mask: initial !important; mask-type: initial !important; math-depth: initial !important; math-shift: initial !important; math-style: initial !important; max-block-size: initial !important; max-height: initial !important; max-inline-size: initial !important; max-width: initial !important; min-block-size: initial !important; min-height: initial !important; min-inline-size: initial !important; min-width: initial !important; mix-blend-mode: initial !important; object-fit: initial !important; object-position: initial !important; object-view-box: initial !important; offset: initial !important; opacity: initial !important; order: initial !important; orphans: initial !important; outline: initial !important; outline-offset: initial !important; overflow-anchor: initial !important; overflow-block: initial !important; overflow-clip-margin: initial !important; overflow-inline: initial !important; overflow-wrap: initial !important; overflow: initial !important; overlay: initial !important; overscroll-behavior-block: initial !important; overscroll-behavior-inline: initial !important; padding-block: initial !important; padding: initial !important; padding-inline: initial !important; paint-order: initial !important; perspective: initial !important; perspective-origin: initial !important; pointer-events: initial !important; position: initial !important; position-anchor: initial !important; position-area: initial !important; position-try: initial !important; position-visibility: initial !important; print-color-adjust: initial !important; r: initial !important; reading-flow: initial !important; reading-order: initial !important; resize: initial !important; rotate: initial !important; ruby-align: initial !important; ruby-position: initial !important; rx: initial !important; ry: initial !important; scale: initial !important; scroll-behavior: initial !important; scroll-initial-target: initial !important; scroll-margin-block: initial !important; scroll-margin-inline: initial !important; scroll-marker-group: initial !important; scroll-padding-block: initial !important; scroll-padding-inline: initial !important; scroll-target-group: initial !important; scroll-timeline: initial !important; scrollbar-color: initial !important; scrollbar-gutter: initial !important; scrollbar-width: initial !important; shape-image-threshold: initial !important; shape-margin: initial !important; shape-outside: initial !important; shape-rendering: initial !important; speak: initial !important; stop-color: initial !important; stop-opacity: initial !important; stroke: initial !important; stroke-dasharray: initial !important; stroke-dashoffset: initial !important; stroke-linecap: initial !important; stroke-linejoin: initial !important; stroke-miterlimit: initial !important; stroke-opacity: initial !important; stroke-width: initial !important; tab-size: initial !important; table-layout: initial !important; text-align: initial !important; text-align-last: initial !important; text-anchor: initial !important; text-autospace: initial !important; text-box: initial !important; text-decoration: initial !important; text-decoration-skip-ink: initial !important; text-emphasis: initial !important; text-emphasis-position: initial !important; text-indent: initial !important; text-overflow: initial !important; text-rendering: initial !important; text-shadow: initial !important; text-size-adjust: initial !important; text-spacing-trim: initial !important; text-transform: initial !important; text-underline-position: initial !important; text-wrap: initial !important; timeline-scope: initial !important; touch-action: initial !important; transform: initial !important; transform-origin: initial !important; transform-style: initial !important; transition: initial !important; translate: initial !important; unicode-bidi: initial !important; user-select: initial !important; vector-effect: initial !important; vertical-align: initial !important; view-timeline: initial !important; view-transition-class: initial !important; view-transition-group: initial !important; view-transition-name: initial !important; visibility: initial !important; white-space-collapse: initial !important; widows: initial !important; width: initial !important; will-change: initial !important; word-break: initial !important; word-spacing: initial !important; writing-mode: initial !important; x: initial !important; y: initial !important; z-index: initial !important; zoom: initial !important; border-spacing: initial !important; -webkit-border-image: initial !important; -webkit-box-align: initial !important; -webkit-box-decoration-break: initial !important; -webkit-box-direction: initial !important; -webkit-box-flex: initial !important; -webkit-box-ordinal-group: initial !important; -webkit-box-orient: initial !important; -webkit-box-pack: initial !important; -webkit-box-reflect: initial !important; -webkit-font-smoothing: initial !important; -webkit-line-break: initial !important; -webkit-line-clamp: initial !important; -webkit-locale: initial !important; -webkit-mask-box-image: initial !important; -webkit-rtl-ordering: initial !important; -webkit-tap-highlight-color: initial !important; -webkit-text-combine: initial !important; -webkit-text-decorations-in-effect: initial !important; -webkit-text-fill-color: initial !important; -webkit-text-orientation: initial !important; -webkit-text-security: initial !important; -webkit-text-stroke: initial !important; -webkit-user-drag: initial !important; -webkit-user-modify: initial !important; -webkit-writing-mode: initial !important; --gpStoreMenuHeight: initial !important; --gpBackground-LightSofter: initial !important; --gpStoreLightestGrey: initial !important; --screen-width: initial !important; --gpBackground-LightHarder: initial !important; --gpText-BodySmall: initial !important; --gpWidth-3colcap: initial !important; --gpCorner-Large: initial !important; --gpShadow-Small: initial !important; --gpColor-BlueHi: initial !important; --GradientColor1: initial !important; --gpBackground-DarkMedium: initial !important; --GradientColor2: initial !important; --gpBackground-LightMedium: initial !important; --gpColor-DustyBlue: initial !important; --gpSystemDarkerGrey: initial !important; --gpGradient-StoreBackground: initial !important; --gpNavWidth: initial !important; --gpGradient-LibraryBackground: initial !important; --gpCorner-Medium: initial !important; --gpStoreLightGrey: initial !important; --gpBackground-LightSoft: initial !important; --gpStoreGrey: initial !important; --gpVerticalResponsivePadding-Large: initial !important; --gpText-BodyLarge: initial !important; --gpShadow-Large: initial !important; --gpSystemLighterGrey: initial !important; --field-row-children-spacing: initial !important; --gpColor-GreenHi: initial !important; --gpWidth-6colcap: initial !important; --field-negative-horizontal-margin: initial !important; --gpText-HeadingLarge: initial !important; --gpColor-Yellow: initial !important; --gpColor-LightBlue: initial !important; --gpPaymentsNavWidth: initial !important; --gpSpace-Gutter: initial !important; --gpText-HeadingMedium: initial !important; --gpSidePanelWidth: initial !important; --gpColor-Red: initial !important; --gpBackground-Neutral-LightHard: initial !important; --gpVerticalResponsivePadding-Small: initial !important; --gpSystemDarkestGrey: initial !important; --gpStoreLighterGrey: initial !important; --gpText-HeadingSmall: initial !important; --gpBackground-Neutral-LightMedium: initial !important; --gpStoreDarkerGrey: initial !important; --gpBackground-DarkSoft: initial !important; --gpWidth-5colcap: initial !important; --gpWidth-2colcap: initial !important; --gpColor-ChalkyBlue: initial !important; --gpBackground-Neutral-LightHarder: initial !important; --gpSystemLightGrey: initial !important; --gpCommunityRightPanelWidth: initial !important; --gpBackground-LightHard: initial !important; --gpSystemGrey: initial !important; --gpShadow-Medium: initial !important; --gpStoreDarkGrey: initial !important; --gpColor-Orange: initial !important; --gpBackground-Neutral-LightSoft: initial !important; --gpStoreDarkestGrey: initial !important; --gpGiftingPanelWidth: initial !important; --gpCorner-Small: initial !important; --gpBackground-Neutral-LightSofter: initial !important; --indent-level: initial !important; --gpColor-Blue: initial !important; --gpDselectWidth: initial !important; --gpColor-RedHi: initial !important; --gpText-BodyMedium: initial !important; --gpColor-Green: initial !important; --gpWidth-1colcap: initial !important; --gpWidth-4colcap: initial !important; --gpShadow-XLarge: initial !important; --gpSpace-Gap: initial !important; --gpBackground-DarkHard: initial !important; --gpSystemDarkGrey: initial !important; --gpBackground-DarkSofter: initial !important; --gpVerticalResponsivePadding-Medium: initial !important; --gpSystemLightestGrey: initial !important;"></singlefile-logs-window><singlefile-mask
+  class="single-file-ui-element"
+  style="accent-color: initial !important; place-content: initial !important; place-items: initial !important; place-self: initial !important; alignment-baseline: initial !important; anchor-name: initial !important; anchor-scope: initial !important; animation-composition: initial !important; animation: initial !important; app-region: initial !important; appearance: initial !important; backdrop-filter: initial !important; backface-visibility: initial !important; background: initial !important; background-blend-mode: initial !important; baseline-shift: initial !important; baseline-source: initial !important; block-size: initial !important; border-block: initial !important; border: initial !important; border-radius: initial !important; border-collapse: initial !important; border-end-end-radius: initial !important; border-end-start-radius: initial !important; border-inline: initial !important; border-start-end-radius: initial !important; border-start-start-radius: initial !important; inset: initial !important; box-decoration-break: initial !important; box-shadow: initial !important; box-sizing: initial !important; break-after: initial !important; break-before: initial !important; break-inside: initial !important; buffered-rendering: initial !important; caption-side: initial !important; caret-animation: initial !important; caret-color: initial !important; clear: initial !important; clip: initial !important; clip-path: initial !important; clip-rule: initial !important; color: initial !important; color-interpolation: initial !important; color-interpolation-filters: initial !important; color-rendering: initial !important; columns: initial !important; gap: initial !important; column-rule: initial !important; column-span: initial !important; contain-intrinsic-block-size: initial !important; contain-intrinsic-size: initial !important; contain-intrinsic-inline-size: initial !important; container: initial !important; content: initial !important; corner-shape: initial !important; corner-block-end-shape: initial !important; corner-block-start-shape: initial !important; cursor: initial !important; cx: initial !important; cy: initial !important; d: initial !important; direction: initial !important; display: initial !important; dominant-baseline: initial !important; dynamic-range-limit: initial !important; empty-cells: initial !important; field-sizing: initial !important; fill: initial !important; fill-opacity: initial !important; fill-rule: initial !important; filter: initial !important; flex: initial !important; flex-flow: initial !important; float: initial !important; flood-color: initial !important; flood-opacity: initial !important; font-family: initial !important; font-kerning: initial !important; font-optical-sizing: initial !important; font-palette: initial !important; font-size: initial !important; font-size-adjust: initial !important; font-stretch: initial !important; font-style: initial !important; font-synthesis: initial !important; font-variant: initial !important; font-weight: initial !important; grid: initial !important; grid-area: initial !important; height: initial !important; hyphenate-character: initial !important; hyphenate-limit-chars: initial !important; hyphens: initial !important; image-orientation: initial !important; image-rendering: initial !important; initial-letter: initial !important; inline-size: initial !important; inset-block: initial !important; inset-inline: initial !important; interactivity: initial !important; interest-delay: initial !important; interpolate-size: initial !important; isolation: initial !important; letter-spacing: initial !important; lighting-color: initial !important; line-break: initial !important; line-height: initial !important; list-style: initial !important; margin-block: initial !important; margin: initial !important; margin-inline: initial !important; marker: initial !important; mask: initial !important; mask-type: initial !important; math-depth: initial !important; math-shift: initial !important; math-style: initial !important; max-block-size: initial !important; max-height: initial !important; max-inline-size: initial !important; max-width: initial !important; min-block-size: initial !important; min-height: initial !important; min-inline-size: initial !important; min-width: initial !important; mix-blend-mode: initial !important; object-fit: initial !important; object-position: initial !important; object-view-box: initial !important; offset: initial !important; opacity: initial !important; order: initial !important; orphans: initial !important; outline: initial !important; outline-offset: initial !important; overflow-anchor: initial !important; overflow-block: initial !important; overflow-clip-margin: initial !important; overflow-inline: initial !important; overflow-wrap: initial !important; overflow: initial !important; overlay: initial !important; overscroll-behavior-block: initial !important; overscroll-behavior-inline: initial !important; padding-block: initial !important; padding: initial !important; padding-inline: initial !important; paint-order: initial !important; perspective: initial !important; perspective-origin: initial !important; pointer-events: initial !important; position: initial !important; position-anchor: initial !important; position-area: initial !important; position-try: initial !important; position-visibility: initial !important; print-color-adjust: initial !important; r: initial !important; reading-flow: initial !important; reading-order: initial !important; resize: initial !important; rotate: initial !important; ruby-align: initial !important; ruby-position: initial !important; rx: initial !important; ry: initial !important; scale: initial !important; scroll-behavior: initial !important; scroll-initial-target: initial !important; scroll-margin-block: initial !important; scroll-margin-inline: initial !important; scroll-marker-group: initial !important; scroll-padding-block: initial !important; scroll-padding-inline: initial !important; scroll-target-group: initial !important; scroll-timeline: initial !important; scrollbar-color: initial !important; scrollbar-gutter: initial !important; scrollbar-width: initial !important; shape-image-threshold: initial !important; shape-margin: initial !important; shape-outside: initial !important; shape-rendering: initial !important; speak: initial !important; stop-color: initial !important; stop-opacity: initial !important; stroke: initial !important; stroke-dasharray: initial !important; stroke-dashoffset: initial !important; stroke-linecap: initial !important; stroke-linejoin: initial !important; stroke-miterlimit: initial !important; stroke-opacity: initial !important; stroke-width: initial !important; tab-size: initial !important; table-layout: initial !important; text-align: initial !important; text-align-last: initial !important; text-anchor: initial !important; text-autospace: initial !important; text-box: initial !important; text-decoration: initial !important; text-decoration-skip-ink: initial !important; text-emphasis: initial !important; text-emphasis-position: initial !important; text-indent: initial !important; text-overflow: initial !important; text-rendering: initial !important; text-shadow: initial !important; text-size-adjust: initial !important; text-spacing-trim: initial !important; text-transform: initial !important; text-underline-position: initial !important; text-wrap: initial !important; timeline-scope: initial !important; touch-action: initial !important; transform: initial !important; transform-origin: initial !important; transform-style: initial !important; transition: initial !important; translate: initial !important; unicode-bidi: initial !important; user-select: initial !important; vector-effect: initial !important; vertical-align: initial !important; view-timeline: initial !important; view-transition-class: initial !important; view-transition-group: initial !important; view-transition-name: initial !important; visibility: initial !important; white-space-collapse: initial !important; widows: initial !important; width: initial !important; will-change: initial !important; word-break: initial !important; word-spacing: initial !important; writing-mode: initial !important; x: initial !important; y: initial !important; z-index: initial !important; zoom: initial !important; border-spacing: initial !important; -webkit-border-image: initial !important; -webkit-box-align: initial !important; -webkit-box-decoration-break: initial !important; -webkit-box-direction: initial !important; -webkit-box-flex: initial !important; -webkit-box-ordinal-group: initial !important; -webkit-box-orient: initial !important; -webkit-box-pack: initial !important; -webkit-box-reflect: initial !important; -webkit-font-smoothing: initial !important; -webkit-line-break: initial !important; -webkit-line-clamp: initial !important; -webkit-locale: initial !important; -webkit-mask-box-image: initial !important; -webkit-rtl-ordering: initial !important; -webkit-tap-highlight-color: initial !important; -webkit-text-combine: initial !important; -webkit-text-decorations-in-effect: initial !important; -webkit-text-fill-color: initial !important; -webkit-text-orientation: initial !important; -webkit-text-security: initial !important; -webkit-text-stroke: initial !important; -webkit-user-drag: initial !important; -webkit-user-modify: initial !important; -webkit-writing-mode: initial !important; --gpStoreMenuHeight: initial !important; --gpBackground-LightSofter: initial !important; --gpStoreLightestGrey: initial !important; --screen-width: initial !important; --gpBackground-LightHarder: initial !important; --gpText-BodySmall: initial !important; --gpWidth-3colcap: initial !important; --gpCorner-Large: initial !important; --gpShadow-Small: initial !important; --gpColor-BlueHi: initial !important; --GradientColor1: initial !important; --gpBackground-DarkMedium: initial !important; --GradientColor2: initial !important; --gpBackground-LightMedium: initial !important; --gpColor-DustyBlue: initial !important; --gpSystemDarkerGrey: initial !important; --gpGradient-StoreBackground: initial !important; --gpNavWidth: initial !important; --gpGradient-LibraryBackground: initial !important; --gpCorner-Medium: initial !important; --gpStoreLightGrey: initial !important; --gpBackground-LightSoft: initial !important; --gpStoreGrey: initial !important; --gpVerticalResponsivePadding-Large: initial !important; --gpText-BodyLarge: initial !important; --gpShadow-Large: initial !important; --gpSystemLighterGrey: initial !important; --field-row-children-spacing: initial !important; --gpColor-GreenHi: initial !important; --gpWidth-6colcap: initial !important; --field-negative-horizontal-margin: initial !important; --gpText-HeadingLarge: initial !important; --gpColor-Yellow: initial !important; --gpColor-LightBlue: initial !important; --gpPaymentsNavWidth: initial !important; --gpSpace-Gutter: initial !important; --gpText-HeadingMedium: initial !important; --gpSidePanelWidth: initial !important; --gpColor-Red: initial !important; --gpBackground-Neutral-LightHard: initial !important; --gpVerticalResponsivePadding-Small: initial !important; --gpSystemDarkestGrey: initial !important; --gpStoreLighterGrey: initial !important; --gpText-HeadingSmall: initial !important; --gpBackground-Neutral-LightMedium: initial !important; --gpStoreDarkerGrey: initial !important; --gpBackground-DarkSoft: initial !important; --gpWidth-5colcap: initial !important; --gpWidth-2colcap: initial !important; --gpColor-ChalkyBlue: initial !important; --gpBackground-Neutral-LightHarder: initial !important; --gpSystemLightGrey: initial !important; --gpCommunityRightPanelWidth: initial !important; --gpBackground-LightHard: initial !important; --gpSystemGrey: initial !important; --gpShadow-Medium: initial !important; --gpStoreDarkGrey: initial !important; --gpColor-Orange: initial !important; --gpBackground-Neutral-LightSoft: initial !important; --gpStoreDarkestGrey: initial !important; --gpGiftingPanelWidth: initial !important; --gpCorner-Small: initial !important; --gpBackground-Neutral-LightSofter: initial !important; --indent-level: initial !important; --gpColor-Blue: initial !important; --gpDselectWidth: initial !important; --gpColor-RedHi: initial !important; --gpText-BodyMedium: initial !important; --gpColor-Green: initial !important; --gpWidth-1colcap: initial !important; --gpWidth-4colcap: initial !important; --gpShadow-XLarge: initial !important; --gpSpace-Gap: initial !important; --gpBackground-DarkHard: initial !important; --gpSystemDarkGrey: initial !important; --gpBackground-DarkSofter: initial !important; --gpVerticalResponsivePadding-Medium: initial !important; --gpSystemLightestGrey: initial !important;"></singlefile-mask>
+
+</html>

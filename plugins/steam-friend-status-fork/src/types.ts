@@ -62,3 +62,18 @@ export interface SteamProfile {
     img: string;
   }[];
 }
+
+// Steam Web API IPlayerService/GetRecentlyPlayedGames 返回的结构
+export interface RecentlyPlayedGame {
+  appid: number;
+  name: string;
+  playtime_2weeks: number;
+  playtime_forever: number;
+  img_icon_url: string;
+  img_logo_url: string;
+}
+
+export interface RecentlyPlayedGamesInfo {
+  total_count: number;
+  games: RecentlyPlayedGame[];
+}

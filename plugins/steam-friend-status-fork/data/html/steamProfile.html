@@ -1,85 +1,144 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="zh-CN">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Steam Profile</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            width: 350px;
-            background-color: #1b2838;
-            color: #c7d5e0;
-        }
-        .profile-card {
-            background-color: #171a21;
-            padding: 15px;
-        }
-        .header {
-            display: flex;
-            align-items: center;
-        }
-        .avatar {
-            width: 84px;
-            height: 84px;
-            border: 2px solid #4b619b;
-        }
-        .info {
-            margin-left: 15px;
-        }
-        .name {
-            font-size: 24px;
-            font-weight: bold;
-            color: #ffffff;
-        }
-        .level {
-            font-size: 18px;
-            color: #4b619b;
-        }
-        .status {
-            font-size: 14px;
-            margin-top: 5px;
-        }
-        .recent-games {
-            margin-top: 15px;
-        }
-        .game {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            background-color: #2a475e;
-            padding: 5px;
-        }
-        .game-img {
-            width: 120px;
-            height: 45px;
-        }
-        .game-info {
-            margin-left: 10px;
-        }
-        .game-name {
-            font-size: 14px;
-        }
-        .game-hours {
-            font-size: 12px;
-            color: #8f98a0;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Steam Profile</title>
+  <style>
+    @font-face {
+      font-family: "Noto Sans SC";
+      src: url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap");
+    }
+
+    body {
+      font-family: "Noto Sans SC", sans-serif;
+      background-color: #1a202c;
+      color: #e2e8f0;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .profile-card {
+      position: relative;
+      width: 600px;
+      border-radius: 10px;
+      overflow: hidden;
+      background-color: #2d3748;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .profile-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.1;
+      z-index: 0;
+    }
+
+    .profile-content {
+      position: relative;
+      z-index: 1;
+      padding: 24px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      margin-right: 20px;
+      border: 2px solid #4a5568;
+    }
+
+    .user-info {
+      flex-grow: 1;
+    }
+
+    .user-info .name {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0;
+    }
+
+    .user-info .status {
+      font-size: 14px;
+      color: #a0aec0;
+      margin-top: 4px;
+    }
+
+    .recent-activity {
+      font-size: 18px;
+      font-weight: 500;
+      color: #cbd5e0;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #4a5568;
+      padding-bottom: 8px;
+    }
+
+    .games-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .game {
+      background-color: rgba(45, 55, 72, 0.8);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .game-banner {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+    }
+
+    .game-details {
+      padding: 12px;
+    }
+
+    .game-name {
+      font-size: 16px;
+      font-weight: 500;
+      color: #ffffff;
+    }
+
+    .game-hours {
+      font-size: 12px;
+      color: #a0aec0;
+      margin-top: 4px;
+    }
+  </style>
 </head>
+
 <body>
-    <div class="profile-card">
-        <div class="header">
-            <img class="avatar" src="{{avatar}}">
-            <div class="info">
-                <div class="name">{{name}}</div>
-                <div class="level">等级: {{level}}</div>
-                <div class="status">{{status}}</div>
-            </div>
+  <div class="profile-card">
+    <img class="profile-background"
+      src="https://steamcdn-a.akamaihd.net/steamcommunity/public/images/items/629730/638374bb325383af541851a535b6d6f2145d68a1.jpg" />
+    <div class="profile-content">
+      <div class="header">
+        <img class="avatar" src="{{avatar}}" />
+        <div class="user-info">
+          <h1 class="name">{{name}}</h1>
+          <p class="status">{{status}} | 等级: {{level}}</p>
         </div>
-        <div class="recent-games">
-            <h3>最近玩过的游戏</h3>
-            {{recentGames}}
-        </div>
+      </div>
+      <h2 class="recent-activity">最近动态</h2>
+      <div class="games-list">
+        {{recentGames}}
+      </div>
     </div>
+  </div>
 </body>
+
 </html>
