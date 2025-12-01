@@ -286,6 +286,13 @@ export function apply(ctx: Context, config) {
       }
 
       logInfo(data);
+      // 检查并播报状态变化
+      const changes = await getUserStatusChanged(ctx, data, config.useSteamName);
+      if (changes && Object.keys(changes).length > 0) {
+        await broadcastChanges(ctx, config, changes, data, allUserData, channelId);
+      }
+
+      // 继续执行原有的生成状态总览图逻辑
       if (config.showcardmode === "1") {
         return await getFriendStatusImg(ctx, data, session.selfId);
       } else {
@@ -375,42 +382,63 @@ export function apply(ctx: Context, config) {
     });
 
     for (const channel of channels) {
-      const groupMessage: GameChangeInfo[] = [];
-      for (const user of allUserData) {
-        if (
-          user.effectGroups.includes(channel.id) &&
-          changeMessage[user.userId]
-        ) {
-          groupMessage.push(changeMessage[user.userId]);
-        }
+      await broadcastChanges(
+        ctx,
+        config,
+        changeMessage,
+        userdata,
+        allUserData,
+        channel.id,
+      );
+    }
+  }
+
+  // 在指定频道播报状态变化
+  async function broadcastChanges(
+    ctx: Context,
+    config: any,
+    changeMessage: { [key: string]: GameChangeInfo },
+    userdata: SteamUserInfo,
+    allUserData: SteamUser[],
+    channelId: string,
+  ) {
+    const groupMessage: GameChangeInfo[] = [];
+    for (const user of allUserData) {
+      if (
+        user.effectGroups.includes(channelId) &&
+        changeMessage[user.userId]
+      ) {
+        groupMessage.push(changeMessage[user.userId]);
       }
+    }
 
-      if (groupMessage.length > 0) {
-        const bot = ctx.bots[`${channel.platform}:${channel.assignee}`];
-        if (bot) {
-          for (const changeInfo of groupMessage) {
-            const user = allUserData.find((u) => u.userId === changeInfo.userId);
-            if (user) {
-              const playerInfo = userdata.response.players.find(
-                (p) => p.steamid === user.steamId,
-              );
+    if (groupMessage.length > 0) {
+      const channel = await ctx.database.get("channel", { id: channelId });
+      if (!channel.length) return;
 
-              // 重新构建文本消息
-              let textMessage = "";
-              if (changeInfo.status === "start") {
-                textMessage = `${changeInfo.userName} 开始玩 ${changeInfo.newGame} 了`;
-              } else if (changeInfo.status === "stop") {
-                textMessage = `${changeInfo.userName} 不玩 ${changeInfo.oldGame} 了`;
-              } else if (changeInfo.status === "change") {
-                textMessage = `${changeInfo.userName} 不玩 ${changeInfo.oldGame} 了，开始玩 ${changeInfo.newGame} 了`;
-              }
+      const bot = ctx.bots[`${channel[0].platform}:${channel[0].assignee}`];
+      if (bot) {
+        for (const changeInfo of groupMessage) {
+          const user = allUserData.find((u) => u.userId === changeInfo.userId);
+          if (user) {
+            const playerInfo = userdata.response.players.find(
+              (p) => p.steamid === user.steamId,
+            );
 
-              if (playerInfo && config.broadcastWithImage) {
-                const image = await getGameChangeImg(ctx, playerInfo, changeInfo);
-                await bot.sendMessage(channel.id, [h.text(textMessage), image]);
-              } else {
-                await bot.sendMessage(channel.id, textMessage);
-              }
+            let textMessage = "";
+            if (changeInfo.status === "start") {
+              textMessage = `${changeInfo.userName} 开始玩 ${changeInfo.newGame} 了`;
+            } else if (changeInfo.status === "stop") {
+              textMessage = `${changeInfo.userName} 不玩 ${changeInfo.oldGame} 了`;
+            } else if (changeInfo.status === "change") {
+              textMessage = `${changeInfo.userName} 不玩 ${changeInfo.oldGame} 了，开始玩 ${changeInfo.newGame} 了`;
+            }
+
+            if (playerInfo && config.broadcastWithImage) {
+              const image = await getGameChangeImg(ctx, playerInfo, changeInfo);
+              await bot.sendMessage(channelId, [h.text(textMessage), image]);
+            } else {
+              await bot.sendMessage(channelId, textMessage);
             }
           }
         }
