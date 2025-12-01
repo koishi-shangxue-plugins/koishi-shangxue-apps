@@ -96,7 +96,8 @@ export async function getFriendStatusImg(
   channelname?: string,
 ) {
   const { config } = ctx;
-  const rootpath = ctx.baseDir;
+  const resourcePath = path.join(ctx.baseDir, 'data', 'steam-friend-status');
+  const templatePath = path.resolve(__dirname, '..', 'data', 'html', 'steamFriendList.html');
 
   const gamingUsers = userData.response.players.filter((p) => p.gameextrainfo);
   const onlineUsers = userData.response.players
@@ -106,9 +107,7 @@ export async function getFriendStatusImg(
     ? userData.response.players.filter((p) => p.personastate === 0)
     : [];
 
-  const url = URL.pathToFileURL(
-    path.join(rootpath, "data/steam-friend-status/html/steamFriendList.html"),
-  ).href;
+  const url = URL.pathToFileURL(templatePath).href;
 
   const convertImageToBase64 = async (filePath) => {
     try {
@@ -126,13 +125,13 @@ export async function getFriendStatusImg(
     botname = channelname || `当前群组`;
     await getGroupHeadshot(ctx, channelid);
     headshotBase64 = await convertImageToBase64(
-      path.join(rootpath, `data/steam-friend-status/img/group${channelid}.jpg`),
+      path.join(resourcePath, 'img', `group${channelid}.jpg`),
     );
   } else {
     botname = config.botname;
     await getBotHeadshot(ctx, botid);
     headshotBase64 = await convertImageToBase64(
-      path.join(rootpath, `data/steam-friend-status/img/bot${botid}.jpg`),
+      path.join(resourcePath, 'img', `bot${botid}.jpg`),
     );
   }
 
@@ -161,8 +160,9 @@ export async function getFriendStatusImg(
     gamingUsers.map((u) =>
       convertImageToBase64(
         path.join(
-          rootpath,
-          `data/steam-friend-status/img/steamuser${u.steamid}.jpg`,
+          resourcePath,
+          'img',
+          `steamuser${u.steamid}.jpg`,
         ),
       ),
     ),
@@ -171,8 +171,9 @@ export async function getFriendStatusImg(
     onlineUsers.map((u) =>
       convertImageToBase64(
         path.join(
-          rootpath,
-          `data/steam-friend-status/img/steamuser${u.steamid}.jpg`,
+          resourcePath,
+          'img',
+          `steamuser${u.steamid}.jpg`,
         ),
       ),
     ),
@@ -181,8 +182,9 @@ export async function getFriendStatusImg(
     offlineUsers.map((u) =>
       convertImageToBase64(
         path.join(
-          rootpath,
-          `data/steam-friend-status/img/steamuser${u.steamid}.jpg`,
+          resourcePath,
+          'img',
+          `steamuser${u.steamid}.jpg`,
         ),
       ),
     ),
@@ -241,11 +243,7 @@ export async function getSteamProfileImg(
   ctx: Context,
   profileData: SteamProfile,
 ) {
-  const rootpath = ctx.baseDir;
-  const templatePath = path.join(
-    rootpath,
-    "data/steam-friend-status/html/steamProfile.html",
-  );
+  const templatePath = path.resolve(__dirname, '..', 'data', 'html', 'steamProfile.html');
   const templateSource = fs.readFileSync(templatePath, "utf8");
   const template = handlebars.compile(templateSource);
   const htmlContent = template(profileData);
@@ -289,11 +287,7 @@ export async function getGameChangeImg(
   avatarUrl: string,
   message: string,
 ) {
-  const rootpath = ctx.baseDir;
-  const templatePath = path.join(
-    rootpath,
-    "data/steam-friend-status/html/gameChange.html",
-  );
+  const templatePath = path.resolve(__dirname, '..', 'data', 'html', 'gameChange.html');
   const templateSource = fs.readFileSync(templatePath, "utf8");
   const template = handlebars.compile(templateSource);
 

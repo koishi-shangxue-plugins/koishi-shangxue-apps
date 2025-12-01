@@ -143,11 +143,11 @@ export async function unbindAll(
  * @param steamId Steam64 ID
  */
 async function downloadAvatar(ctx: Context, url: string, steamId: string) {
-  const imgpath = path.join(ctx.baseDir, `data/steam-friend-status/img`);
-  if (!fs.existsSync(imgpath)) {
-    fs.mkdirSync(imgpath, { recursive: true });
+  const resourcePath = path.join(ctx.baseDir, 'data', 'steam-friend-status', 'img');
+  if (!fs.existsSync(resourcePath)) {
+    fs.mkdirSync(resourcePath, { recursive: true });
   }
-  const filepath = path.join(imgpath, `steamuser${steamId}.jpg`);
+  const filepath = path.join(resourcePath, `steamuser${steamId}.jpg`);
   try {
     const headshot = await ctx.http.get(url, { responseType: "arraybuffer" });
     fs.writeFileSync(filepath, Buffer.from(headshot));
@@ -163,8 +163,7 @@ async function downloadAvatar(ctx: Context, url: string, steamId: string) {
  */
 async function removeAvatar(ctx: Context, steamId: string) {
   const filepath = path.join(
-    ctx.baseDir,
-    `data/steam-friend-status/img/steamuser${steamId}.jpg`,
+    ctx.baseDir, 'data', 'steam-friend-status', 'img', `steamuser${steamId}.jpg`
   );
   if (fs.existsSync(filepath)) {
     fs.unlink(filepath, (err) => {
