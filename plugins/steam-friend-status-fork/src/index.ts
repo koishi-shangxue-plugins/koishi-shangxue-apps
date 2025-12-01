@@ -1,5 +1,5 @@
 import { Context, Schema, h } from "koishi";
-import {} from "koishi-plugin-puppeteer";
+import { } from "koishi-plugin-puppeteer";
 import { SteamUser, SteamUserInfo } from "./types";
 import {
   getSteamUserInfoByDatabase,
@@ -159,7 +159,7 @@ export function apply(ctx: Context, config) {
 
   ctx
     .command(
-      "steam-friend-status/绑定steam <steamid:string> [user]",
+      "steam-friend-status.绑定steam <steamid:string> [user]",
       "绑定steam账号",
     )
     .usage("steamid参数 可以是好友码 也可以是steamID")
@@ -201,7 +201,7 @@ export function apply(ctx: Context, config) {
     });
 
   ctx
-    .command("steam-friend-status/解绑steam [user]", "解绑steam账号")
+    .command("steam-friend-status.解绑steam [user]", "解绑steam账号")
     .action(async ({ session }, user) => {
       let targetUserId = session.event.user?.id;
       if (user) {
@@ -215,13 +215,13 @@ export function apply(ctx: Context, config) {
     });
 
   ctx
-    .command("steam-friend-status/解绑全部steam", "解绑在所有群的steam账号")
+    .command("steam-friend-status.解绑全部steam", "解绑在所有群的steam账号")
     .action(async ({ session }) => {
       return await unbindAll(ctx, session);
     });
 
   ctx
-    .command("steam-friend-status/steam群报 <word:text>", "开启或关闭群通报")
+    .command("steam-friend-status.steam群报 <word:text>", "开启或关闭群通报")
     .channelFields(["usingSteam"])
     .userFields(["authority"])
     .action(async ({ session }, text) => {
@@ -243,19 +243,19 @@ export function apply(ctx: Context, config) {
           session.channel.usingSteam = false;
           return "关闭成功";
         default:
-          return "无效指令";
+          return "无效指令，请使用指令【steam-friend-status.steam群报 on】或者【steam-friend-status.steam群报 off】";
       }
     });
 
   ctx
-    .command("steam-friend-status/更新steam", "更新绑定的steam用户的头像")
+    .command("steam-friend-status.更新steam", "更新绑定的steam用户的头像")
     .action(async () => {
       await updataPlayerHeadshots(ctx, config.SteamApiKey);
       return "更新成功，可以使用 看看steam 指令来查看啦~";
     });
 
   ctx
-    .command("steam-friend-status/看看steam", "查看当前绑定过的玩家状态")
+    .command("steam-friend-status.看看steam", "查看当前绑定过的玩家状态")
     .action(async ({ session }) => {
       const { channelId, bot } = session;
       let channelName = "当前群组";
@@ -301,7 +301,7 @@ export function apply(ctx: Context, config) {
     });
 
   ctx
-    .command("steam-friend-status/steam信息", "查看自己的好友码和ID")
+    .command("steam-friend-status.steam信息", "查看自己的好友码和ID")
     .action(async ({ session }) => {
       return `你的好友码为: ${await getSelfFriendcode(ctx, session)}`;
     });

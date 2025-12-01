@@ -205,8 +205,78 @@ export async function getFriendStatusImg(
 
   await page.evaluate(
     (data) => {
-      // 页面渲染逻辑 (与原版类似，但使用传入的数据对象)
-      // ...
+      const {
+        headshotBase64,
+        botname,
+        gamingUsersBase64,
+        onlineUsersBase64,
+        offlineUsersBase64,
+        steamstatus,
+        processedGamingUsers,
+        processedOnlineUsers,
+        processedOfflineUsers,
+        showOfflineFriends,
+      } = data;
+
+      const bot = document.getElementsByClassName("bot")[0];
+      const botHeadshot = bot.querySelector("img");
+      const botName = bot.querySelector("p");
+      const gamingList = document.getElementById("ul-gaming");
+      const onlineList = document.getElementById("ul-online");
+      const offlineList = document.getElementById("ul-offline");
+      const titles = document.getElementsByClassName("title");
+
+      botHeadshot.setAttribute("src", headshotBase64);
+      botName.innerHTML = `<b>${botname}</b>`;
+
+      titles[0].innerHTML = `游戏中(${processedGamingUsers.length})`;
+      titles[1].innerHTML = `在线好友(${processedOnlineUsers.length})`;
+      if (showOfflineFriends) {
+        titles[2].innerHTML = `离线好友(${processedOfflineUsers.length})`;
+      } else {
+        const offlineGroup = titles[2].parentElement;
+        (offlineGroup as HTMLElement).style.display = "none";
+        const onlineGroup = titles[1].parentElement;
+        (onlineGroup as HTMLElement).style.borderBottom = "none";
+      }
+
+      processedGamingUsers.forEach((user, i) => {
+        const li = document.createElement("li");
+        li.setAttribute("class", "friend");
+        li.innerHTML = `
+          <img src="${gamingUsersBase64[i]}" class="headshot-online">
+          <div class="name-and-status">
+              <p class="name-gaming">${user.personaname}(${user.displayName})</p>
+              <p class="status-gaming">${user.gameextrainfo}</p>
+          </div>`;
+        gamingList.appendChild(li);
+      });
+
+      processedOnlineUsers.forEach((user, i) => {
+        const li = document.createElement("li");
+        li.setAttribute("class", "friend");
+        li.innerHTML = `
+          <img src="${onlineUsersBase64[i]}" class="headshot-online">
+          <div class="name-and-status">
+              <p class="name-online">${user.personaname}(${user.displayName})</p>
+              <p class="status-online">${steamstatus[user.personastate]}</p>
+          </div>`;
+        onlineList.appendChild(li);
+      });
+
+      if (showOfflineFriends) {
+        processedOfflineUsers.forEach((user, i) => {
+          const li = document.createElement("li");
+          li.setAttribute("class", "friend");
+          li.innerHTML = `
+            <img src="${offlineUsersBase64[i]}" class="headshot-offline">
+            <div class="name-and-status">
+                <p class="name-offline">${user.personaname}(${user.displayName})</p>
+                <p class="status-offline">${steamstatus[user.personastate]}</p>
+            </div>`;
+          offlineList.appendChild(li);
+        });
+      }
     },
     {
       headshotBase64,
