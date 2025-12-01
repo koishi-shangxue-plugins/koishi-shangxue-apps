@@ -301,11 +301,24 @@ export function apply(ctx: Context, config) {
     });
 
   ctx
-    .command("steam-friend-status.steam信息", "查看自己的好友码和ID")
-    .action(async ({ session }) => {
+    .command(
+      "steam-friend-status.steam信息 [user]",
+      "查看自己或其他用户的好友码和ID",
+    )
+    .action(async ({ session }, user) => {
+      let targetUserId = session.userId;
+      // 如果指定了用户，则解析用户ID
+      if (user) {
+        const parsedUser = h.parse(user)[0];
+        if (parsedUser?.type !== "at" || !parsedUser.attrs.id) {
+          return "无效的用户输入，请使用@用户的格式";
+        }
+        targetUserId = parsedUser.attrs.id;
+      }
+
       // 从数据库获取用户信息
       const userdata = await ctx.database.get("SteamUser", {
-        userId: session.userId,
+        userId: targetUserId,
       });
 
       // 检查用户是否绑定
@@ -316,8 +329,15 @@ export function apply(ctx: Context, config) {
       const steamID = userdata[0].steamId;
       const steamFriendCode = BigInt(steamID) - BigInt(config.steamIdOffset);
 
-      // 发送好友码文本
-      await session.send(`你的好友码为: ${steamFriendCode.toString()}`);
+      // 根据是否查询他人来构造不同的回复消息
+      if (user) {
+        await session.send([
+          h.at(targetUserId),
+          ` 的好友码为: ${steamFriendCode.toString()}`,
+        ]);
+      } else {
+        await session.send(`你的好友码为: ${steamFriendCode.toString()}`);
+      }
 
       // 获取并发送 Steam 个人主页图片
       const profileData = await getSteamProfile(ctx, steamID);
