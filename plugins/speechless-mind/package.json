@@ -15,9 +15,9 @@
     "梗图生成",
     "无语，和你说不下去，典型的_____思维"
   ],
-  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
   "bugs": {
-    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "license": "MIT",
   "peerDependencies": {

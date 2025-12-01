@@ -17,7 +17,7 @@ export const usage = `
 
 如何添加新模型？
 
-<a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/beta-dxl-bert-vits)" target="_blank">请查看README.md</a>
+<a href="https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/beta-dxl-bert-vits)" target="_blank">请查看README.md</a>
 
 ---
 `

@@ -7,7 +7,7 @@ export const usage = `
 ---
 
 
-<a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/beta-dxl-bert-vits" target="_blank">更多说明，请点我前往查看 Readme</a>
+<a href="https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/beta-dxl-bert-vits" target="_blank">更多说明，请点我前往查看 Readme</a>
 `
 
 export interface Config {

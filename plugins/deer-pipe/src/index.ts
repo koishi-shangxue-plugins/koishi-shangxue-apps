@@ -19,7 +19,7 @@ export const usage = `
 </head>
 <body>
 <h1>Deer Pipe 插件使用指南</h1>
-<h2><a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe" target="_blank">点我查看README</a></h2>
+<h2><a href="https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/deer-pipe" target="_blank">点我查看README</a></h2>
 <details>
 <summary>详细的配置项功能列表 </summary>
 <h3>签到</h3>
@@ -217,7 +217,7 @@ export const Config: Schema = Schema.intersect([
   Schema.union([
     Schema.object({
       calendarImagePreset1: Schema.const("0").required(),
-      calendarImagePath1: Schema.path().description('日历每日背景图像路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
+      calendarImagePath1: Schema.path().description('日历每日背景图像路径（请选择图片）<br>使用方法详见[readme](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
     }),
     Schema.object({
     }),
@@ -225,7 +225,7 @@ export const Config: Schema = Schema.intersect([
   Schema.union([
     Schema.object({
       calendarImagePreset2: Schema.const("0").required(),
-      calendarImagePath2: Schema.path().description('日历每日完成标志路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
+      calendarImagePath2: Schema.path().description('日历每日完成标志路径（请选择图片）<br>使用方法详见[readme](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
     }),
     Schema.object({
     }),

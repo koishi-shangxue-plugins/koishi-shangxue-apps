@@ -160,7 +160,7 @@ export const Config = Schema.intersect([
 · 特殊变量\`\${~~~}\`表示分割线，会把上下内容分为两个信息单独发送。\`\${tab}\`表示制表符。`),
       bVideoShowLink: Schema.boolean().default(false).description("在末尾显示视频的链接地址 `开启可能会导致其他bot循环解析`"),
       bVideoShowIntroductionTofixed: Schema.number().default(50).description("视频的`简介`最大的字符长度<br>超出部分会使用 `...` 代替"),
-      isfigure: Schema.boolean().default(true).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
+      isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
       filebuffer: Schema.boolean().default(true).description("是否将视频链接下载后再发送 （以解决部分onebot协议端的问题）<br>否则使用视频直链发送").experimental(),
       middleware: Schema.boolean().default(false).description("前置中间件模式"),
       userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),

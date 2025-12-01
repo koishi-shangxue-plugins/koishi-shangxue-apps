@@ -20,7 +20,7 @@
   ],
   "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/basedata",
   "bugs": {
-    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "koishi": {
     "description": {

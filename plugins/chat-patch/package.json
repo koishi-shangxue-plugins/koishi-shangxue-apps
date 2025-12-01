@@ -11,9 +11,9 @@
     "src"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/",
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/",
   "bugs": {
-    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "keywords": [
     "koishi",

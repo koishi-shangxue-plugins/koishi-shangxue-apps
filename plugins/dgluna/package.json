@@ -27,9 +27,9 @@
       "koishi-plugin-qrcode-service-null"
     ]
   },
-  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
   "bugs": {
-    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "peerDependencies": {
     "koishi": "^4.17.12",

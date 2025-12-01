@@ -16,9 +16,9 @@
     "像素化",
     "原图幻影光棱坦克"
   ],
-  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/",
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/",
   "bugs": {
-    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "license": "MIT",
   "peerDependencies": {

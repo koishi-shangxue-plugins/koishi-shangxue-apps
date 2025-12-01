@@ -19,9 +19,9 @@
     "自定义编辑",
     "图片菜单"
   ],
-  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
   "bugs": {
-    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "peerDependencies": {
     "@koishijs/plugin-console": "^5.11.0",

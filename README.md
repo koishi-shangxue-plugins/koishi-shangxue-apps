@@ -18,7 +18,7 @@
 **重要提示：**
 
 -   由于代码上传可能存在延迟，npm 上的版本可能更新。如果发现仓库代码与 npm 版本不一致，请以 npm 平台发布的版本为准。
--   发现 Bug 或有任何问题？ 欢迎[提交 Issue](https://github.com/shangxueink/koishi-shangxue-apps/issues/new/choose)！
+-   发现 Bug 或有任何问题？ 欢迎[提交 Issue](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues/new/choose)！
 -   如果你发现本项目的提交（commit）长时间未更新，这意味着作者暂停了本项目的更新，并且不再维护。请自行判断项目的使用情况。
 -   部分插件的 `package.json` 内名称包含 `@shangxueink` 的插件是我的私用插件，我不会接受关于这些插件的功能增改请求，仅接受 issue 反馈 bug。
 
@@ -47,7 +47,7 @@
 3.  **克隆本仓库** ⬇️
 
     ```shell
-    yarn clone shangxueink/koishi-shangxue-apps
+    yarn clone koishi-shangxue-plugins/koishi-shangxue-apps
     ```
 
 4.  **以开发模式启动** 🚧

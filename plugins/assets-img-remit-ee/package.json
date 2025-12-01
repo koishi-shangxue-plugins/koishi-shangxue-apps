@@ -1,45 +1,45 @@
 {
-    "name": "koishi-plugin-assets-img-remit-ee",
-    "description": "Serve assets on [img.remit.ee](https://img.remit.ee/)",
-    "version": "0.1.0",
-    "main": "lib/index.js",
-    "typings": "lib/index.d.ts",
-    "files": [
-        "lib",
-        "src"
-    ],
-    "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
-    "bugs": {
-        "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  "name": "koishi-plugin-assets-img-remit-ee",
+  "description": "Serve assets on [img.remit.ee](https://img.remit.ee/)",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "bot",
+    "chatbot",
+    "koishi",
+    "plugin",
+    "assets",
+    "img-remit-ee"
+  ],
+  "koishi": {
+    "category": "storage",
+    "description": {
+      "en": "Serve assets on [img.remit.ee](https://img.remit.ee/)",
+      "zh": "基于图床 [img.remit.ee](https://img.remit.ee/) 的资源转存服务。"
     },
-    "license": "MIT",
-    "keywords": [
-        "bot",
-        "chatbot",
-        "koishi",
-        "plugin",
-        "assets",
-        "img-remit-ee"
-    ],
-    "koishi": {
-        "category": "storage",
-        "description": {
-            "en": "Serve assets on [img.remit.ee](https://img.remit.ee/)",
-            "zh": "基于图床 [img.remit.ee](https://img.remit.ee/) 的资源转存服务。"
-        },
-        "service": {
-            "implements": [
-                "assets"
-            ]
-        }
-    },
-    "peerDependencies": {
-        "koishi": "^4.17.7"
-    },
-    "devDependencies": {
-        "koishi": "^4.17.7"
-    },
-    "dependencies": {
-        "@koishijs/assets": "^1.1.2"
+    "service": {
+      "implements": [
+        "assets"
+      ]
     }
+  },
+  "peerDependencies": {
+    "koishi": "^4.17.7"
+  },
+  "devDependencies": {
+    "koishi": "^4.17.7"
+  },
+  "dependencies": {
+    "@koishijs/assets": "^1.1.2"
+  }
 }

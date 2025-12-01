@@ -9,13 +9,13 @@
 > 普通用户 使用以下命令下载并运行 Koinix：
 
 ```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/scripts/linux/koinixTUI.sh)"
+bash -c "$(curl -L https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/scripts/linux/koinixTUI.sh)"
 ```
 
 > root用户 使用以下命令下载并运行 Koinix：
 
 ```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/scripts/linux/koinixTUI-root.sh)"
+bash -c "$(curl -L https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/scripts/linux/koinixTUI-root.sh)"
 ```
 
 
@@ -34,7 +34,7 @@ bash -c "$(curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue
 1.  **下载 Koinix**
 
     ```bash
-    curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/scripts/linux/koinixTUI.sh -o koinix.sh
+    curl -L https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/scripts/linux/koinixTUI.sh -o koinix.sh
     chmod +x koinix.sh
     ```
 
