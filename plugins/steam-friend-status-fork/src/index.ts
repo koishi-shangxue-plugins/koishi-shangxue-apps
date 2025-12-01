@@ -483,29 +483,31 @@ export function apply(ctx: Context, config) {
       // 对正在玩的游戏名称进行 trim 操作，防止因为空格导致重复播报
       const newGame = player.gameextrainfo?.trim();
       const oldGame = userData.lastPlayedGame;
+      // 同时对新旧游戏名称进行 trim 操作，确保比较的准确性
+      const trimmedOldGame = oldGame?.trim();
 
       let changeInfo: GameChangeInfo = null;
-      if (newGame && !oldGame) {
+      if (newGame && !trimmedOldGame) {
         changeInfo = {
           userId: userData.userId,
           userName,
           status: "start",
           newGame,
         };
-      } else if (newGame && oldGame && newGame !== oldGame) {
+      } else if (newGame && trimmedOldGame && newGame !== trimmedOldGame) {
         changeInfo = {
           userId: userData.userId,
           userName,
           status: "change",
-          oldGame,
+          oldGame: trimmedOldGame,
           newGame,
         };
-      } else if (!newGame && oldGame) {
+      } else if (!newGame && trimmedOldGame) {
         changeInfo = {
           userId: userData.userId,
           userName,
           status: "stop",
-          oldGame,
+          oldGame: trimmedOldGame,
         };
       }
 
