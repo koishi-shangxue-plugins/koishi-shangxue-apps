@@ -1,10 +1,11 @@
 // src/steam.ts
-import { Context } from 'koishi'
-import { SteamUserInfo, SteamUser } from './types'
+import { Context } from "koishi";
+import { SteamUserInfo, SteamUser } from "./types";
 
 // 从配置文件或默认值中获取常量
 const STEAM_ID_OFFSET = 76561197960265728;
-const STEAM_WEB_API_URL = "http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/";
+const STEAM_WEB_API_URL =
+  "http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/";
 
 /**
  * 将 Steam 好友码转换为 Steam64 ID
@@ -13,7 +14,7 @@ const STEAM_WEB_API_URL = "http://api.steampowered.com/ISteamUser/GetPlayerSumma
  */
 export function getSteamId(steamIdOrFriendCode: string): string {
   if (!/^\d+$/.test(steamIdOrFriendCode)) {
-    return '';
+    return "";
   }
   const steamId = BigInt(steamIdOrFriendCode);
   if (steamId < STEAM_ID_OFFSET) {
@@ -29,16 +30,24 @@ export function getSteamId(steamIdOrFriendCode: string): string {
  * @param steamid 用户的 Steam64 ID
  * @returns 返回包含玩家信息的 Promise
  */
-export async function getSteamUserInfo(ctx: Context, steamApiKey: string, steamid: string): Promise<SteamUserInfo> {
+export async function getSteamUserInfo(
+  ctx: Context,
+  steamApiKey: string,
+  steamid: string,
+): Promise<SteamUserInfo> {
   const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${steamid}`;
   try {
     const response = await ctx.http.get(requestUrl);
-    if (!response || !response.response || response.response.players.length === 0) {
+    if (
+      !response ||
+      !response.response ||
+      response.response.players.length === 0
+    ) {
       return undefined;
     }
     return response as SteamUserInfo;
   } catch (error) {
-    ctx.logger.error('获取 Steam 用户信息时出错:', error);
+    ctx.logger.error("获取 Steam 用户信息时出错:", error);
     return undefined;
   }
 }
@@ -50,21 +59,89 @@ export async function getSteamUserInfo(ctx: Context, steamApiKey: string, steami
  * @param steamApiKey Steam Web API Key
  * @returns 返回包含多个玩家信息的 Promise
  */
-export async function getSteamUserInfoByDatabase(ctx: Context, steamusers: SteamUser[], steamApiKey: string): Promise<SteamUserInfo | undefined> {
+export async function getSteamUserInfoByDatabase(
+  ctx: Context,
+  steamusers: SteamUser[],
+  steamApiKey: string,
+): Promise<SteamUserInfo | undefined> {
   if (!steamusers || steamusers.length === 0) {
     return undefined;
   }
   try {
-    const steamIds = steamusers.map(user => user.steamId);
-    const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${steamIds.join(',')}`;
+    const steamIds = steamusers.map((user) => user.steamId);
+    const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${steamIds.join(",")}`;
     const response = await ctx.http.get(requestUrl);
-    if (!response || !response.response || response.response.players.length === 0) {
-      ctx.logger.warn('在 API 响应中没有找到玩家数据。');
+    if (
+      !response ||
+      !response.response ||
+      response.response.players.length === 0
+    ) {
+      ctx.logger.warn("在 API 响应中没有找到玩家数据。");
       return undefined;
     }
     return response as SteamUserInfo;
   } catch (error) {
-    ctx.logger.error('批量获取 Steam 用户信息时出错:', error);
+    ctx.logger.error("批量获取 Steam 用户信息时出错:", error);
     return undefined;
+  }
+}
+import { SteamProfile } from "./types";
+
+/**
+ * 使用 Puppeteer 抓取用户的 Steam 个人主页信息
+ * @param ctx Koishi context
+ * @param steamId 用户的 Steam64 ID
+ * @returns 返回包含个人主页信息的 Promise
+ */
+export async function getSteamProfile(
+  ctx: Context,
+  steamId: string,
+): Promise<SteamProfile> {
+  const url = `https://steamcommunity.com/profiles/${steamId}`;
+  const page = await ctx.puppeteer.page();
+  try {
+    await page.goto(url);
+
+    // 等待页面加载完成
+    await page.waitForSelector(".profile_player_name");
+
+    const profile = await page.evaluate(() => {
+      const name = (
+        document.querySelector(".profile_player_name") as HTMLElement
+      )?.innerText;
+      const avatar = (
+        document.querySelector(
+          ".playerAvatarAutoSizeInner > img",
+        ) as HTMLImageElement
+      )?.src;
+      const level = (
+        document.querySelector(".friendPlayerLevelNum") as HTMLElement
+      )?.innerText;
+      const status = (
+        document.querySelector(".profile_in_game_header") as HTMLElement
+      )?.innerText;
+
+      const recentGames = Array.from(
+        document.querySelectorAll(".game_info"),
+      ).map((game) => {
+        const gameName = (game.querySelector(".game_name a") as HTMLElement)
+          ?.innerText;
+        const hours = (game.querySelector(".game_hours") as HTMLElement)
+          ?.innerText;
+        const img = (
+          game.querySelector(".game_capsule img") as HTMLImageElement
+        )?.src;
+        return { name: gameName, hours, img };
+      });
+
+      return { name, avatar, level, status, recentGames };
+    });
+
+    return profile;
+  } catch (error) {
+    ctx.logger.error(`抓取 Steam 个人主页失败 (SteamID: ${steamId}):`, error);
+    return null;
+  } finally {
+    await page.close();
   }
 }

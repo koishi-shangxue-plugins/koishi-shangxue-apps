@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Profile</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            width: 350px;
+            background-color: #1b2838;
+            color: #c7d5e0;
+        }
+        .profile-card {
+            background-color: #171a21;
+            padding: 15px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+        }
+        .avatar {
+            width: 84px;
+            height: 84px;
+            border: 2px solid #4b619b;
+        }
+        .info {
+            margin-left: 15px;
+        }
+        .name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        .level {
+            font-size: 18px;
+            color: #4b619b;
+        }
+        .status {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .recent-games {
+            margin-top: 15px;
+        }
+        .game {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            background-color: #2a475e;
+            padding: 5px;
+        }
+        .game-img {
+            width: 120px;
+            height: 45px;
+        }
+        .game-info {
+            margin-left: 10px;
+        }
+        .game-name {
+            font-size: 14px;
+        }
+        .game-hours {
+            font-size: 12px;
+            color: #8f98a0;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-card">
+        <div class="header">
+            <img class="avatar" src="{{avatar}}">
+            <div class="info">
+                <div class="name">{{name}}</div>
+                <div class="level">等级: {{level}}</div>
+                <div class="status">{{status}}</div>
+            </div>
+        </div>
+        <div class="recent-games">
+            <h3>最近玩过的游戏</h3>
+            {{#each recentGames}}
+            <div class="game">
+                <img class="game-img" src="{{this.img}}">
+                <div class="game-info">
+                    <div class="game-name">{{this.name}}</div>
+                    <div class="game-hours">{{this.hours}}</div>
+                </div>
+            </div>
+            {{/each}}
+        </div>
+    </div>
+</body>
+</html>

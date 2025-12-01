@@ -23,5 +23,8 @@
   ],
   "peerDependencies": {
     "koishi": "^4.17.1"
+  },
+  "devDependencies": {
+    "@types/handlebars": "^4.0.40"
   }
 }

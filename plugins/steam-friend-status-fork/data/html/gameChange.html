@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Change Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            width: 300px;
+            background-color: #1b2838;
+            color: #c7d5e0;
+            padding: 10px;
+        }
+        .card {
+            display: flex;
+            align-items: center;
+            background-color: #171a21;
+        }
+        .avatar {
+            width: 64px;
+            height: 64px;
+        }
+        .info {
+            margin-left: 10px;
+        }
+        .message {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img class="avatar" src="{{avatar}}">
+        <div class="info">
+            <div class="message">{{message}}</div>
+        </div>
+    </div>
+</body>
+</html>
