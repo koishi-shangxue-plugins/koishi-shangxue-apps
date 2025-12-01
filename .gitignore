@@ -29,3 +29,4 @@ tsconfig.tsbuildinfo
 *.njsproj
 *.sln
 plugins/*/tsconfig.tsbuildinfo
+plugins/*/node_modules/*
