@@ -480,7 +480,8 @@ export function apply(ctx: Context, config) {
       }
 
       const userName = usingSteamName ? player.personaname : userData.userName;
-      const newGame = player.gameextrainfo;
+      // 对正在玩的游戏名称进行 trim 操作，防止因为空格导致重复播报
+      const newGame = player.gameextrainfo?.trim();
       const oldGame = userData.lastPlayedGame;
 
       let changeInfo: GameChangeInfo = null;

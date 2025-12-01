@@ -115,7 +115,18 @@ export async function getFriendStatusImg(
       return `data:image/jpeg;base64,${data.toString("base64")}`;
     } catch {
       // 如果图片不存在，返回一个默认的占位图
-      return `data:image/jpeg;base64,...`; // 省略默认图片数据
+      const unknownAvatarPath = path.resolve(
+        __dirname,
+        "..",
+        "data",
+        "res",
+        "unknown_avatar.jpg",
+      );
+      const unknownAvatarBase64 = fs.readFileSync(
+        unknownAvatarPath,
+        "base64",
+      );
+      return `data:image/jpeg;base64,${unknownAvatarBase64}`;
     }
   };
 
@@ -315,8 +326,22 @@ export async function getSteamProfileImg(
   const templatePath = path.resolve(__dirname, '..', 'data', 'html', 'steamProfile.html');
   let htmlContent = fs.readFileSync(templatePath, "utf8");
 
+  // 读取背景图片并转换为 Base64
+  const backgroundPath = path.resolve(
+    __dirname,
+    "..",
+    "data",
+    "res",
+    "bg_dots.png",
+  );
+  const backgroundBase64 = fs.readFileSync(backgroundPath, "base64");
+
   // 替换基础信息
   htmlContent = htmlContent
+    .replace(
+      "{{background}}",
+      `data:image/png;base64,${backgroundBase64}`,
+    )
     .replace("{{avatar}}", profileData.avatar)
     .replace("{{name}}", profileData.name)
     .replace("{{level}}", profileData.level)
@@ -412,6 +437,16 @@ export async function getGameChangeImg(
     avatarBase64 = `data:image/jpeg;base64,${Buffer.from(avatarBuffer).toString("base64")}`;
   } catch (error) {
     ctx.logger.error("下载播报头像失败:", error);
+    // 使用本地未知头像作为备选
+    const unknownAvatarPath = path.resolve(
+      __dirname,
+      "..",
+      "data",
+      "res",
+      "unknown_avatar.jpg",
+    );
+    const unknownAvatarBase64 = fs.readFileSync(unknownAvatarPath, "base64");
+    avatarBase64 = `data:image/jpeg;base64,${unknownAvatarBase64}`;
   }
 
   // 2. 根据状态确定文本和样式
@@ -434,7 +469,19 @@ export async function getGameChangeImg(
   }
 
   // 3. 替换模板中的占位符
+  const backgroundPath = path.resolve(
+    __dirname,
+    "..",
+    "data",
+    "res",
+    "gaming.png",
+  );
+  const backgroundBase64 = fs.readFileSync(backgroundPath, "base64");
   htmlContent = htmlContent
+    .replace(
+      "{{background}}",
+      `data:image/png;base64,${backgroundBase64}`,
+    )
     .replace("{{avatar}}", avatarBase64)
     .replace("{{statusClass}}", statusClass)
     .replace("{{username}}", changeInfo.userName)
