@@ -10,7 +10,13 @@ export const inject = {
 
 export interface Config { }
 
-export const Config: Schema<Config> = Schema.object({})
+export const Config: Schema<Config> = Schema.object({
+  value2: Schema.union([
+    Schema.const('foo').description('选项 1'),
+    Schema.const('bar').description('选项 2'),
+    Schema.const('baz').description('选项 3'),
+  ]).role('radio'),
+})
 
 export function apply(ctx: Context) {
   // write your plugin here
@@ -372,11 +378,22 @@ export function apply(ctx: Context) {
   command
     .subcommand('.文本')
     .action(async ({ session }) => {
-      const aaa = h("任意不存在的名称", "    bb   bb        " + "   ")
+      const aaa = h.text("123")
       ctx.logger.info(aaa)
       await session.send(aaa)
       return
     })
+
+    .action(async ({ session }) => {
+      const aaa = h.text("456")
+      ctx.logger.info(aaa)
+      await session.send(aaa)
+      return
+    })
+
+
+
+
 
   command
     .subcommand('.消息 [type]')
