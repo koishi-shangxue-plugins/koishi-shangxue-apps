@@ -78,15 +78,7 @@
         </div>
         <div class="recent-games">
             <h3>最近玩过的游戏</h3>
-            {{#each recentGames}}
-            <div class="game">
-                <img class="game-img" src="{{this.img}}">
-                <div class="game-info">
-                    <div class="game-name">{{this.name}}</div>
-                    <div class="game-hours">{{this.hours}}</div>
-                </div>
-            </div>
-            {{/each}}
+            {{recentGames}}
         </div>
     </div>
 </body>

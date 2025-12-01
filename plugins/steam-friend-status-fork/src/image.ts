@@ -231,10 +231,9 @@ export async function getFriendStatusImg(
   return h.image(image, "image/png");
 }
 import { SteamProfile } from "./types";
-import * as handlebars from "handlebars";
 
 /**
- * 使用 Puppeteer 和 Handlebars 生成 Steam 个人主页图片
+ * 使用 Puppeteer 和字符串替换生成 Steam 个人主页图片
  * @param ctx Koishi context
  * @param profileData 从 Steam 个人主页抓取的数据
  * @returns 返回一个 h.image 元素
@@ -244,9 +243,27 @@ export async function getSteamProfileImg(
   profileData: SteamProfile,
 ) {
   const templatePath = path.resolve(__dirname, '..', 'data', 'html', 'steamProfile.html');
-  const templateSource = fs.readFileSync(templatePath, "utf8");
-  const template = handlebars.compile(templateSource);
-  const htmlContent = template(profileData);
+  let htmlContent = fs.readFileSync(templatePath, "utf8");
+
+  htmlContent = htmlContent
+    .replace('{{avatar}}', profileData.avatar)
+    .replace('{{name}}', profileData.name)
+    .replace('{{level}}', profileData.level)
+    .replace('{{status}}', profileData.status);
+
+  let gamesHtml = '';
+  if (profileData.recentGames) {
+    for (const game of profileData.recentGames) {
+      gamesHtml += `<div class="game">
+        <img class="game-img" src="${game.img}">
+        <div class="game-info">
+            <div class="game-name">${game.name}</div>
+            <div class="game-hours">${game.hours}</div>
+        </div>
+      </div>`;
+    }
+  }
+  htmlContent = htmlContent.replace('{{recentGames}}', gamesHtml);
 
   const page = await ctx.puppeteer.page();
   await page.setContent(htmlContent);
@@ -288,8 +305,7 @@ export async function getGameChangeImg(
   message: string,
 ) {
   const templatePath = path.resolve(__dirname, '..', 'data', 'html', 'gameChange.html');
-  const templateSource = fs.readFileSync(templatePath, "utf8");
-  const template = handlebars.compile(templateSource);
+  let htmlContent = fs.readFileSync(templatePath, "utf8");
 
   // 将头像图片转换为Base64
   let avatarBase64 = "";
@@ -303,7 +319,9 @@ export async function getGameChangeImg(
     // 可以设置一个默认头像
   }
 
-  const htmlContent = template({ avatar: avatarBase64, message });
+  htmlContent = htmlContent
+    .replace('{{avatar}}', avatarBase64)
+    .replace('{{message}}', message);
 
   const page = await ctx.puppeteer.page();
   await page.setContent(htmlContent);

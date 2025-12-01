@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-steam-friend-status-fork",
   "description": "查询群友steam状态。修改自 `koishi-plugin-steam-friend-status`",
-  "version": "0.0.40",
+  "version": "0.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -23,8 +23,5 @@
   ],
   "peerDependencies": {
     "koishi": "^4.17.1"
-  },
-  "devDependencies": {
-    "@types/handlebars": "^4.0.40"
   }
 }
