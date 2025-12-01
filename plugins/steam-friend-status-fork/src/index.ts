@@ -375,7 +375,7 @@ export function apply(ctx: Context, config) {
     });
 
     for (const channel of channels) {
-      const groupMessage: (string | h)[] = [];
+      const groupMessage: GameChangeInfo[] = [];
       for (const user of allUserData) {
         if (
           user.effectGroups.includes(channel.id) &&
@@ -388,26 +388,28 @@ export function apply(ctx: Context, config) {
       if (groupMessage.length > 0) {
         const bot = ctx.bots[`${channel.platform}:${channel.assignee}`];
         if (bot) {
-          for (const msg of groupMessage) {
-            if (typeof msg === "string") {
-              const userId = Object.keys(changeMessage).find(
-                (key) => changeMessage[key] === msg,
+          for (const changeInfo of groupMessage) {
+            const user = allUserData.find((u) => u.userId === changeInfo.userId);
+            if (user) {
+              const playerInfo = userdata.response.players.find(
+                (p) => p.steamid === user.steamId,
               );
-              const user = allUserData.find((u) => u.userId === userId);
-              if (user) {
-                const playerInfo = userdata.response.players.find(
-                  (p) => p.steamid === user.steamId,
-                );
-                if (playerInfo && config.broadcastWithImage) {
-                  const image = await getGameChangeImg(
-                    ctx,
-                    playerInfo.avatarmedium,
-                    msg,
-                  );
-                  await bot.sendMessage(channel.id, [h.text(msg), image]);
-                } else {
-                  await bot.sendMessage(channel.id, msg);
-                }
+
+              // 重新构建文本消息
+              let textMessage = "";
+              if (changeInfo.status === "start") {
+                textMessage = `${changeInfo.userName} 开始玩 ${changeInfo.newGame} 了`;
+              } else if (changeInfo.status === "stop") {
+                textMessage = `${changeInfo.userName} 不玩 ${changeInfo.oldGame} 了`;
+              } else if (changeInfo.status === "change") {
+                textMessage = `${changeInfo.userName} 不玩 ${changeInfo.oldGame} 了，开始玩 ${changeInfo.newGame} 了`;
+              }
+
+              if (playerInfo && config.broadcastWithImage) {
+                const image = await getGameChangeImg(ctx, playerInfo, changeInfo);
+                await bot.sendMessage(channel.id, [h.text(textMessage), image]);
+              } else {
+                await bot.sendMessage(channel.id, textMessage);
               }
             }
           }
@@ -446,13 +448,23 @@ export function apply(ctx: Context, config) {
   }
 
   // 检查玩家状态是否变化
+  // 定义游戏状态变化的数据结构
+  interface GameChangeInfo {
+    userId: string;
+    userName: string;
+    status: "start" | "stop" | "change";
+    oldGame?: string;
+    newGame?: string;
+  }
+
+  // 检查玩家状态是否变化，返回结构化数据
   async function getUserStatusChanged(
     ctx: Context,
     steamUserInfo: SteamUserInfo,
     usingSteamName: boolean,
-  ): Promise<{ [key: string]: string }> {
+  ): Promise<{ [key: string]: GameChangeInfo }> {
     if (!steamUserInfo) return {};
-    const msgArray: { [key: string]: string } = {};
+    const changes: { [key: string]: GameChangeInfo } = {};
     for (const player of steamUserInfo.response.players) {
       const userData = (
         await ctx.database.get("SteamUser", { steamId: player.steamid })
@@ -471,21 +483,42 @@ export function apply(ctx: Context, config) {
       const newGame = player.gameextrainfo;
       const oldGame = userData.lastPlayedGame;
 
+      let changeInfo: GameChangeInfo = null;
       if (newGame && !oldGame) {
-        msgArray[userData.userId] = `${userName} 开始玩 ${newGame} 了\n`;
+        changeInfo = {
+          userId: userData.userId,
+          userName,
+          status: "start",
+          newGame,
+        };
       } else if (newGame && oldGame && newGame !== oldGame) {
-        msgArray[userData.userId] =
-          `${userName} 不玩 ${oldGame} 了，开始玩 ${newGame} 了\n`;
+        changeInfo = {
+          userId: userData.userId,
+          userName,
+          status: "change",
+          oldGame,
+          newGame,
+        };
       } else if (!newGame && oldGame) {
-        msgArray[userData.userId] = `${userName} 不玩 ${oldGame} 了\n`;
+        changeInfo = {
+          userId: userData.userId,
+          userName,
+          status: "stop",
+          oldGame,
+        };
       }
+
+      if (changeInfo) {
+        changes[userData.userId] = changeInfo;
+      }
+
       await ctx.database.set(
         "SteamUser",
         { steamId: userData.steamId },
         { lastPlayedGame: newGame || "" },
       );
     }
-    return msgArray;
+    return changes;
   }
 
   // 日志记录

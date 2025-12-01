@@ -374,30 +374,74 @@ export async function getSteamProfileImg(
  * @param message 播报消息
  * @returns 返回一个 h.image 元素
  */
+// 定义传入的数据结构，与 index.ts 中保持一致
+interface GameChangeInfo {
+  userName: string;
+  status: "start" | "stop" | "change";
+  oldGame?: string;
+  newGame?: string;
+}
+
+/**
+ * 生成游戏状态变化播报的图片 (新版)
+ * @param ctx Koishi context
+ * @param playerInfo 玩家的 Steam 信息
+ * @param changeInfo 游戏状态变化信息
+ * @returns 返回一个 h.image 元素
+ */
 export async function getGameChangeImg(
   ctx: Context,
-  avatarUrl: string,
-  message: string,
+  playerInfo: SteamUserInfo["response"]["players"][0],
+  changeInfo: GameChangeInfo,
 ) {
-  const templatePath = path.resolve(__dirname, '..', 'data', 'html', 'gameChange.html');
+  const templatePath = path.resolve(
+    __dirname,
+    "..",
+    "data",
+    "html",
+    "gameChange.html",
+  );
   let htmlContent = fs.readFileSync(templatePath, "utf8");
 
-  // 将头像图片转换为Base64
+  // 1. 获取头像并转换为 Base64
   let avatarBase64 = "";
   try {
-    const avatarBuffer = await ctx.http.get(avatarUrl, {
+    const avatarBuffer = await ctx.http.get(playerInfo.avatarmedium, {
       responseType: "arraybuffer",
     });
     avatarBase64 = `data:image/jpeg;base64,${Buffer.from(avatarBuffer).toString("base64")}`;
   } catch (error) {
     ctx.logger.error("下载播报头像失败:", error);
-    // 可以设置一个默认头像
   }
 
-  htmlContent = htmlContent
-    .replace('{{avatar}}', avatarBase64)
-    .replace('{{message}}', message);
+  // 2. 根据状态确定文本和样式
+  let statusText = "";
+  let gameName = "";
+  let statusClass = "ingame"; // 默认为游戏中
 
+  if (changeInfo.status === "start") {
+    statusText = "正在玩";
+    gameName = changeInfo.newGame;
+    statusClass = "ingame";
+  } else if (changeInfo.status === "stop") {
+    statusText = "停止玩";
+    gameName = changeInfo.oldGame;
+    statusClass = "online"; // 停止玩游戏后，状态可视为普通在线
+  } else if (changeInfo.status === "change") {
+    statusText = "现在玩";
+    gameName = changeInfo.newGame;
+    statusClass = "ingame";
+  }
+
+  // 3. 替换模板中的占位符
+  htmlContent = htmlContent
+    .replace("{{avatar}}", avatarBase64)
+    .replace("{{statusClass}}", statusClass)
+    .replace("{{username}}", changeInfo.userName)
+    .replace("{{statusText}}", statusText)
+    .replace("{{gameName}}", gameName);
+
+  // 4. 使用 Puppeteer 截图
   const page = await ctx.puppeteer.page();
   await page.setContent(htmlContent);
 
@@ -410,18 +454,20 @@ export async function getGameChangeImg(
 
   if (!clip) {
     await page.close();
-    return "无法生成播报图片。";
+    return "无法生成播-报图片。";
   }
 
   await page.setViewport({
     width: Math.ceil(clip.width),
     height: Math.ceil(clip.height),
   });
+
   const image = await page.screenshot({
     clip,
     type: "png",
     encoding: "binary",
   });
+
   await page.close();
   return h.image(image, "image/png");
 }

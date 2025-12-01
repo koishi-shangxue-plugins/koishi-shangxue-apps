@@ -1,40 +1,93 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Change Notification</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            width: 300px;
-            background-color: #1b2838;
-            color: #c7d5e0;
-            padding: 10px;
-        }
-        .card {
-            display: flex;
-            align-items: center;
-            background-color: #171a21;
-        }
-        .avatar {
-            width: 64px;
-            height: 64px;
-        }
-        .info {
-            margin-left: 10px;
-        }
-        .message {
-            font-size: 14px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: "Noto Sans SC", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+    }
+
+    .card {
+      display: inline-flex;
+      align-items: center;
+      background-color: #1e252b;
+      padding: 10px;
+      border-radius: 4px;
+      width: 300px;
+      box-sizing: border-box;
+    }
+
+    .avatar-container {
+      position: relative;
+      margin-right: 10px;
+    }
+
+    .avatar {
+      width: 48px;
+      height: 48px;
+      vertical-align: middle;
+    }
+
+    .status-border {
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      width: 50px;
+      height: 50px;
+      border: 2px solid;
+      box-sizing: border-box;
+    }
+
+    .status-border.online {
+      border-color: #57cbde;
+    }
+
+    .status-border.ingame {
+      border-color: #90b93b;
+    }
+
+    .info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      color: #c1c6cf;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .username {
+      color: #57cbde;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .game-info {
+      color: #90b93b;
+      font-weight: 500;
+    }
+  </style>
 </head>
+
 <body>
-    <div class="card">
-        <img class="avatar" src="{{avatar}}">
-        <div class="info">
-            <div class="message">{{message}}</div>
-        </div>
+  <div class="card">
+    <div class="avatar-container">
+      <img class="avatar" src="{{avatar}}" />
+      <div class="status-border {{statusClass}}"></div>
     </div>
+    <div class="info">
+      <div class="username">{{username}}</div>
+      <div>
+        {{statusText}}
+        <span class="game-info">{{gameName}}</span>
+      </div>
+    </div>
+  </div>
 </body>
+
 </html>
