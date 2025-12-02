@@ -38,9 +38,11 @@ export interface Dialogue {
 
 export interface Config {
   prepositionMiddleware: boolean
+  useStrippedContent: boolean
 }
 
 export const Config: Schema<Config> = Schema.object({
+  useStrippedContent: Schema.boolean().default(true).description('使用净化后的消息匹配输入<br>开启后，将使用 `session.stripped.content` 进行匹配，可以忽略 at 前缀。'),
   prepositionMiddleware: Schema.boolean().default(false).description('前置中间件模式<br>开启后，本插件 将优先于`其他中间件`执行。'),
 })
 
@@ -108,12 +110,16 @@ export function apply(ctx: Context, config: Config) {
         return false
       })
 
-      if (!applicableDialogues.length) return next()
+      if (!applicableDialogues.length) { return next() }
+
+      // 根据配置决定使用哪种消息内容
+      const contentToMatch = config.useStrippedContent ? session.stripped.content : session.content
+      if (!contentToMatch) { return next() }
 
       for (const dialogue of applicableDialogues) {
         const match = dialogue.type === 'regexp'
-          ? new RegExp(dialogue.question).exec(session.content)
-          : session.content === dialogue.question
+          ? new RegExp(dialogue.question).exec(contentToMatch)
+          : contentToMatch === dialogue.question
 
         if (match) {
           // 解析并发送回复
