@@ -19,7 +19,7 @@ export function useDialogLogic() {
   // 从后端获取数据
   const fetchDialogues = async () => {
     try {
-      dialogues.value = await send('dialogue/list')
+      dialogues.value = await (send as any)('dialogue/list') as any
     } catch (error) {
       console.error('获取问答列表失败:', error)
     }
@@ -59,9 +59,9 @@ export function useDialogLogic() {
 
     try {
       if (isEditMode.value) {
-        await send('dialogue/update', currentDialogue)
+        await (send as any)('dialogue/update', currentDialogue)
       } else {
-        await send('dialogue/create', currentDialogue)
+        await (send as any)('dialogue/create', currentDialogue)
       }
       showModal.value = false
       await fetchDialogues()
@@ -76,7 +76,7 @@ export function useDialogLogic() {
     // 使用 window.confirm 进行二次确认
     if (window.confirm('确定要删除这条问答吗？')) {
       try {
-        await send('dialogue/delete', id)
+        await (send as any)('dialogue/delete', id)
         // 如果是在编辑模态框中删除，需要关闭模态框
         if (showModal.value && isEditMode.value && currentDialogue.id === id) {
           showModal.value = false
