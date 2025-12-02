@@ -6,7 +6,7 @@ import './icons'
 
 export default (ctx: Context) => {
   ctx.page({
-    name: '问答设置',
+    name: 'dialogue-webui',
     path: '/dialogue-webui',
     icon: 'activity:dialogue',
     component: defineComponent({
