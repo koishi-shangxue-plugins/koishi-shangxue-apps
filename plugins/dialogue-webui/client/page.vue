@@ -21,8 +21,8 @@
         <div v-for="dialogue in dialogues" :key="dialogue.id" class="table-row">
           <div class="table-cell" style="flex: 1.5;" :title="dialogue.question">{{ dialogue.question }}</div>
           <div class="table-cell" style="flex: 2;" :title="dialogue.answer">{{ dialogue.answer }}</div>
-          <div class="table-cell" style="flex: 1;">{{ dialogue.type }}</div>
-          <div class="table-cell" style="flex: 1;">{{ dialogue.scope }}</div>
+          <div class="table-cell" style="flex: 1;">{{ getTypeLabel(dialogue.type) }}</div>
+          <div class="table-cell" style="flex: 1;">{{ getScopeLabel(dialogue.scope) }}</div>
           <div class="table-cell actions" style="flex: 0 0 180px;">
             <button class="k-button primary small" @click="openEditModal(dialogue)">编辑</button>
             <button class="k-button danger small" @click="handleDelete(dialogue.id)">删除</button>
@@ -117,6 +117,10 @@ const scopeOptions = [
   { label: '群组', value: 'group' },
   { label: '私聊', value: 'private' },
 ]
+
+// 将英文值映射到中文标签的辅助函数
+const getTypeLabel = (value: string) => typeOptions.find(o => o.value === value)?.label || value
+const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === value)?.label || value
 
 // 为每个下拉框独立管理状态
 const isTypeDropdownOpen = ref(false)
