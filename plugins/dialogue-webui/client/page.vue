@@ -32,7 +32,7 @@
     </div>
 
     <!-- 手动构建的模态框 -->
-    <div v-if="showModal" class="modal-backdrop" @click.self="closeAllDropdowns(); showModal = false">
+    <div v-if="showModal" class="modal-backdrop" @click.self="showModal = false">
       <div class="modal-panel">
         <div class="modal-header">
           <h3>{{ isEditMode ? '编辑问答' : '添加新问答' }}</h3>
@@ -48,37 +48,25 @@
               placeholder="你好，{{session.username}}！试试 {{h.image('https://... Taffy.png')}}" :rows="5"></textarea>
           </div>
 
-          <!-- 类型选择框 (内联实现) -->
+          <!-- 类型选择 -->
           <div class="form-item">
             <label>类型</label>
-            <div class="custom-select">
-              <div class="select-trigger" @click="toggleTypeDropdown">
-                <span>{{ selectedTypeLabel }}</span>
-                <span class="arrow" :class="{ open: isTypeDropdownOpen }"></span>
-              </div>
-              <div v-if="isTypeDropdownOpen" class="select-options">
-                <div v-for="option in typeOptions" :key="option.value" class="select-option"
-                  :class="{ selected: option.value === currentDialogue.type }" @click="selectType(option.value)">
-                  {{ option.label }}
-                </div>
-              </div>
+            <div class="radio-group">
+              <label v-for="option in typeOptions" :key="option.value" class="radio-label">
+                <input type="radio" :value="option.value" v-model="currentDialogue.type" class="radio-input">
+                <span class="radio-button">{{ option.label }}</span>
+              </label>
             </div>
           </div>
 
-          <!-- 范围选择框 (内联实现) -->
+          <!-- 范围选择 -->
           <div class="form-item">
             <label>范围</label>
-            <div class="custom-select">
-              <div class="select-trigger" @click="toggleScopeDropdown">
-                <span>{{ selectedScopeLabel }}</span>
-                <span class="arrow" :class="{ open: isScopeDropdownOpen }"></span>
-              </div>
-              <div v-if="isScopeDropdownOpen" class="select-options">
-                <div v-for="option in scopeOptions" :key="option.value" class="select-option"
-                  :class="{ selected: option.value === currentDialogue.scope }" @click="selectScope(option.value)">
-                  {{ option.label }}
-                </div>
-              </div>
+            <div class="radio-group">
+              <label v-for="option in scopeOptions" :key="option.value" class="radio-label">
+                <input type="radio" :value="option.value" v-model="currentDialogue.scope" class="radio-input">
+                <span class="radio-button">{{ option.label }}</span>
+              </label>
             </div>
           </div>
 
@@ -135,39 +123,6 @@ const scopeOptions = [
 const getTypeLabel = (value: string) => typeOptions.find(o => o.value === value)?.label || value
 const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === value)?.label || value
 
-// 为每个下拉框独立管理状态
-const isTypeDropdownOpen = ref(false)
-const isScopeDropdownOpen = ref(false)
-
-// 计算属性，用于显示当前选中的标签
-const selectedTypeLabel = computed(() => typeOptions.find(o => o.value === currentDialogue.type)?.label || '请选择')
-const selectedScopeLabel = computed(() => scopeOptions.find(o => o.value === currentDialogue.scope)?.label || '请选择')
-
-// 关闭所有下拉框的辅助函数
-const closeAllDropdowns = () => {
-  isTypeDropdownOpen.value = false
-  isScopeDropdownOpen.value = false
-}
-
-// 类型下拉框的控制函数
-const toggleTypeDropdown = () => {
-  isScopeDropdownOpen.value = false // 打开一个时关闭另一个
-  isTypeDropdownOpen.value = !isTypeDropdownOpen.value
-}
-const selectType = (value: string) => {
-  currentDialogue.type = value as 'keyword' | 'regexp'
-  isTypeDropdownOpen.value = false
-}
-
-// 范围下拉框的控制函数
-const toggleScopeDropdown = () => {
-  isTypeDropdownOpen.value = false // 打开一个时关闭另一个
-  isScopeDropdownOpen.value = !isScopeDropdownOpen.value
-}
-const selectScope = (value: string) => {
-  currentDialogue.scope = value as 'global' | 'group' | 'private'
-  isScopeDropdownOpen.value = false
-}
 
 </script>
 
@@ -242,7 +197,10 @@ const selectScope = (value: string) => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
+  /* 使用半透明背景和模糊效果实现磨砂蒙版，适配亮暗主题 */
+  background-color: rgba(var(--k-color-bg-rgb), 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -250,18 +208,15 @@ const selectScope = (value: string) => {
 }
 
 .modal-panel {
-  background-color: rgba(54, 58, 69, 0.85);
-  /* 半透明背景 */
-  backdrop-filter: blur(8px);
-  /* 模糊效果 */
-  -webkit-backdrop-filter: blur(8px);
+  /* 使用 Koishi 变量确保在不同主题下都具有正确的背景和边框颜色 */
+  background-color: var(--k-color-bg-card);
+  border: 1px solid var(--k-color-border);
   border-radius: 8px;
   padding: 1.5rem;
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  /* 添加一个细微的边框以增强立体感 */
+  /* 使用 Koishi 阴影变量，提供更统一的视觉效果 */
+  box-shadow: var(--k-shadow-2, 0 5px 15px rgba(0, 0, 0, 0.2));
 }
 
 .modal-header h3 {
@@ -347,79 +302,45 @@ textarea.k-input {
   font-family: inherit;
 }
 
-/* 自定义下拉选择框样式 */
-.custom-select {
-  position: relative;
-  width: 100%;
+/* 单选按钮组样式 */
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.select-trigger {
-  width: 100%;
-  padding: 0.5rem;
+.radio-label {
+  position: relative;
+}
+
+.radio-input {
+  /* 隐藏原生 radio 按钮 */
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.radio-button {
+  display: block;
+  padding: 0.5rem 1rem;
   border: 1px solid var(--k-color-border);
   border-radius: 4px;
   background-color: var(--k-color-bg);
   color: var(--k-color-text);
   cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  transition: all 0.2s;
 }
 
-.arrow {
-  border: solid var(--k-color-text);
-  border-width: 0 2px 2px 0;
-  display: inline-block;
-  padding: 3px;
-  transform: rotate(45deg);
-  transition: transform 0.2s;
+.radio-input:checked+.radio-button {
+  /* 选中状态 */
+  background-color: var(--k-color-primary);
+  color: white;
+  border-color: var(--k-color-primary);
 }
 
-.arrow.open {
-  transform: rotate(-135deg);
-}
-
-.select-options {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  /* 半透明背景和模糊效果，实现“毛玻璃”质感 */
-  background-color: rgba(44, 48, 59, 0.85);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border: 1px solid var(--k-color-border);
-  border-radius: 4px;
-  margin-top: 0.25rem;
-  z-index: 1010;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.select-option {
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  position: relative;
-  padding-left: 2.25rem;
-  /* 为勾选标记留出空间 */
-  display: flex;
-  align-items: center;
-}
-
-.select-option.selected {
-  font-weight: 600;
-  color: var(--k-color-primary);
-}
-
-.select-option.selected::before {
-  content: '✓';
-  position: absolute;
-  left: 0.75rem;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.select-option:hover {
-  background-color: var(--k-color-bg-hover);
+.radio-input:focus+.radio-button {
+  /* 焦点状态，用于可访问性 */
+  box-shadow: 0 0 0 2px var(--k-color-primary-light);
 }
 </style>
