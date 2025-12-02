@@ -1,0 +1,27 @@
+{
+  "name": "koishi-plugin-dialogue-webui",
+  "description": "dialogue-webui",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist",
+    "src",
+    "client"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "dialogue-webui"
+  ],
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
+  },
+  "peerDependencies": {
+    "koishi": "4.18.9"
+  }
+}
