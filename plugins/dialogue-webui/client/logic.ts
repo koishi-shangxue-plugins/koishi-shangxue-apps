@@ -1,90 +1,67 @@
 import { ref, reactive, onMounted } from 'vue'
-import { Context } from '@koishijs/client'
-
-// 我们将在 hook 内部获取 client 实例，以确保 Koishi 环境已准备就绪
+import { send } from '@koishijs/client'
 
 // 定义数据结构
 export interface Dialogue {
   id: number
-  keyword: string
+  question: string
   answer: string
-  isRegex: boolean
-  channelId: string
-  isGlobal: boolean
+  type: 'keyword' | 'regexp'
+  scope: 'global' | 'group' | 'private'
 }
 
-// 封装所有业务逻辑的自定义 Hook
 export function useDialogLogic() {
-  // 在 hook 函数内部获取 client 实例
-  const client: Context = window.KOISHI_CLIENT
-
+  // State
   const dialogues = ref<Dialogue[]>([])
   const showModal = ref(false)
-  const isEditing = ref(false)
-
-  const editingItem = reactive<Partial<Dialogue>>({
-    id: undefined,
-    keyword: '',
+  const isEditMode = ref(false)
+  const currentDialogue = reactive<Partial<Dialogue>>({
+    id: null,
+    question: '',
     answer: '',
-    isRegex: false,
-    isGlobal: false,
-    channelId: '',
+    type: 'keyword',
+    scope: 'global',
   })
 
-  // 获取所有问答
+  // 从后端获取数据
   const fetchDialogues = async () => {
     try {
-      const response = await client.http.get('/dialogue/list')
-      if (response.data.success) {
-        dialogues.value = response.data.data
-      }
+      dialogues.value = await send('dialogue/list')
     } catch (error) {
       console.error('获取问答列表失败:', error)
     }
   }
 
-  // 组件挂载时获取数据
+  // onMounted - 确保在组件挂载后执行
   onMounted(fetchDialogues)
 
-  // 打开添加模态框
+  // 打开“添加”模态框
   const openAddModal = () => {
-    isEditing.value = false
-    Object.assign(editingItem, {
-      id: undefined,
-      keyword: '',
+    isEditMode.value = false
+    Object.assign(currentDialogue, {
+      id: null,
+      question: '',
       answer: '',
-      isRegex: false,
-      isGlobal: false,
+      type: 'keyword',
+      scope: 'global',
     })
     showModal.value = true
   }
 
-  // 打开编辑模态框
-  const openEditModal = (item: Dialogue) => {
-    isEditing.value = true
-    Object.assign(editingItem, item)
+  // 打开“编辑”模态框
+  const openEditModal = (dialogue: Dialogue) => {
+    isEditMode.value = true
+    Object.assign(currentDialogue, dialogue)
     showModal.value = true
   }
 
-  // 处理删除
-  const handleDelete = async (id: number) => {
-    if (confirm('确定要删除这个问答吗？')) {
-      try {
-        await client.http.post('/dialogue/delete', { id })
-        await fetchDialogues()
-      } catch (error) {
-        console.error('删除失败:', error)
-      }
-    }
-  }
-
-  // 处理表单提交 (添加/更新)
-  const handleSubmit = async () => {
+  // 保存（创建或更新）
+  const handleSave = async () => {
     try {
-      if (isEditing.value) {
-        await client.http.post('/dialogue/update', editingItem)
+      if (isEditMode.value) {
+        await send('dialogue/update', currentDialogue as Dialogue)
       } else {
-        await client.http.post('/dialogue/create', editingItem)
+        await send('dialogue/create', currentDialogue as Dialogue)
       }
       showModal.value = false
       await fetchDialogues()
@@ -93,22 +70,25 @@ export function useDialogLogic() {
     }
   }
 
-  // 返回所有需要在组件中使用的数据和方法
+  // 删除
+  const handleDelete = async (id: number) => {
+    if (!id) return
+    try {
+      await send('dialogue/delete', id)
+      await fetchDialogues()
+    } catch (error) {
+      console.error('删除失败:', error)
+    }
+  }
+
   return {
     dialogues,
     showModal,
-    isEditing,
-    editingItem,
+    isEditMode,
+    currentDialogue,
     openAddModal,
     openEditModal,
+    handleSave,
     handleDelete,
-    handleSubmit,
-  }
-}
-
-// 扩展 window 类型以避免 TypeScript 报错
-declare global {
-  interface Window {
-    KOISHI_CLIENT: Context
   }
 }
