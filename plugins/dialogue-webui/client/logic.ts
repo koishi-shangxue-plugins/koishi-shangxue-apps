@@ -1,8 +1,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Context } from '@koishijs/client'
 
-// 从全局变量获取 client 实例
-const client: Context = window.KOISHI_CLIENT
+// 我们将在 hook 内部获取 client 实例，以确保 Koishi 环境已准备就绪
 
 // 定义数据结构
 export interface Dialogue {
@@ -16,6 +15,9 @@ export interface Dialogue {
 
 // 封装所有业务逻辑的自定义 Hook
 export function useDialogLogic() {
+  // 在 hook 函数内部获取 client 实例
+  const client: Context = window.KOISHI_CLIENT
+
   const dialogues = ref<Dialogue[]>([])
   const showModal = ref(false)
   const isEditing = ref(false)
