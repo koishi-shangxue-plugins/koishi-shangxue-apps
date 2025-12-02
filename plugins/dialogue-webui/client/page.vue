@@ -32,7 +32,7 @@
     </div>
 
     <!-- 手动构建的模态框 -->
-    <div v-if="showModal" class="modal-backdrop">
+    <div v-if="showModal" class="modal-backdrop" @click.self="showModal = false">
       <div class="modal-panel">
         <div class="modal-header">
           <h3>{{ isEditMode ? '编辑问答' : '添加新问答' }}</h3>
@@ -46,20 +46,14 @@
             <label>回复内容 (支持 Markdown)</label>
             <textarea class="k-input" v-model="currentDialogue.answer" placeholder="输入回复内容" :rows="5"></textarea>
           </div>
+          <!-- 自定义下拉选择框 -->
           <div class="form-item">
             <label>类型</label>
-            <select class="k-select" v-model="currentDialogue.type">
-              <option value="keyword">关键词</option>
-              <option value="regexp">正则表达式</option>
-            </select>
+            <CustomSelect v-model="currentDialogue.type" :options="typeOptions" />
           </div>
           <div class="form-item">
             <label>范围</label>
-            <select class="k-select" v-model="currentDialogue.scope">
-              <option value="global">全局</option>
-              <option value="group">群组</option>
-              <option value="private">私聊</option>
-            </select>
+            <CustomSelect v-model="currentDialogue.scope" :options="scopeOptions" />
           </div>
         </div>
         <div class="modal-footer">
@@ -73,7 +67,61 @@
 </template>
 
 <script lang="ts" setup>
+import { reactive, defineComponent } from 'vue'
 import { useDialogLogic } from './logic'
+
+// 定义自定义下拉选择框组件
+const CustomSelect = defineComponent({
+  props: {
+    modelValue: String,
+    options: Array as () => Array<{ label: string; value: string }>,
+  },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const state = reactive({
+      isOpen: false,
+    })
+
+    const toggleDropdown = () => {
+      state.isOpen = !state.isOpen
+    }
+
+    const selectOption = (value: string) => {
+      emit('update:modelValue', value)
+      state.isOpen = false
+    }
+
+    const selectedLabel = () => {
+      const selected = props.options.find(opt => opt.value === props.modelValue)
+      return selected ? selected.label : ''
+    }
+
+    return {
+      state,
+      toggleDropdown,
+      selectOption,
+      selectedLabel,
+    }
+  },
+  template: `
+    <div class="custom-select">
+      <div class="select-trigger" @click="toggleDropdown">
+        <span>{{ selectedLabel() }}</span>
+        <span class="arrow" :class="{ open: state.isOpen }"></span>
+      </div>
+      <div v-if="state.isOpen" class="select-options">
+        <div
+          v-for="option in options"
+          :key="option.value"
+          class="select-option"
+          @click="selectOption(option.value)"
+        >
+          {{ option.label }}
+        </div>
+      </div>
+    </div>
+  `,
+})
 
 const {
   dialogues,
@@ -85,6 +133,17 @@ const {
   handleSave,
   handleDelete,
 } = useDialogLogic()
+
+const typeOptions = [
+  { label: '关键词', value: 'keyword' },
+  { label: '正则表达式', value: 'regexp' },
+]
+
+const scopeOptions = [
+  { label: '全局', value: 'global' },
+  { label: '群组', value: 'group' },
+  { label: '私聊', value: 'private' },
+]
 </script>
 
 <style scoped>
@@ -159,7 +218,6 @@ const {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.7);
-  /* 增加不透明度以增强聚焦效果 */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -244,7 +302,6 @@ const {
 }
 
 .k-input,
-.k-select,
 textarea.k-input {
   width: 100%;
   padding: 0.5rem;
@@ -254,13 +311,63 @@ textarea.k-input {
   color: var(--k-color-text);
 }
 
-.k-select option {
-  background-color: var(--k-color-bg-card);
-  color: var(--k-color-text);
-}
-
 textarea.k-input {
   resize: vertical;
   font-family: inherit;
+}
+
+/* 自定义下拉选择框样式 */
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.select-trigger {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--k-color-border);
+  border-radius: 4px;
+  background-color: var(--k-color-bg);
+  color: var(--k-color-text);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.arrow {
+  border: solid var(--k-color-text);
+  border-width: 0 2px 2px 0;
+  display: inline-block;
+  padding: 3px;
+  transform: rotate(45deg);
+  transition: transform 0.2s;
+}
+
+.arrow.open {
+  transform: rotate(-135deg);
+}
+
+.select-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--k-color-bg-card);
+  border: 1px solid var(--k-color-border);
+  border-radius: 4px;
+  margin-top: 0.25rem;
+  z-index: 1010;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.select-option {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.select-option:hover {
+  background-color: var(--k-color-bg-hover);
 }
 </style>
