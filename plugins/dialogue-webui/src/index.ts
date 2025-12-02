@@ -8,7 +8,12 @@ import { } from '@koishijs/plugin-server'
 
 export const name = 'dialogue-webui'
 
-export const inject = ['database', 'console', 'server', 'logger']
+export const inject = [
+  "database",
+  "console",
+  "server",
+  "logger"
+]
 
 export const usage = readFileSync(join(__dirname, "./../data/usage.md"), 'utf-8').split('\n').map(line => line.trimStart()).join('\n');
 
