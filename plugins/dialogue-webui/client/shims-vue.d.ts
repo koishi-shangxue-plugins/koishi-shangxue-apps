@@ -8,9 +8,9 @@ declare module '*.vue' {
 
 declare module '@koishijs/client' {
   interface Events {
-    'dialogue/list'(): Promise<Dialogue[]>
-    'dialogue/create'(dialogue: Partial<Dialogue>): Promise<{ success: boolean; message?: string }>
-    'dialogue/update'(dialogue: Partial<Dialogue>): Promise<{ success: boolean; message?: string }>
-    'dialogue/delete'(id: number): Promise<{ success: boolean; message?: string }>
+    'webdialogue/list'(): Promise<Dialogue[]>
+    'webdialogue/create'(dialogue: Partial<Dialogue>): Promise<{ success: boolean; message?: string }>
+    'webdialogue/update'(dialogue: Partial<Dialogue>): Promise<{ success: boolean; message?: string }>
+    'webdialogue/delete'(id: number): Promise<{ success: boolean; message?: string }>
   }
 }

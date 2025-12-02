@@ -73,13 +73,13 @@
           <!-- 条件渲染：群组ID输入框 -->
           <div v-if="currentDialogue.scope === 'group'" class="form-item">
             <label>群组ID</label>
-            <input class="k-input" v-model="currentDialogue.contextId" placeholder="输入生效的群组ID" />
+            <input class="k-input" v-model="currentDialogue.contextId" placeholder="输入生效的群组ID（可使用逗号分隔多个ID）" />
           </div>
 
           <!-- 条件渲染：用户ID输入框 -->
           <div v-if="currentDialogue.scope === 'private'" class="form-item">
             <label>用户ID</label>
-            <input class="k-input" v-model="currentDialogue.contextId" placeholder="输入生效的用户ID" />
+            <input class="k-input" v-model="currentDialogue.contextId" placeholder="输入生效的用户ID（可使用逗号分隔多个ID）" />
           </div>
 
         </div>
@@ -108,7 +108,6 @@ const {
   handleDelete,
 } = useDialogLogic()
 
-// 下拉框选项
 const typeOptions = [
   { label: '关键词', value: 'keyword' },
   { label: '正则表达式', value: 'regexp' },
@@ -119,7 +118,6 @@ const scopeOptions = [
   { label: '私聊', value: 'private' },
 ]
 
-// 将英文值映射到中文标签的辅助函数
 const getTypeLabel = (value: string) => typeOptions.find(o => o.value === value)?.label || value
 const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === value)?.label || value
 
@@ -127,7 +125,6 @@ const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === valu
 </script>
 
 <style scoped>
-/* 基础卡片和头部样式 */
 .dialogue-card {
   padding: 1rem;
   background-color: var(--k-color-bg-card);
@@ -146,7 +143,6 @@ const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === valu
   font-size: 1.25rem;
 }
 
-/* 手动表格样式 */
 .manual-table {
   display: flex;
   flex-direction: column;
@@ -190,14 +186,12 @@ const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === valu
   gap: 0.5rem;
 }
 
-/* 模态框样式 */
 .modal-backdrop {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  /* 使用半透明背景和模糊效果实现磨砂蒙版，适配亮暗主题 */
   background-color: rgba(var(--k-color-bg-rgb), 0.5);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -208,14 +202,12 @@ const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === valu
 }
 
 .modal-panel {
-  /* 使用 Koishi 变量确保在不同主题下都具有正确的背景和边框颜色 */
   background-color: var(--k-color-bg-card);
   border: 1px solid var(--k-color-border);
   border-radius: 8px;
   padding: 1.5rem;
   width: 90%;
   max-width: 500px;
-  /* 使用 Koishi 阴影变量，提供更统一的视觉效果 */
   box-shadow: var(--k-shadow-2, 0 5px 15px rgba(0, 0, 0, 0.2));
 }
 
@@ -236,7 +228,6 @@ const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === valu
   gap: 0.5rem;
 }
 
-/* 表单元素样式 */
 .form-item {
   display: flex;
   flex-direction: column;
@@ -247,7 +238,6 @@ const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === valu
   font-weight: bold;
 }
 
-/* 模拟 Koishi 按钮和输入框样式 */
 .k-button {
   padding: 0.5rem 1rem;
   border-radius: 4px;
@@ -302,7 +292,6 @@ textarea.k-input {
   font-family: inherit;
 }
 
-/* 单选按钮组样式 */
 .radio-group {
   display: flex;
   flex-wrap: wrap;
@@ -314,7 +303,6 @@ textarea.k-input {
 }
 
 .radio-input {
-  /* 隐藏原生 radio 按钮 */
   position: absolute;
   opacity: 0;
   width: 0;
@@ -333,14 +321,12 @@ textarea.k-input {
 }
 
 .radio-input:checked+.radio-button {
-  /* 选中状态 */
   background-color: var(--k-color-primary);
   color: white;
   border-color: var(--k-color-primary);
 }
 
 .radio-input:focus+.radio-button {
-  /* 焦点状态，用于可访问性 */
   box-shadow: 0 0 0 2px var(--k-color-primary-light);
 }
 </style>

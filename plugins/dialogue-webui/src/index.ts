@@ -14,16 +14,16 @@ export const usage = readFileSync(join(__dirname, "./../data/usage.md"), 'utf-8'
 
 declare module 'koishi' {
   interface Tables {
-    dialogue: Dialogue
+    webdialogue: Dialogue
   }
 }
 
 declare module '@koishijs/console' {
   interface Events {
-    'dialogue/list'(): Promise<Dialogue[]>
-    'dialogue/create'(dialogue: Dialogue): Promise<{ success: boolean; message?: string }>
-    'dialogue/update'(dialogue: Dialogue): Promise<{ success: boolean; message?: string }>
-    'dialogue/delete'(id: number): Promise<{ success: boolean; message?: string }>
+    'webdialogue/list'(): Promise<Dialogue[]>
+    'webdialogue/create'(dialogue: Dialogue): Promise<{ success: boolean; message?: string }>
+    'webdialogue/update'(dialogue: Dialogue): Promise<{ success: boolean; message?: string }>
+    'webdialogue/delete'(id: number): Promise<{ success: boolean; message?: string }>
   }
 }
 
@@ -33,7 +33,7 @@ export interface Dialogue {
   answer: string
   type: 'keyword' | 'regexp'
   scope: 'global' | 'group' | 'private',
-  contextId: string, // 用于存储群组ID或用户ID
+  contextId: string,
 }
 
 export interface Config {
@@ -51,7 +51,7 @@ export function apply(ctx: Context, config: Config) {
     // 对话缓存
     let dialogueCache: Dialogue[] = []
 
-    ctx.model.extend('dialogue', {
+    ctx.model.extend('webdialogue', {
       id: 'unsigned',
       question: 'string',
       answer: 'text',
@@ -62,42 +62,39 @@ export function apply(ctx: Context, config: Config) {
       autoInc: true,
     })
 
-    // 初始加载数据
     await refreshDialogues()
 
-    // 注册静态资源
     ctx.console.addEntry({
       dev: resolve(__dirname, '../client/index.ts'),
       prod: resolve(__dirname, '../dist'),
     })
 
     // 获取问答列表
-    ctx.console.addListener('dialogue/list', async () => {
-      return await ctx.database.get('dialogue', {})
+    ctx.console.addListener('webdialogue/list', async () => {
+      return await ctx.database.get('webdialogue', {})
     })
 
     // 创建问答
-    ctx.console.addListener('dialogue/create', async (dialogue) => {
-      await ctx.database.create('dialogue', dialogue)
+    ctx.console.addListener('webdialogue/create', async (dialogue) => {
+      await ctx.database.create('webdialogue', dialogue)
       await refreshDialogues()
       return { success: true }
     })
 
     // 更新问答
-    ctx.console.addListener('dialogue/update', async (dialogue) => {
-      await ctx.database.upsert('dialogue', [dialogue])
+    ctx.console.addListener('webdialogue/update', async (dialogue) => {
+      await ctx.database.upsert('webdialogue', [dialogue])
       await refreshDialogues()
       return { success: true }
     })
 
     // 删除问答
-    ctx.console.addListener('dialogue/delete', async (id) => {
-      await ctx.database.remove('dialogue', { id })
+    ctx.console.addListener('webdialogue/delete', async (id) => {
+      await ctx.database.remove('webdialogue', { id })
       await refreshDialogues()
       return { success: true }
     })
 
-    // 核心中间件
     const middleware = async (session: Session, next: () => any) => {
       // 从缓存中过滤出当前会话适用的对话规则
       const applicableDialogues = dialogueCache.filter(d => {
@@ -130,7 +127,7 @@ export function apply(ctx: Context, config: Config) {
 
     // 刷新对话缓存的函数
     async function refreshDialogues() {
-      dialogueCache = await ctx.database.get('dialogue', {})
+      dialogueCache = await ctx.database.get('webdialogue', {})
       if (dialogueCache.length > 0) {
         logger.info(`插件已启动，成功加载 ${dialogueCache.length} 条对话。`)
       }
