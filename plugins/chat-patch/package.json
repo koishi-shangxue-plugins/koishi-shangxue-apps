@@ -22,7 +22,7 @@
     "聊天室",
     "console"
   ],
-  "cordis": {
+  "koishi": {
     "service": {
       "required": [
         "console"

@@ -37,9 +37,13 @@ export const usage = `
   您可以在 Koishi 控制台的“插件配置”页面中找到 dialogue-webui 的管理界面。
 `
 
-export interface Config { }
+export interface Config {
+  prepositionMiddleware: boolean
+}
 
-export const Config: Schema<Config> = Schema.object({})
+export const Config: Schema<Config> = Schema.object({
+  prepositionMiddleware: Schema.boolean().default(false).description('开启前置中间件模式后，关键词匹配将优先于其他指令执行。'),
+})
 
 export function apply(ctx: Context, config: Config) {
   // 扩展数据库表
@@ -132,8 +136,7 @@ export function apply(ctx: Context, config: Config) {
   })
 
 
-  ctx.middleware(async (session, next) => {
-    // 查找当前频道和全局的问答
+  const middleware = async (session: Session, next: () => Promise<void>) => {
     const dialogues = await ctx.database.get('dialogue', {
       $or: [
         { channelId: session.channelId, isGlobal: false },
@@ -151,15 +154,16 @@ export function apply(ctx: Context, config: Config) {
         : content === dialogue.keyword
 
       if (isMatch) {
-        // 解析并发送回复
         await sendAnswer(session, dialogue.answer)
-        // 匹配成功后，可以选择是否继续执行后续中间件
-        // return;
+        // 如果是前置中间件，匹配成功后不再继续执行
+        if (config.prepositionMiddleware) return
       }
     }
 
     return next()
-  })
+  }
+
+  ctx.middleware(middleware, config.prepositionMiddleware)
 
   /**
    * 解析并发送回复
