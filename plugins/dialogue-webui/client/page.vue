@@ -43,8 +43,9 @@
             <input class="k-input" v-model="currentDialogue.question" placeholder="输入触发的关键词或正则表达式" />
           </div>
           <div class="form-item">
-            <label>回复内容 (支持 Markdown)</label>
-            <textarea class="k-input" v-model="currentDialogue.answer" placeholder="输入回复内容" :rows="5"></textarea>
+            <label>回复内容 (支持 JS 模板)</label>
+            <textarea class="k-input" v-model="currentDialogue.answer"
+              placeholder="你好，{{session.username}}！试试 {{h.image('https://... Taffy.png')}}" :rows="5"></textarea>
           </div>
 
           <!-- 类型选择框 (内联实现) -->
