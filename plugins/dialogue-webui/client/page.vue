@@ -32,7 +32,7 @@
     </div>
 
     <!-- 手动构建的模态框 -->
-    <div v-if="showModal" class="modal-backdrop" @click.self="showModal = false">
+    <div v-if="showModal" class="modal-backdrop" @click.self="closeAllDropdowns(); showModal = false">
       <div class="modal-panel">
         <div class="modal-header">
           <h3>{{ isEditMode ? '编辑问答' : '添加新问答' }}</h3>
@@ -46,15 +46,41 @@
             <label>回复内容 (支持 Markdown)</label>
             <textarea class="k-input" v-model="currentDialogue.answer" placeholder="输入回复内容" :rows="5"></textarea>
           </div>
-          <!-- 自定义下拉选择框 -->
+
+          <!-- 类型选择框 (内联实现) -->
           <div class="form-item">
             <label>类型</label>
-            <CustomSelect v-model="currentDialogue.type" :options="typeOptions" />
+            <div class="custom-select">
+              <div class="select-trigger" @click="toggleTypeDropdown">
+                <span>{{ selectedTypeLabel }}</span>
+                <span class="arrow" :class="{ open: isTypeDropdownOpen }"></span>
+              </div>
+              <div v-if="isTypeDropdownOpen" class="select-options">
+                <div v-for="option in typeOptions" :key="option.value" class="select-option"
+                  :class="{ selected: option.value === currentDialogue.type }" @click="selectType(option.value)">
+                  {{ option.label }}
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- 范围选择框 (内联实现) -->
           <div class="form-item">
             <label>范围</label>
-            <CustomSelect v-model="currentDialogue.scope" :options="scopeOptions" />
+            <div class="custom-select">
+              <div class="select-trigger" @click="toggleScopeDropdown">
+                <span>{{ selectedScopeLabel }}</span>
+                <span class="arrow" :class="{ open: isScopeDropdownOpen }"></span>
+              </div>
+              <div v-if="isScopeDropdownOpen" class="select-options">
+                <div v-for="option in scopeOptions" :key="option.value" class="select-option"
+                  :class="{ selected: option.value === currentDialogue.scope }" @click="selectScope(option.value)">
+                  {{ option.label }}
+                </div>
+              </div>
+            </div>
           </div>
+
         </div>
         <div class="modal-footer">
           <button class="k-button" @click="showModal = false">取消</button>
@@ -67,61 +93,8 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, defineComponent } from 'vue'
+import { ref, computed } from 'vue'
 import { useDialogLogic } from './logic'
-
-// 定义自定义下拉选择框组件
-const CustomSelect = defineComponent({
-  props: {
-    modelValue: String,
-    options: Array as () => Array<{ label: string; value: string }>,
-  },
-  emits: ['update:modelValue'],
-  setup(props, { emit }) {
-    const state = reactive({
-      isOpen: false,
-    })
-
-    const toggleDropdown = () => {
-      state.isOpen = !state.isOpen
-    }
-
-    const selectOption = (value: string) => {
-      emit('update:modelValue', value)
-      state.isOpen = false
-    }
-
-    const selectedLabel = () => {
-      const selected = props.options.find(opt => opt.value === props.modelValue)
-      return selected ? selected.label : ''
-    }
-
-    return {
-      state,
-      toggleDropdown,
-      selectOption,
-      selectedLabel,
-    }
-  },
-  template: `
-    <div class="custom-select">
-      <div class="select-trigger" @click="toggleDropdown">
-        <span>{{ selectedLabel() }}</span>
-        <span class="arrow" :class="{ open: state.isOpen }"></span>
-      </div>
-      <div v-if="state.isOpen" class="select-options">
-        <div
-          v-for="option in options"
-          :key="option.value"
-          class="select-option"
-          @click="selectOption(option.value)"
-        >
-          {{ option.label }}
-        </div>
-      </div>
-    </div>
-  `,
-})
 
 const {
   dialogues,
@@ -134,16 +107,51 @@ const {
   handleDelete,
 } = useDialogLogic()
 
+// 下拉框选项
 const typeOptions = [
   { label: '关键词', value: 'keyword' },
   { label: '正则表达式', value: 'regexp' },
 ]
-
 const scopeOptions = [
   { label: '全局', value: 'global' },
   { label: '群组', value: 'group' },
   { label: '私聊', value: 'private' },
 ]
+
+// 为每个下拉框独立管理状态
+const isTypeDropdownOpen = ref(false)
+const isScopeDropdownOpen = ref(false)
+
+// 计算属性，用于显示当前选中的标签
+const selectedTypeLabel = computed(() => typeOptions.find(o => o.value === currentDialogue.type)?.label || '请选择')
+const selectedScopeLabel = computed(() => scopeOptions.find(o => o.value === currentDialogue.scope)?.label || '请选择')
+
+// 关闭所有下拉框的辅助函数
+const closeAllDropdowns = () => {
+  isTypeDropdownOpen.value = false
+  isScopeDropdownOpen.value = false
+}
+
+// 类型下拉框的控制函数
+const toggleTypeDropdown = () => {
+  isScopeDropdownOpen.value = false // 打开一个时关闭另一个
+  isTypeDropdownOpen.value = !isTypeDropdownOpen.value
+}
+const selectType = (value: string) => {
+  currentDialogue.type = value as 'keyword' | 'regexp'
+  isTypeDropdownOpen.value = false
+}
+
+// 范围下拉框的控制函数
+const toggleScopeDropdown = () => {
+  isTypeDropdownOpen.value = false // 打开一个时关闭另一个
+  isScopeDropdownOpen.value = !isScopeDropdownOpen.value
+}
+const selectScope = (value: string) => {
+  currentDialogue.scope = value as 'global' | 'group' | 'private'
+  isScopeDropdownOpen.value = false
+}
+
 </script>
 
 <style scoped>
@@ -225,12 +233,18 @@ const scopeOptions = [
 }
 
 .modal-panel {
-  background-color: var(--k-color-bg-card);
+  background-color: rgba(54, 58, 69, 0.85);
+  /* 半透明背景 */
+  backdrop-filter: blur(8px);
+  /* 模糊效果 */
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 8px;
   padding: 1.5rem;
   width: 90%;
   max-width: 500px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  /* 添加一个细微的边框以增强立体感 */
 }
 
 .modal-header h3 {
@@ -353,7 +367,10 @@ textarea.k-input {
   top: 100%;
   left: 0;
   right: 0;
-  background-color: var(--k-color-bg-card);
+  /* 半透明背景和模糊效果，实现“毛玻璃”质感 */
+  background-color: rgba(44, 48, 59, 0.85);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   border: 1px solid var(--k-color-border);
   border-radius: 4px;
   margin-top: 0.25rem;
@@ -365,6 +382,24 @@ textarea.k-input {
 .select-option {
   padding: 0.5rem 1rem;
   cursor: pointer;
+  position: relative;
+  padding-left: 2.25rem;
+  /* 为勾选标记留出空间 */
+  display: flex;
+  align-items: center;
+}
+
+.select-option.selected {
+  font-weight: 600;
+  color: var(--k-color-primary);
+}
+
+.select-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 0.75rem;
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .select-option:hover {
