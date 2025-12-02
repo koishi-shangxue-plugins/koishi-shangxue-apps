@@ -71,7 +71,7 @@ export function useDialogLogic() {
   }
 
   // 删除
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number | null | undefined) => {
     if (!id) return
     // 使用 window.confirm 进行二次确认
     if (window.confirm('确定要删除这条问答吗？')) {

@@ -1,6 +1,6 @@
 // 共享的数据结构定义
 export interface Dialogue {
-  id: number | null
+  id: any
   question: string
   answer: string
   type: 'keyword' | 'regexp'
