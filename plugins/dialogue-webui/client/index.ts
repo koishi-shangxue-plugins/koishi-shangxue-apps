@@ -1,11 +1,20 @@
+import { defineComponent, h, resolveComponent } from 'vue'
 import { Context } from '@koishijs/client'
 import Page from './page.vue'
+import './index.scss'
+import './icons'
 
 export default (ctx: Context) => {
-  // 在控制台的侧边栏添加一个名为 "Dialogue WebUI" 的页面
   ctx.page({
-    name: 'Dialogue WebUI',
+    name: '问答设置',
     path: '/dialogue-webui',
-    component: Page,
+    icon: 'activity:dialogue',
+    component: defineComponent({
+      setup() {
+        return () => h(resolveComponent('k-layout'), {}, {
+          default: () => h(Page)
+        })
+      },
+    }),
   })
 }
