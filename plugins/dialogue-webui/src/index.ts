@@ -28,7 +28,8 @@ export interface Dialogue {
   question: string
   answer: string
   type: 'keyword' | 'regexp'
-  scope: 'global' | 'group' | 'private'
+  scope: 'global' | 'group' | 'private',
+  contextId: 'string', // 用于存储群组ID或用户ID
 }
 
 export interface Config { }
@@ -43,6 +44,7 @@ export function apply(ctx: Context) {
       answer: 'text',
       type: 'string',
       scope: 'string',
+      contextId: 'string',
     }, {
       autoInc: true,
     })
@@ -78,7 +80,29 @@ export function apply(ctx: Context) {
 
 
     ctx.middleware(async (session, next) => {
-      const dialogues = await ctx.database.get('dialogue', {})
+      // 高效地查询：先获取所有全局问答
+      const globalDialogues = await ctx.database.get('dialogue', { scope: 'global' })
+
+      // 再根据上下文获取特定范围的问答
+      let contextDialogues = []
+      if (session.isDirect) { // 私聊
+        // 获取所有私聊范围的问答，然后手动过滤
+        const privateDialogues = await ctx.database.get('dialogue', { scope: 'private' })
+        contextDialogues = privateDialogues.filter(d =>
+          d.contextId.split(/,|，/).map(id => id.trim()).includes(session.userId)
+        )
+      } else if (session.channelId) { // 群聊
+        // 获取所有群聊范围的问答，然后手动过滤
+        const groupDialogues = await ctx.database.get('dialogue', { scope: 'group' })
+        contextDialogues = groupDialogues.filter(d =>
+          d.contextId.split(/,|，/).map(id => id.trim()).includes(session.channelId)
+        )
+      }
+
+      // 合并并去重（理论上不会有重，但以防万一）
+      const dialogues = [...globalDialogues, ...contextDialogues]
+      if (!dialogues.length) return next()
+
       for (const dialogue of dialogues) {
         const match = dialogue.type === 'regexp'
           ? new RegExp(dialogue.question).exec(session.content)
@@ -88,7 +112,7 @@ export function apply(ctx: Context) {
           // 解析并发送回复
           const result = await executeTemplate(dialogue.answer, ctx, this.config, session)
           await session.send(result)
-          return
+          return // 匹配到第一个后即停止
         }
       }
       return next()

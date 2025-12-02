@@ -30,10 +30,10 @@
   },
   "peerDependencies": {
     "@koishijs/plugin-console": "^5.11.0",
-    "koishi": "^4.16.0"
+    "koishi": "^4.18.0"
   },
   "devDependencies": {
     "@koishijs/client": "^5.11.0",
-    "koishi": "^4.16.0"
+    "koishi": "^4.18.0"
   }
 }

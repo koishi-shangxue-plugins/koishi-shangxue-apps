@@ -1,14 +1,6 @@
 import { ref, reactive, onMounted } from 'vue'
 import { send } from '@koishijs/client'
-
-// 定义数据结构
-export interface Dialogue {
-  id: number
-  question: string
-  answer: string
-  type: 'keyword' | 'regexp'
-  scope: 'global' | 'group' | 'private'
-}
+import { Dialogue } from './types'
 
 export function useDialogLogic() {
   // State
@@ -21,6 +13,7 @@ export function useDialogLogic() {
     answer: '',
     type: 'keyword',
     scope: 'global',
+    contextId: '',
   })
 
   // 从后端获取数据
@@ -44,6 +37,7 @@ export function useDialogLogic() {
       answer: '',
       type: 'keyword',
       scope: 'global',
+      contextId: '',
     })
     showModal.value = true
   }
@@ -57,11 +51,17 @@ export function useDialogLogic() {
 
   // 保存（创建或更新）
   const handleSave = async () => {
+    // 输入验证
+    if (!currentDialogue.question?.trim() || !currentDialogue.answer?.trim()) {
+      alert('关键词和回复内容不能为空！')
+      return
+    }
+
     try {
       if (isEditMode.value) {
-        await send('dialogue/update', currentDialogue as Dialogue)
+        await send('dialogue/update', currentDialogue)
       } else {
-        await send('dialogue/create', currentDialogue as Dialogue)
+        await send('dialogue/create', currentDialogue)
       }
       showModal.value = false
       await fetchDialogues()

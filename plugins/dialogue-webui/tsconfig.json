@@ -1,12 +1,10 @@
 {
-  "extends": "./../../tsconfig",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "lib"
+    "outDir": "lib",
+    "rootDir": "src"
   },
   "include": [
-    "src",
-    "client",
-    "client/shims-vue.d.ts"
+    "src"
   ]
 }

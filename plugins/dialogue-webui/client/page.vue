@@ -43,7 +43,7 @@
             <input class="k-input" v-model="currentDialogue.question" placeholder="输入触发的关键词或正则表达式" />
           </div>
           <div class="form-item">
-            <label>回复内容 (支持 JS 模板)</label>
+            <label>回复内容</label>
             <textarea class="k-input" v-model="currentDialogue.answer"
               placeholder="你好，{{session.username}}！试试 {{h.image('https://... Taffy.png')}}" :rows="5"></textarea>
           </div>
@@ -80,6 +80,18 @@
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- 条件渲染：群组ID输入框 -->
+          <div v-if="currentDialogue.scope === 'group'" class="form-item">
+            <label>群组ID</label>
+            <input class="k-input" v-model="currentDialogue.contextId" placeholder="输入生效的群组ID" />
+          </div>
+
+          <!-- 条件渲染：用户ID输入框 -->
+          <div v-if="currentDialogue.scope === 'private'" class="form-item">
+            <label>用户ID</label>
+            <input class="k-input" v-model="currentDialogue.contextId" placeholder="输入生效的用户ID" />
           </div>
 
         </div>
