@@ -1,12 +1,16 @@
 import { Context, Schema, h, Session } from 'koishi'
-import { resolve } from 'path'
+import { readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { executeTemplate } from './utils'
+
 import { } from '@koishijs/plugin-console'
 import { } from '@koishijs/plugin-server'
 
 export const name = 'dialogue-webui'
 
 export const inject = ['database', 'console', 'server', 'logger']
+
+export const usage = readFileSync(join(__dirname, "./../data/usage.md"), 'utf-8').split('\n').map(line => line.trimStart()).join('\n');
 
 declare module 'koishi' {
   interface Tables {
@@ -29,15 +33,24 @@ export interface Dialogue {
   answer: string
   type: 'keyword' | 'regexp'
   scope: 'global' | 'group' | 'private',
-  contextId: 'string', // 用于存储群组ID或用户ID
+  contextId: string, // 用于存储群组ID或用户ID
 }
 
-export interface Config { }
+export interface Config {
+  prepositionMiddleware: boolean
+}
 
-export const Config: Schema<Config> = Schema.object({})
+export const Config: Schema<Config> = Schema.object({
+  prepositionMiddleware: Schema.boolean().default(false).description('前置中间件模式<br>开启后，本插件 将优先于`其他中间件`执行。'),
+})
 
-export function apply(ctx: Context) {
+export function apply(ctx: Context, config: Config) {
   ctx.on("ready", async () => {
+
+    const logger = ctx.logger(name)
+    // 对话缓存
+    let dialogueCache: Dialogue[] = []
+
     ctx.model.extend('dialogue', {
       id: 'unsigned',
       question: 'string',
@@ -48,6 +61,9 @@ export function apply(ctx: Context) {
     }, {
       autoInc: true,
     })
+
+    // 初始加载数据
+    await refreshDialogues()
 
     // 注册静态资源
     ctx.console.addEntry({
@@ -63,57 +79,66 @@ export function apply(ctx: Context) {
     // 创建问答
     ctx.console.addListener('dialogue/create', async (dialogue) => {
       await ctx.database.create('dialogue', dialogue)
+      await refreshDialogues()
       return { success: true }
     })
 
     // 更新问答
     ctx.console.addListener('dialogue/update', async (dialogue) => {
       await ctx.database.upsert('dialogue', [dialogue])
+      await refreshDialogues()
       return { success: true }
     })
 
     // 删除问答
     ctx.console.addListener('dialogue/delete', async (id) => {
       await ctx.database.remove('dialogue', { id })
+      await refreshDialogues()
       return { success: true }
     })
 
+    // 核心中间件
+    const middleware = async (session: Session, next: () => any) => {
+      // 从缓存中过滤出当前会话适用的对话规则
+      const applicableDialogues = dialogueCache.filter(d => {
+        if (d.scope === 'global') return true
+        if (session.isDirect && d.scope === 'private') {
+          return d.contextId.split(/,|，/).map(id => id.trim()).includes(session.userId)
+        }
+        if (session.channelId && d.scope === 'group') {
+          return d.contextId.split(/,|，/).map(id => id.trim()).includes(session.channelId)
+        }
+        return false
+      })
 
-    ctx.middleware(async (session, next) => {
-      // 先获取所有全局问答
-      const globalDialogues = await ctx.database.get('dialogue', { scope: 'global' })
+      if (!applicableDialogues.length) return next()
 
-      // 再根据上下文获取特定范围的问答
-      let contextDialogues = []
-      if (session.isDirect) { // 私聊
-        const privateDialogues = await ctx.database.get('dialogue', { scope: 'private' })
-        contextDialogues = privateDialogues.filter(d =>
-          d.contextId.split(/,|，/).map(id => id.trim()).includes(session.userId)
-        )
-      } else if (session.channelId) { // 群聊
-        const groupDialogues = await ctx.database.get('dialogue', { scope: 'group' })
-        contextDialogues = groupDialogues.filter(d =>
-          d.contextId.split(/,|，/).map(id => id.trim()).includes(session.channelId)
-        )
-      }
-
-      // 合并并去重
-      const dialogues = [...globalDialogues, ...contextDialogues]
-      if (!dialogues.length) return next()
-
-      for (const dialogue of dialogues) {
+      for (const dialogue of applicableDialogues) {
         const match = dialogue.type === 'regexp'
           ? new RegExp(dialogue.question).exec(session.content)
           : session.content === dialogue.question
 
         if (match) {
           // 解析并发送回复
-          const result = await executeTemplate(dialogue.answer, ctx, this.config, session)
+          const result = await executeTemplate(dialogue.answer, ctx, config, session)
           await session.send(result)
           return // 匹配到第一个后即停止
         }
       }
       return next()
+    }
+
+    // 刷新对话缓存的函数
+    async function refreshDialogues() {
+      dialogueCache = await ctx.database.get('dialogue', {})
+      if (dialogueCache.length > 0) {
+        logger.info(`插件已启动，成功加载 ${dialogueCache.length} 条对话。`)
+      }
+    }
+
+    ctx.middleware(middleware, config.prepositionMiddleware)
+    ctx.on('dispose', () => {
+      dialogueCache = [] // 清空缓存
     })
   })
 }
