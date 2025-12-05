@@ -176,7 +176,7 @@ export function apply(ctx: Context, config) {
           return "无效的用户输入，请使用@用户的格式";
         }
         targetUserId = parsedUser.attrs.id;
-        targetUsername = parsedUser.attrs.name;
+        targetUsername = undefined;
       }
       const result = await bindPlayer(
         ctx,
