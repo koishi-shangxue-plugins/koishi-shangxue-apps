@@ -114,26 +114,50 @@ export async function unbindPlayer(
 }
 
 /**
- * 解绑用户在所有群组的 Steam 账号
+ * 解绑当前频道所有用户的 Steam 账号
  * @param ctx Koishi context
- * @param session Koishi session
+ * @param channelid 频道ID
  * @returns 返回操作结果的字符串
  */
 export async function unbindAll(
   ctx: Context,
-  session: Session,
+  channelid: string,
 ): Promise<string> {
-  const userid = session.event.user?.id;
-  if (!userid) {
-    return "未获取到用户ID，解绑失败";
+  if (!channelid) {
+    return "未获取到频道ID，解绑失败";
   }
-  const userData = await ctx.database.get("SteamUser", { userId: userid });
-  if (userData.length < 1) {
-    return "用户未曾绑定，无法解绑";
+
+  // 获取所有用户数据
+  const allUsers = await ctx.database.get("SteamUser", {});
+
+  // 筛选出在当前频道绑定的用户
+  const usersInChannel = allUsers.filter(user =>
+    user.effectGroups.includes(channelid)
+  );
+
+  if (usersInChannel.length === 0) {
+    return "当前频道无人绑定，无法解绑";
   }
-  await removeAvatar(ctx, userData[0].steamId);
-  await ctx.database.remove("SteamUser", { userId: userid });
-  return "解绑成功";
+
+  let unbindCount = 0;
+
+  // 遍历每个用户进行解绑
+  for (const user of usersInChannel) {
+    if (user.effectGroups.length === 1) {
+      // 如果只在当前频道绑定，则完全移除
+      await removeAvatar(ctx, user.steamId);
+      await ctx.database.remove("SteamUser", { userId: user.userId });
+    } else {
+      // 从群组列表中移除当前频道
+      const effectGroups = user.effectGroups.filter(
+        (id) => id !== channelid,
+      );
+      await ctx.database.set("SteamUser", { userId: user.userId }, { effectGroups });
+    }
+    unbindCount++;
+  }
+
+  return `解绑成功，共解绑 ${unbindCount} 个用户`;
 }
 
 /**

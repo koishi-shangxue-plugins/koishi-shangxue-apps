@@ -215,9 +215,9 @@ export function apply(ctx: Context, config) {
     });
 
   ctx
-    .command("steam-friend-status.解绑全部steam", "解绑在所有群的steam账号")
+    .command("steam-friend-status.解绑全部steam", "解绑当前频道所有用户的steam账号")
     .action(async ({ session }) => {
-      return await unbindAll(ctx, session);
+      return await unbindAll(ctx, session.channelId);
     });
 
   ctx

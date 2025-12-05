@@ -5,7 +5,7 @@ import { inspect } from 'node:util'
 export const name = 'testplugin'
 export const inject = {
   required: ['http', 'logger', 'i18n', 'database'],
-  optional: ['assets']
+  optional: ['assets', 'cache']
 };
 
 export interface Config { }
@@ -53,6 +53,7 @@ export function apply(ctx: Context) {
   //   ctx.logger.info('updated', session)
   // })
 
+  // ctx.cache.set('foo', 'bar', 114514)
   command
     .subcommand('.base [id]')
     .action(async ({ session }, id) => {
@@ -390,10 +391,6 @@ export function apply(ctx: Context) {
       await session.send(aaa)
       return
     })
-
-
-
-
 
   command
     .subcommand('.消息 [type]')
