@@ -55,7 +55,19 @@ export async function bindPlayer(
   });
 
   if (userDataInDatabase.length === 0) {
-    let userName = inputname || session.event.user.name || userid;
+    let userName = inputname;
+    if (!userName && typeof session.bot.getUser === 'function') {
+      try {
+        const userInfo = await session.bot.getUser(userid);
+        userName = userInfo?.name || userInfo?.username || userid;
+      } catch (error) {
+        ctx.logger.warn(`获取用户 ${userid} 信息失败:`, error);
+        userName = userid;
+      }
+    } else if (!userName) {
+      userName = userid;
+    }
+
     const userData: SteamUser = {
       userId: userid,
       userName: userName,
