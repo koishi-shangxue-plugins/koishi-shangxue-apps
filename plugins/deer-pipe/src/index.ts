@@ -207,7 +207,17 @@ export const Config: Schema = Schema.intersect([
   }).description('monetary·通用货币设置'),
 
   Schema.object({
-    fontName: Schema.union(fontlist).description("渲染排行榜使用的字体（包含emoji）。<br>选择要使用的字体，若渲染功能正常，请不要修改此项！<br>需要安装 koishi-plugin-glyph 插件才能使用此功能"),
+    useFont: Schema.boolean().description('使用自定义字体').default(false),
+  }).description('渲染-字体设置'),
+  Schema.union([
+    Schema.object({
+      useFont: Schema.const(true).required(),
+      fontName: Schema.union(fontlist).description("渲染使用的字体（包含emoji）。<br>选择要使用的字体，若渲染功能正常，请不要修改此项！<br>需要安装 koishi-plugin-glyph 插件才能使用此功能"),
+    }),
+    Schema.object({}),
+  ]),
+
+  Schema.object({
     calendarImagePreset1: Schema.union([
       Schema.const('0').description('自定义路径（参见下方的路径选择配置项）'),
       Schema.const('1').description('鹿管（默认-预设1）'),
@@ -218,7 +228,7 @@ export const Config: Schema = Schema.intersect([
       Schema.const('1').description('红勾（默认-预设1）'),
       Schema.const('2').description('壹佰分盖章（预设2）'),
     ]).role('radio').description("日历图片预设2-完成符号").default("1"),
-  }).description('调试设置'),
+  }).description('渲染-背景设置'),
   Schema.union([
     Schema.object({
       calendarImagePreset1: Schema.const("0").required(),
@@ -296,15 +306,17 @@ export async function apply(ctx: Context, config) {
     let fontBase64 = '';
     try {
       // 如果安装了 glyph 插件，使用 glyph 服务获取字体
-      if (ctx.glyph && config.fontName) {
-        const fontDataUrl = ctx.glyph.getFontDataUrl(config.fontName);
-        if (fontDataUrl) {
-          // Data URL 格式: data:font/truetype;charset=utf-8;base64,xxxxx
-          // 提取 base64 部分
-          fontBase64 = fontDataUrl.split(',')[1];
-          logInfo(`使用 glyph 字体：${config.fontName}`);
-        } else {
-          ctx.logger.warn(`未找到字体: ${config.fontName}，将使用系统默认字体`);
+      if (config.useFont) {
+        if (ctx.glyph && config.fontName) {
+          const fontDataUrl = ctx.glyph.getFontDataUrl(config.fontName);
+          if (fontDataUrl) {
+            // Data URL 格式: data:font/truetype;charset=utf-8;base64,xxxxx
+            // 提取 base64 部分
+            fontBase64 = fontDataUrl.split(',')[1];
+            logInfo(`使用 glyph 字体：${config.fontName}`);
+          } else {
+            ctx.logger.warn(`未找到字体: ${config.fontName}，将使用系统默认字体`);
+          }
         }
       }
     } catch (error) {
