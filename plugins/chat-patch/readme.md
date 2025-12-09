@@ -18,7 +18,7 @@ Koishi 控制台聊天插件，允许用户直接在控制台中管理机器人�
 
 欢迎 PR ~
 
-PR 方式请参考 -> https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main?tab=readme-ov-file#%E5%A6%82%E4%BD%95%E5%9C%A8%E9%A1%B9%E7%9B%AE%E6%A8%A1%E6%9D%BF%E4%B8%AD%E5%BC%80%E5%8F%91%E6%AD%A4%E4%BB%93%E5%BA%93
+PR 方式请参考 -> <https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main?tab=readme-ov-file#%E5%A6%82%E4%BD%95%E5%9C%A8%E9%A1%B9%E7%9B%AE%E6%A8%A1%E6%9D%BF%E4%B8%AD%E5%BC%80%E5%8F%91%E6%AD%A4%E4%BB%93%E5%BA%93>
 
 ## 许可证
 
