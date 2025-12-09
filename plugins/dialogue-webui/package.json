@@ -22,9 +22,9 @@
     "BSTluo <1946831552@qq.com>",
     "shangxueink <1919892171@qq.com>"
   ],
-  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-plugin-dialogue-webui",
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
   "bugs": {
-    "url": "https://github.com/koishi-shangxue-plugins/koishi-plugin-dialogue-webui/issues"
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "koishi": {
     "service": {

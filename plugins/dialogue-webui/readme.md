@@ -6,8 +6,9 @@
 
 ## 效果预览
 
-[-> 点我预览效果图1](https://i0.hdslb.com/bfs/openplatform/51e9d6494d7c7c8dbf011469e55ffdb660f77709.png)
-[-> 点我预览效果图2](https://i0.hdslb.com/bfs/openplatform/65704a5debfae5d927f0ccc1a44ea6c805bf6596.png)
+-> 点我预览效果图1  https://i0.hdslb.com/bfs/openplatform/51e9d6494d7c7c8dbf011469e55ffdb660f77709.png
+
+-> 点我预览效果图2 https://i0.hdslb.com/bfs/openplatform/65704a5debfae5d927f0ccc1a44ea6c805bf6596.png 
 
 ## 注意事项
 
