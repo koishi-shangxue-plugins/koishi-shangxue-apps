@@ -6,9 +6,9 @@
 
 ## 效果预览
 
--> 点我预览效果图1  https://i0.hdslb.com/bfs/openplatform/51e9d6494d7c7c8dbf011469e55ffdb660f77709.png
+<li><a href="https://i0.hdslb.com/bfs/openplatform/51e9d6494d7c7c8dbf011469e55ffdb660f77709.png" target="_blank" referrerpolicy="no-referrer">-> 点我预览效果图1</a></li>
 
--> 点我预览效果图2 https://i0.hdslb.com/bfs/openplatform/65704a5debfae5d927f0ccc1a44ea6c805bf6596.png 
+<li><a href="https://i0.hdslb.com/bfs/openplatform/65704a5debfae5d927f0ccc1a44ea6c805bf6596.png" target="_blank" referrerpolicy="no-referrer">-> 点我预览效果图2</a></li>
 
 ## 注意事项
 
