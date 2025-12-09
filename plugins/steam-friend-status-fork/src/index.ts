@@ -176,7 +176,14 @@ export function apply(ctx: Context, config) {
           return "无效的用户输入，请使用@用户的格式";
         }
         targetUserId = parsedUser.attrs.id;
-        targetUsername = undefined;
+        // 从 h.parse 的结果中获取被 @ 用户的昵称
+        let rawUsername = parsedUser.attrs.name;
+        // 如果昵称以 @ 开头，则移除开头的 @
+        if (rawUsername && rawUsername.startsWith('@')) {
+          targetUsername = rawUsername.substring(1);
+        } else {
+          targetUsername = rawUsername;
+        }
       }
       const result = await bindPlayer(
         ctx,
@@ -256,9 +263,9 @@ export function apply(ctx: Context, config) {
       }
 
       await updataPlayerHeadshots(ctx, config.SteamApiKey);
-
-      await session.send("更新成功，可以使用 看看steam 指令来查看啦~");
-      await session.execute("steam-friend-status.看看steam")
+      const image = await session.execute("steam-friend-status.看看steam", true)
+      await session.send("更新成功");
+      await session.send(image);
       return
     });
 
