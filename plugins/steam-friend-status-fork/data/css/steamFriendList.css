@@ -1,116 +1,133 @@
-*{
-    margin: 0px;
-    padding: 0px;
-    box-sizing: border-box;
+* {
+  margin: 0px;
+  padding: 0px;
+  box-sizing: border-box;
 }
-ul{
-    list-style: none;
+ul {
+  list-style: none;
 }
-.bg{
-    width: 227px;
+.bg {
+  width: 227px;
 }
-.header{
-    display: flex;
-    border-radius: 7px 7px 0px 0px;
-    height: 75px;
-    padding-top: 15px;
-    padding-left: 7px;
-    padding-bottom: 10px;
-    background-color: #1c232c;
+.header {
+  display: flex;
+  border-radius: 7px 7px 0px 0px;
+  height: 75px;
+  padding-top: 15px;
+  padding-left: 7px;
+  padding-bottom: 10px;
+  background-color: #1c232c;
 }
-.header .headshot{
-    display: block;
-    width: 50px;
-    height: 50px;
+.header .headshot {
+  display: block;
+  width: 50px;
+  height: 50px;
 }
-.header .bot{
-    display: flex;
+.header .bot {
+  display: flex;
 }
-.header .bot .text{
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+.header .bot .text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
-.friendline{
-    height: 30px;
-    background-color: #434952;
+.friendline {
+  height: 30px;
+  background-color: #434952;
 }
-.friendline .text{
-    padding-left: 15px;
-    font-size: 12px;
-    line-height: 30px;
-    color: #b7ccd5;
+.friendline .text {
+  padding-left: 15px;
+  font-size: 12px;
+  line-height: 30px;
+  color: #b7ccd5;
 }
-.friendlist{
-    background-color: #1f2126;
-    padding-bottom: 15px;
-    border-radius: 0px 0px 6px 6px
+.friendlist {
+  background-color: #1f2126;
+  padding-bottom: 15px;
+  border-radius: 0px 0px 6px 6px;
 }
-.group{
-    border-bottom: 1px solid #176383;
+.group {
+  border-bottom: 1px solid #176383;
 }
-.group .title{
-    padding: 6px 0px 0px 13px;
-    font-size: 12px;
-    color: #c5d6d4;
-    line-height: 28px;
+.group .title {
+  padding: 6px 0px 0px 13px;
+  font-size: 12px;
+  color: #c5d6d4;
+  line-height: 28px;
 }
-.group:last-child{
-    border-bottom: none;
+.group:last-child {
+  border-bottom: none;
 }
-.friend{
-    height: 46px;
-    padding: 7px 0px 7px 13px;
-    display: flex;
-    overflow: hidden;
+.friend {
+  /* 允许容器高度根据内容自适应，以容纳换行的昵称 */
+  height: auto;
+  padding: 7px 0px 7px 13px;
+  display: flex;
+  /* 垂直顶部对齐，确保头像在视觉上保持一致 */
+  align-items: flex-start;
 }
-.friend .headshot-online{
-    display: block;
-    width: 32px;
-    height: 32px;
+.friend .headshot-online {
+  display: block;
+  width: 32px;
+  height: 32px;
 }
-.friend .headshot-offline{
-    display: block;
-    width: 32px;
-    height: 32px;
-    filter: grayscale(60%);
+.friend .headshot-offline {
+  display: block;
+  width: 32px;
+  height: 32px;
+  filter: grayscale(60%);
 }
-.friend .name-and-status{
-    padding-left: 8px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+.friend .name-and-status {
+  padding-left: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* 允许该 flex 项收缩，以适应父容器的宽度 */
+  flex: 1;
+  min-width: 0;
 }
-.status-offline{
-    padding-left: 10px;
-    font-size: 10px;
-    color: #6e6e6e;
+.status-offline {
+  padding-left: 10px;
+  font-size: 10px;
+  color: #6e6e6e;
 }
-.status-online{
-    padding-left: 10px;
-    font-size: 10px;
-    color: #4c91ac;
+.status-online {
+  padding-left: 10px;
+  font-size: 10px;
+  color: #4c91ac;
 }
-.status-gaming{
-    padding-left: 10px;
-    font-size: 10px;
-    color: #91c257;
+.status-gaming {
+  padding-left: 10px;
+  font-size: 10px;
+  color: #91c257;
 }
-.name-offline{
-    padding-left: 10px;
-    font-size: 13px;
-    line-height: 16px;
-    color: #969797;
+.name-offline {
+  padding-left: 10px;
+  font-size: 13px;
+  line-height: 16px;
+  color: #969797;
+  /* 允许文本自动换行 */
+  white-space: normal;
+  /* 强制在长单词或 URL 内部换行，防止布局崩溃 */
+  word-break: break-word;
 }
-.name-online{
-    padding-left: 10px;
-    font-size: 13px;
-    line-height: 16px;
-    color: #6dcff6;
+.name-online {
+  padding-left: 10px;
+  font-size: 13px;
+  line-height: 16px;
+  color: #6dcff6;
+  /* 允许文本自动换行 */
+  white-space: normal;
+  /* 强制在长单词或 URL 内部换行，防止布局崩溃 */
+  word-break: break-word;
 }
-.name-gaming{
-    padding-left: 10px;
-    font-size: 13px;
-    line-height: 16px;
-    color: #e2fec1;
+.name-gaming {
+  padding-left: 10px;
+  font-size: 13px;
+  line-height: 16px;
+  color: #e2fec1;
+  /* 允许文本自动换行 */
+  white-space: normal;
+  /* 强制在长单词或 URL 内部换行，防止布局崩溃 */
+  word-break: break-word;
 }

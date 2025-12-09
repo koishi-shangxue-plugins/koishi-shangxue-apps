@@ -249,9 +249,17 @@ export function apply(ctx: Context, config) {
 
   ctx
     .command("steam-friend-status.更新steam", "更新绑定的steam用户的头像")
-    .action(async () => {
+    .action(async ({ session }) => {
+      // 更新指令调用者的昵称
+      if (session.username) {
+        await ctx.database.set('SteamUser', { userId: session.userId }, { userName: session.username });
+      }
+
       await updataPlayerHeadshots(ctx, config.SteamApiKey);
-      return "更新成功，可以使用 看看steam 指令来查看啦~";
+
+      await session.send("更新成功，可以使用 看看steam 指令来查看啦~");
+      await session.execute("steam-friend-status.看看steam")
+      return
     });
 
   ctx
