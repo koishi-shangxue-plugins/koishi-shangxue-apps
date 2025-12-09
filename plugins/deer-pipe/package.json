@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-deer-pipe",
   "description": "*[<ruby>deer-pipe<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby>](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/deer-pipe)* 一个🦌管（鹿管）签到小[插件 效果预览](https://i0.hdslb.com/bfs/article/496e02d92547d2a74c17ff9280e8ab55312276085.png) 日历效果的签到插件。支持 monetary，😿不支持QQ官方bot。灵感来自于[yunzai](https://gitee.com/kyrzy0416/yunzai-plugin-deer-pipe/tree/master)和[nonebot](https://github.com/SamuNatsu/nonebot-plugin-deer-pipe)",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

@@ -940,7 +940,10 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
 </html>
 `;
         const page = await ctx.puppeteer.page();
-        await page.setContent(leaderboardHTML, { waitUntil: 'networkidle2' });
+        // 使用 domcontentloaded 而不是 networkidle2，因为所有资源都是base64内联的
+        await page.setContent(leaderboardHTML, { waitUntil: 'domcontentloaded' });
+        // 等待容器元素加载完成
+        await page.waitForSelector('.container', { timeout: 5000 });
         const leaderboardElement = await page.$('.container');
         const boundingBox = await leaderboardElement.boundingBox();
         await page.setViewport({
@@ -1288,8 +1291,10 @@ ${calendarDayData}
 </html>
 `;
       const page = await ctx.puppeteer.page();
-      await page.setContent(fullHTML, { waitUntil: 'networkidle2' });
-      await page.waitForSelector('.deer-image');
+      // 使用 domcontentloaded 而不是 networkidle2，因为所有资源都是base64内联的
+      await page.setContent(fullHTML, { waitUntil: 'domcontentloaded' });
+      // 等待日历元素加载完成
+      await page.waitForSelector('.calendar', { timeout: 5000 });
       const calendarElement = await page.$('.calendar');
       const imgBuf = await calendarElement.screenshot({ captureBeyondViewport: false });
       await page.close();
