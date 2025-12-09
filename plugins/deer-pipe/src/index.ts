@@ -1,14 +1,18 @@
 import { Context, Schema, h } from 'koishi';
 
 import { } from 'koishi-plugin-puppeteer';
-import { } from 'koishi-plugin-monetary'
+import { } from 'koishi-plugin-monetary';
+import { fontlist } from './../../../../service-more/packages/glyph';
+import type { } from './../../../../service-more/packages/glyph';
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { URL } from 'node:url';
 
 export const name = 'deer-pipe';
-export const inject = ['database', 'puppeteer', 'monetary'];
+export const inject = {
+  required: ['database', 'puppeteer', 'monetary'],
+  optional: ['glyph']
+};
 
 export const usage = `
 <!DOCTYPE html>
@@ -203,7 +207,7 @@ export const Config: Schema = Schema.intersect([
   }).description('monetary·通用货币设置'),
 
   Schema.object({
-    fontPath: Schema.path({ filters: ['file'] }).description("渲染排行榜使用的字体（包含emoji）。<br>请填写`.ttf 字体文件`的路径<br>若渲染功能正常，请不要修改此项！以免出现问题<br>仅供部分显示有问题的用户使用-> [Noto+Color+Emoji](https://fonts.google.com/noto/specimen/Noto+Color+Emoji)"),
+    fontName: Schema.union(fontlist).description("渲染排行榜使用的字体（包含emoji）。<br>选择要使用的字体，若渲染功能正常，请不要修改此项！<br>需要安装 koishi-plugin-glyph 插件才能使用此功能"),
     calendarImagePreset1: Schema.union([
       Schema.const('0').description('自定义路径（参见下方的路径选择配置项）'),
       Schema.const('1').description('鹿管（默认-预设1）'),
@@ -288,17 +292,23 @@ export async function apply(ctx: Context, config) {
     const calendarImagePath2 = config.calendarImagePreset2 === '0' ? config.calendarImagePath2 : presetPaths2[config.calendarImagePreset2];
     const calendarpngimagebase64_1 = await readFileAsBase64(calendarImagePath1);
     const calendarpngimagebase64_2 = await readFileAsBase64(calendarImagePath2);
-    // 读取字体文件并转换为 Base64
+    // 获取字体 Data URL
     let fontBase64 = '';
     try {
-      const fontPath = config.fontPath;
-      if (fontPath) {
-        const fontData = await fs.promises.readFile(fontPath.startsWith('file://') ? new URL(fontPath) : fontPath);
-        logInfo(`读取字体路径：${config.fontPath}`);
-        fontBase64 = fontData.toString('base64');
+      // 如果安装了 glyph 插件，使用 glyph 服务获取字体
+      if (ctx.glyph && config.fontName) {
+        const fontDataUrl = ctx.glyph.getFontDataUrl(config.fontName);
+        if (fontDataUrl) {
+          // Data URL 格式: data:font/truetype;charset=utf-8;base64,xxxxx
+          // 提取 base64 部分
+          fontBase64 = fontDataUrl.split(',')[1];
+          logInfo(`使用 glyph 字体：${config.fontName}`);
+        } else {
+          ctx.logger.warn(`未找到字体: ${config.fontName}，将使用系统默认字体`);
+        }
       }
     } catch (error) {
-      ctx.logger.error(`读取字体文件失败: ${error}`);
+      ctx.logger.error(`获取字体失败: ${error}`);
     }
 
     const zh_CN_default = {
