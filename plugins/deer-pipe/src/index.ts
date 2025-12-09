@@ -5,6 +5,7 @@ import { } from 'koishi-plugin-monetary'
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { URL } from 'node:url';
 
 export const name = 'deer-pipe';
 export const inject = ['database', 'puppeteer', 'monetary'];
@@ -202,7 +203,7 @@ export const Config: Schema = Schema.intersect([
   }).description('monetary·通用货币设置'),
 
   Schema.object({
-    fontPath: Schema.string().description("渲染排行榜使用的字体（包含emoji）。<br>请填写`.ttf 字体文件`的绝对路径<br>若渲染功能正常，请不要修改此项！以免出现问题<br>仅供部分显示有问题的用户使用-> [Noto+Color+Emoji](https://fonts.google.com/noto/specimen/Noto+Color+Emoji)"),
+    fontPath: Schema.path({ filters: ['file'] }).description("渲染排行榜使用的字体（包含emoji）。<br>请填写`.ttf 字体文件`的路径<br>若渲染功能正常，请不要修改此项！以免出现问题<br>仅供部分显示有问题的用户使用-> [Noto+Color+Emoji](https://fonts.google.com/noto/specimen/Noto+Color+Emoji)"),
     calendarImagePreset1: Schema.union([
       Schema.const('0').description('自定义路径（参见下方的路径选择配置项）'),
       Schema.const('1').description('鹿管（默认-预设1）'),
@@ -217,7 +218,7 @@ export const Config: Schema = Schema.intersect([
   Schema.union([
     Schema.object({
       calendarImagePreset1: Schema.const("0").required(),
-      calendarImagePath1: Schema.path().description('日历每日背景图像路径（请选择图片）<br>使用方法详见[readme](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
+      calendarImagePath1: Schema.path({ filters: ['file'] }).description('日历每日背景图像路径（请选择图片）<br>使用方法详见[readme](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
     }),
     Schema.object({
     }),
@@ -225,7 +226,7 @@ export const Config: Schema = Schema.intersect([
   Schema.union([
     Schema.object({
       calendarImagePreset2: Schema.const("0").required(),
-      calendarImagePath2: Schema.path().description('日历每日完成标志路径（请选择图片）<br>使用方法详见[readme](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
+      calendarImagePath2: Schema.path({ filters: ['file'] }).description('日历每日完成标志路径（请选择图片）<br>使用方法详见[readme](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
     }),
     Schema.object({
     }),
@@ -290,15 +291,14 @@ export async function apply(ctx: Context, config) {
     // 读取字体文件并转换为 Base64
     let fontBase64 = '';
     try {
-      const fontPath = config.fontPath?.trim()
+      const fontPath = config.fontPath;
       if (fontPath) {
-        const fontData = await fs.promises.readFile(fontPath);
-        logInfo(`读取字体路径：${config.fontPath}`)
+        const fontData = await fs.promises.readFile(fontPath.startsWith('file://') ? new URL(fontPath) : fontPath);
+        logInfo(`读取字体路径：${config.fontPath}`);
         fontBase64 = fontData.toString('base64');
       }
     } catch (error) {
       ctx.logger.error(`读取字体文件失败: ${error}`);
-      // return; // 阻止插件加载
     }
 
     const zh_CN_default = {
