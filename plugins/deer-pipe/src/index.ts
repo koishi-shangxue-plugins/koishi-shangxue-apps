@@ -2,8 +2,8 @@ import { Context, Schema, h } from 'koishi';
 
 import { } from 'koishi-plugin-puppeteer';
 import { } from 'koishi-plugin-monetary';
-import { fontlist } from './../../../../service-more/packages/glyph';
-import type { } from './../../../../service-more/packages/glyph';
+import { fontlist } from 'koishi-plugin-glyph';
+import { } from 'koishi-plugin-glyph';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -212,7 +212,7 @@ export const Config: Schema = Schema.intersect([
   Schema.union([
     Schema.object({
       useFont: Schema.const(true).required(),
-      fontName: Schema.union(fontlist).description("渲染使用的字体（包含emoji）。<br>选择要使用的字体，若渲染功能正常，请不要修改此项！<br>需要安装 koishi-plugin-glyph 插件才能使用此功能"),
+      fontName: Schema.union(fontlist || []).description("渲染使用的字体（包含emoji）。<br>选择要使用的字体，若渲染功能正常，请不要修改此项！<br>需要安装 koishi-plugin-glyph 插件才能使用此功能"),
     }),
     Schema.object({}),
   ]),
