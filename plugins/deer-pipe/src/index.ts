@@ -1193,11 +1193,11 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
 <title>签到日历</title>
 <style>
 @font-face {
-font-family: 'MiSans';
-src: url('../assets/MiSans-Regular.ttf') format('truetype');
+  font-family: 'MiSans';
+  src: url(data:font/truetype;charset=utf-8;base64,${fontBase64}) format('truetype');
 }
-body {
-font-family: 'MiSans', sans-serif;
+* {
+  font-family: 'MiSans', sans-serif;
 }
 .calendar {
 width: 320px;
