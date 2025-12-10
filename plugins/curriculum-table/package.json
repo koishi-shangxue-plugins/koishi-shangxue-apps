@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-curriculum-table",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "[<ruby>群友课程表<rp>（</rp><rt>点我查看效果示例</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/3cd43011f330ee77f9cf6ac7f8d8308a312276085.png) 💾支持[定时触发课程表](https://i0.hdslb.com/bfs/article/df4c68e2ad6406d2fd27b6bf8d1c5322312276085.png) 。支持[从wakeup课程表快速导入你的课表](https://i0.hdslb.com/bfs/article/a80a8b5ea7f4a3053b3f0b24520a84d9312276085.png)🤖支持重命文件名和后缀名。",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -22,6 +22,6 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "koishi": "^4.13.8"
+    "koishi": "^4.18.0"
   }
 }
