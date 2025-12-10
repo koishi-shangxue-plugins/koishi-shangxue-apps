@@ -16,8 +16,18 @@ import { registerJrysCommand } from './commands/jrys'
 export const name = 'jrys-prpr'
 
 export const inject = {
-  required: ['i18n', 'logger', 'http', 'puppeteer'],
-  optional: ['canvas', "monetary", "database", 'glyph']
+  "required": [
+    "i18n",
+    "logger",
+    "http",
+    "puppeteer"
+  ],
+  "optional": [
+    "canvas",
+    "monetary",
+    "database",
+    "glyph"
+  ]
 }
 
 export { usage, Config }
