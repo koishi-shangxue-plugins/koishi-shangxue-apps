@@ -1,9 +1,12 @@
 import { Context, Schema, h, Tables } from 'koishi';
 import { } from 'koishi-plugin-puppeteer';
 import { } from 'koishi-plugin-monetary'
+import type { } from 'koishi-plugin-glyph';
 export const name = 'impart-pro';
 
 export interface Config {
+  useCustomFont: boolean;
+  font?: string;
   commandList: any;
   randomdrawing: string;
   milliliter_range: number[];
@@ -238,7 +241,21 @@ export const Config: Schema<Config> = Schema.intersect([
     imagemode: Schema.boolean().description('开启后，排行榜将使用 puppeteer 渲染图片发送').default(true),
     leaderboardPeopleNumber: Schema.number().description('排行榜显示人数').default(15).min(3),
     enableAllChannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名`关闭则仅展示当前频道的用户排名`').default(false),
-  }).description('排行设置'),
+  }).description('渲染 - 排行榜'),
+
+
+  Schema.object({
+    useCustomFont: Schema.boolean().description('是否为排行榜图片启用自定义字体').default(false),
+  }).description('渲染 - 字体'),
+  Schema.union([
+    Schema.object({
+      useCustomFont: Schema.const(true).required(),
+      font: Schema.dynamic('glyph.fonts').description('选择用于渲染排行榜图片的字体。<br>需要安装并且配置 `glyph` 插件。'),
+    }),
+    Schema.object({
+      useCustomFont: Schema.const(false),
+    }),
+  ]),
 
   Schema.object({
     permissionScope: Schema.union([
@@ -283,10 +300,33 @@ declare module 'koishi' {
 }
 
 export const inject = {
-  required: ["i18n", "database", "monetary"],
+  required: ["i18n", "database", "monetary", "glyph"],
   optional: ['puppeteer']
 };
 export function apply(ctx: Context, config: Config) {
+
+  // 获取字体样式
+  async function getFontStyles(ctx: Context, config: Config) {
+    let fontFaceStyle = '';
+    let customFontFamily = '';
+    // 检查是否启用自定义字体
+    if (config.useCustomFont) {
+      // 获取字体数据
+      const selectedFont = config.font || (ctx.glyph.getFontNames ? ctx.glyph.getFontNames()[0] : null);
+      const fontDataUrl = selectedFont ? ctx.glyph.getFontDataUrl(selectedFont) : null;
+      // 定义字体样式
+      if (fontDataUrl) {
+        fontFaceStyle = `
+          @font-face {
+            font-family: 'CustomFont';
+            src: url('${fontDataUrl}');
+          }
+        `;
+        customFontFamily = `'CustomFont', `;
+      }
+    }
+    return { fontFaceStyle, customFontFamily };
+  }
 
   ctx.model.extend('impartpro', {
     userid: 'string',// 用户ID唯一标识
@@ -1017,6 +1057,9 @@ export function apply(ctx: Context, config: Config) {
           return;
         }
 
+        const { fontFaceStyle, customFontFamily } = await getFontStyles(ctx, config);
+
+
         // 使用 HTML 构建排行榜
         const leaderboardHTML = `
 <!DOCTYPE html>
@@ -1026,8 +1069,9 @@ export function apply(ctx: Context, config: Config) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>今日注入排行榜</title>
 <style>
+${fontFaceStyle}
 body {
-font-family: 'Microsoft YaHei', Arial, sans-serif;
+font-family: ${customFontFamily}'Microsoft YaHei', Arial, sans-serif;
 background-color: #f0f4f8;
 margin: 0;
 padding: 20px;
@@ -1112,7 +1156,7 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
 `;
 
         const page = await ctx.puppeteer.page();
-        await page.setContent(leaderboardHTML, { waitUntil: 'networkidle2' });
+        await page.setContent(leaderboardHTML, { waitUntil: 'domcontentloaded' });
         const leaderboardElement = await page.$('.container');
         const boundingBox = await leaderboardElement.boundingBox();
         await page.setViewport({
@@ -1175,6 +1219,8 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
           await session.send("没有开启 puppeteer 服务");
           return;
         }
+        const { fontFaceStyle, customFontFamily } = await getFontStyles(ctx, config);
+
         // 使用图片渲染
         const leaderboardHTML = `
 <!DOCTYPE html>
@@ -1184,8 +1230,9 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>牛牛排行榜</title>
 <style>
+${fontFaceStyle}
 body {
-font-family: 'Microsoft YaHei', Arial, sans-serif;
+font-family: ${customFontFamily}'Microsoft YaHei', Arial, sans-serif;
 background-color: #f0f4f8;
 margin: 0;
 padding: 20px;
@@ -1270,7 +1317,7 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
 `;
 
         const page = await ctx.puppeteer.page();
-        await page.setContent(leaderboardHTML, { waitUntil: 'networkidle2' });
+        await page.setContent(leaderboardHTML, { waitUntil: 'domcontentloaded' });
         const leaderboardElement = await page.$('.container');
 
         const boundingBox = await leaderboardElement.boundingBox();

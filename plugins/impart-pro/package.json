@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-impart-pro",
   "description": "*[<ruby>impart-pro<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-impart-pro)* 🐮牛牛大作战插件 [点我预览效果](https://i0.hdslb.com/bfs/article/fdb2caeeffc063f393dfb030bc0d6cda312276085.png) 。支持 monetary，😿不支持QQ官方bot。灵感来自于[yunzai](https://gitee.com/sumght/impart-pro-plugin)和[niuzi插件](https://github.com/usfese/koishi-plugin-niuzi/tree/main)",
-  "version": "1.5.14",
+  "version": "2.0.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
