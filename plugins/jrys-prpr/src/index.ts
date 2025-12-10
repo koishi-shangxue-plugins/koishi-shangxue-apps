@@ -3,6 +3,7 @@ import { Schema, h, Random, Context, sleep } from "koishi"
 import { } from "koishi-plugin-puppeteer"
 import { } from "koishi-plugin-monetary"
 import { } from "koishi-plugin-canvas"
+import type { } from "koishi-plugin-glyph"
 
 import jrys_json from "./../data/jrys.json"
 
@@ -24,7 +25,7 @@ export const name = 'jrys-prpr'
 
 export const inject = {
   required: ['i18n', 'logger', 'http', 'puppeteer'],
-  optional: ['canvas', "monetary", "database"]
+  optional: ['canvas', "monetary", "database", 'glyph']
 }
 
 export const usage = `
@@ -110,7 +111,7 @@ export const Config =
         HoroscopeDescriptionTextColor: Schema.string().default("rgba(255,255,255,1)").role('color').description('`运势说明文字`颜色'),
         DashedboxThickn: Schema.number().role('slider').min(0).max(20).step(1).default(5).description('`虚线框`的粗细'),
         Dashedboxcolor: Schema.string().default("rgba(255, 255, 255, 0.5)").role('color').description('`虚线框`的颜色'),
-        fontPath: Schema.string().description("`请填写.ttf 字体文件的绝对路径`").default(path.join(__dirname, './../data/千图马克手写体lite.ttf')),
+        font: Schema.dynamic('glyph.fonts').default('千图马克手写体lite').description('选择要使用的字体（需要安装 glyph 插件，否则使用本地默认字体）'),
       }).collapse().description('可自定义各种颜色搭配和字体'),
     }).description('面板调节'),
 
@@ -270,9 +271,27 @@ export function apply(ctx: Context, config) {
     const root = path.join(ctx.baseDir, 'data', 'jrys-prpr')
     const jsonFilePath = path.join(root, 'OriginalImageURL_data.json')
 
-    // 在全局作用域中定义字体 Base64 缓存
-    let cachedFontBase64 = null
+    // 本地字体相关配置
+    const defaultFontName = '千图马克手写体lite'
+    const localFontPath = path.join(__dirname, './../data/千图马克手写体lite.ttf')
+    let cachedFontBase64 = null // 本地字体 Base64 缓存
+
     const retryCounts = {} // 使用一个对象来存储每个用户的重试次数
+
+    // 如果有 glyph 服务，则使用 glyph 管理字体
+    if (ctx.glyph) {
+      const fontName = config.HTML_setting.font || defaultFontName
+      const fontFileUrl = pathToFileURL(localFontPath).href
+      const fontExists = await ctx.glyph.checkFont(fontName, fontFileUrl)
+
+      if (fontExists) {
+        ctx.logger.info(`字体已通过 glyph 服务加载: ${fontName}`)
+      } else {
+        ctx.logger.warn(`字体加载到 glyph 服务失败: ${fontName}`)
+      }
+    } else {
+      ctx.logger.info('未检测到 glyph 服务，将使用本地字体文件')
+    }
 
     if (!fs.existsSync(root)) {
       fs.mkdirSync(root, { recursive: true })
@@ -420,14 +439,30 @@ ${dJson.unsignText}\n
             await page.setViewport({ width: 1080, height: 1920 })
 
             let BackgroundURL_base64 = await convertToBase64image(BackgroundURL)
-            // 读取 Base64 字体字符串
-            logInfo(config.HTML_setting.fontPath)
-            // 如果字体 Base64 未缓存，则读取并缓存
-            if (!cachedFontBase64) {
-              cachedFontBase64 = await getFontBase64(config.HTML_setting.fontPath)
+
+            // 获取字体 Data URL（优先使用 glyph 服务，否则使用本地字体）
+            let fontDataUrl = null
+            let selectedFont = defaultFontName
+
+            if (ctx.glyph) {
+              // 使用 glyph 服务获取字体
+              selectedFont = config.HTML_setting.font || defaultFontName
+              fontDataUrl = ctx.glyph.getFontDataUrl(selectedFont)
+              if (!fontDataUrl) {
+                ctx.logger.warn(`未在 glyph 服务中找到字体: ${selectedFont}，将使用本地字体`)
+              } else {
+                logInfo(`使用 glyph 字体: ${selectedFont}`)
+              }
             }
-            // 使用缓存的字体 Base64
-            const fontBase64 = cachedFontBase64
+
+            // 如果 glyph 服务不可用或未找到字体，使用本地字体
+            if (!fontDataUrl) {
+              if (!cachedFontBase64) {
+                cachedFontBase64 = await getFontBase64(localFontPath)
+              }
+              fontDataUrl = `data:font/ttf;base64,${cachedFontBase64}`
+              logInfo(`使用本地字体: ${defaultFontName}`)
+            }
 
             let insertHTMLuseravatar = session.event.user.avatar
             let luckyStarHTML = `
@@ -464,15 +499,15 @@ color: transparent;
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>运势卡片</title>
 <style>
-@font-face {
-font-family: "千图马克手写体lite";
-src: url('data:font/ttf;base64,${fontBase64}') format('truetype');
-}
+${fontDataUrl ? `@font-face {
+font-family: "${selectedFont}";
+src: url('${fontDataUrl}') format('truetype');
+}` : ''}
 body, html {
 height: 100%;
 margin: 0;
 overflow: hidden;
-font-family: "千图马克手写体lite";
+font-family: ${fontDataUrl ? `"${selectedFont}"` : 'Arial, sans-serif'};
 }
 .background {
 background-image: url('${BackgroundURL_base64}');
