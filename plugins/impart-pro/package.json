@@ -12,7 +12,7 @@
   "keywords": [
     "chatbot",
     "koishi",
-    "🐮牛牛大作战",
+    "牛牛大作战",
     "impart-pro",
     "monetary",
     "plugin"
@@ -22,6 +22,10 @@
     "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "peerDependencies": {
-    "koishi": "^4.18.0"
+    "koishi": "^4.18.7"
+  },
+  "devDependencies": {
+    "koishi": "^4.18.7",
+    "koishi-plugin-glyph": "^3.0.0"
   }
 }
