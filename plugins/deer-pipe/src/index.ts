@@ -301,25 +301,29 @@ export async function apply(ctx: Context, config) {
     const calendarImagePath2 = config.calendarImagePreset2 === '0' ? config.calendarImagePath2 : presetPaths2[config.calendarImagePreset2];
     const calendarpngimagebase64_1 = await readFileAsBase64(calendarImagePath1);
     const calendarpngimagebase64_2 = await readFileAsBase64(calendarImagePath2);
-    // 获取字体 Data URL
-    let fontBase64 = '';
-    try {
-      // 如果安装了 glyph 插件，使用 glyph 服务获取字体
-      if (config.useFont) {
-        if (ctx.glyph && config.fontName) {
-          const fontDataUrl = ctx.glyph.getFontDataUrl(config.fontName);
-          if (fontDataUrl) {
-            // Data URL 格式: data:font/truetype;charset=utf-8;base64,xxxxx
-            // 提取 base64 部分
-            fontBase64 = fontDataUrl.split(',')[1];
-            logInfo(`使用 glyph 字体：${config.fontName}`);
-          } else {
-            ctx.logger.warn(`未找到字体: ${config.fontName}，将使用系统默认字体`);
+
+    // 获取字体 Data URL 的函数（延迟到实际使用时调用）
+    function getFontBase64(): string {
+      let fontBase64 = '';
+      try {
+        // 如果安装了 glyph 插件，使用 glyph 服务获取字体
+        if (config.useFont) {
+          if (ctx.glyph && config.fontName) {
+            const fontDataUrl = ctx.glyph.getFontDataUrl(config.fontName);
+            if (fontDataUrl) {
+              // Data URL 格式: data:font/truetype;charset=utf-8;base64,xxxxx
+              // 提取 base64 部分
+              fontBase64 = fontDataUrl.split(',')[1];
+              logInfo(`使用 glyph 字体：${config.fontName}`);
+            } else {
+              ctx.logger.warn(`未找到字体: ${config.fontName}，将使用系统默认字体`);
+            }
           }
         }
+      } catch (error) {
+        ctx.logger.error(`获取字体失败: ${error}`);
       }
-    } catch (error) {
-      ctx.logger.error(`获取字体失败: ${error}`);
+      return fontBase64;
     }
 
     const zh_CN_default = {
@@ -833,6 +837,8 @@ export async function apply(ctx: Context, config) {
           channels: record.channelId?.join(', ') || '未知', // 展示所在群组
           sum: record.totaltimes,
         }));
+        // 在实际渲染时获取字体
+        const fontBase64 = getFontBase64();
         const leaderboardHTML = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -845,7 +851,7 @@ export async function apply(ctx: Context, config) {
   font-family: 'MiSans';
   src: url(data:font/truetype;charset=utf-8;base64,${fontBase64}) format('truetype');
 }
-* { 
+* {
   font-family: 'MiSans', sans-serif;
 }
 body {
@@ -1208,7 +1214,8 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       const [record] = await ctx.database.get('deerpipe', { userid: userId });
       const checkinDates = record?.checkindate || [];
       const calendarDayData = generateCalendarHTML(checkinDates, year, month, username);
-      // ../assets/MiSans-Regular.ttf 这个字体，emmm怎么说呢，无所谓了，不要了
+      // 在实际渲染时获取字体
+      const fontBase64 = getFontBase64();
       const fullHTML = `
 <!DOCTYPE html>
 <html lang="zh-CN">
