@@ -8,91 +8,73 @@ import type { Config } from '../types'
  * 支持多种格式：txt文件、文件夹、网络URL、本地文件
  */
 export function getRandomBackground(config: Config): string {
-  // 随机选择一个背景路径
-  let backgroundPath = config.BackgroundURL[Math.floor(Math.random() * config.BackgroundURL.length)]
+  const rawPath = config.BackgroundURL[Math.floor(Math.random() * config.BackgroundURL.length)]
 
-  // 如果是 file:/// 开头的 URL
-  if (backgroundPath.startsWith('file:///')) {
+  // 首先检查是否为网络 URL
+  if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
+    return rawPath
+  }
+
+  // 否则，视为本地路径（可能是 file:/// URL 或普通文件系统路径）
+  try {
+    return handleLocalPath(rawPath)
+  } catch (error) {
+    throw new Error(`处理本地背景路径失败: "${rawPath}". 错误: ${error.message}`)
+  }
+}
+
+/**
+ * 处理本地文件路径（可以是普通路径或 file:/// URL）
+ */
+function handleLocalPath(filePath: string): string {
+  let localPath: string;
+  // 如果是 file:/// URL，转换为普通路径
+  if (filePath.startsWith('file:///')) {
     try {
-      // 将 file:/// URL 转换为本地文件路径
-      const localPath = fileURLToPath(backgroundPath)
-
-      // 如果是 txt 文件
-      if (localPath.endsWith('.txt')) {
-        let lines = fs.readFileSync(localPath, 'utf-8').split('\n').filter(Boolean)
-        let randomLine = lines[Math.floor(Math.random() * lines.length)].trim().replace(/\\/g, '/')
-        return randomLine
-      }
-
-      // 如果是图片文件
-      if (/\.(jpg|png|gif|bmp|webp)$/i.test(localPath)) {
-        return backgroundPath // 直接返回 file:/// URL
-      }
-
-      // 如果是文件夹路径
-      if (fs.existsSync(localPath) && fs.lstatSync(localPath).isDirectory()) {
-        const files = fs.readdirSync(localPath)
-          .filter(file => /\.(jpg|png|gif|bmp|webp)$/i.test(file))
-        if (files.length === 0) {
-          throw new Error("文件夹中未找到有效图片文件")
-        }
-        let randomFile = files[Math.floor(Math.random() * files.length)]
-        let fullPath = path.join(localPath, randomFile).replace(/\\/g, '/')
-        return pathToFileURL(fullPath).href // 转换为 file:/// URL
-      }
-
-      // 如果既不是 txt 文件，也不是图片文件或文件夹
-      throw new Error(`file:/// URL 指向的文件类型无效: ${backgroundPath}`)
+      localPath = fileURLToPath(filePath)
     } catch (error) {
-      throw new Error(`处理 file:/// URL 失败: ${backgroundPath}, 错误: ${error.message}`)
+      throw new Error(`无效的 file URL: ${filePath}`)
+    }
+  } else {
+    localPath = filePath
+  }
+
+  // 检查路径是否存在
+  if (!fs.existsSync(localPath)) {
+    throw new Error(`路径不存在: ${localPath}`)
+  }
+
+  const stats = fs.lstatSync(localPath)
+
+  // 如果是文件夹
+  if (stats.isDirectory()) {
+    const files = fs.readdirSync(localPath)
+      .filter(file => /\.(jpg|png|gif|bmp|webp)$/i.test(file))
+    if (files.length === 0) {
+      throw new Error(`文件夹 "${localPath}" 中未找到有效图片文件`)
+    }
+    const randomFile = files[Math.floor(Math.random() * files.length)]
+    const fullPath = path.join(localPath, randomFile)
+    return pathToFileURL(fullPath).href
+  }
+
+  // 如果是文件
+  if (stats.isFile()) {
+    // 如果是 .txt 文件
+    if (localPath.endsWith('.txt')) {
+      const lines = fs.readFileSync(localPath, 'utf-8').split('\n').filter(Boolean)
+      if (lines.length === 0) {
+        throw new Error(`.txt 文件为空: ${localPath}`)
+      }
+      // 从文件中随机选择一行并返回
+      return lines[Math.floor(Math.random() * lines.length)].trim()
+    }
+
+    // 如果是图片文件
+    if (/\.(jpg|png|gif|bmp|webp)$/i.test(localPath)) {
+      return pathToFileURL(localPath).href
     }
   }
 
-  // 如果是网络 URL（http:// 或 https://），直接返回
-  if (backgroundPath.startsWith('http://') || backgroundPath.startsWith('https://')) {
-    return backgroundPath
-  }
-
-  // 如果是 txt 文件路径
-  if (backgroundPath.endsWith('.txt')) {
-    try {
-      let lines = fs.readFileSync(backgroundPath, 'utf-8').split('\n').filter(Boolean)
-      let randomLine = lines[Math.floor(Math.random() * lines.length)].trim().replace(/\\/g, '/')
-      return randomLine
-    } catch (error) {
-      throw new Error(`读取 txt 文件失败: ${backgroundPath}, 错误: ${error.message}`)
-    }
-  }
-
-  // 如果是文件夹路径
-  if (fs.existsSync(backgroundPath) && fs.lstatSync(backgroundPath).isDirectory()) {
-    try {
-      const files = fs.readdirSync(backgroundPath)
-        .filter(file => /\.(jpg|png|gif|bmp|webp)$/i.test(file))
-      if (files.length === 0) {
-        throw new Error("文件夹中未找到有效图片文件")
-      }
-      let randomFile = files[Math.floor(Math.random() * files.length)]
-      let fullPath = path.join(backgroundPath, randomFile).replace(/\\/g, '/')
-      return pathToFileURL(fullPath).href // 转换为 file:/// URL
-    } catch (error) {
-      throw new Error(`读取文件夹失败: ${backgroundPath}, 错误: ${error.message}`)
-    }
-  }
-
-  // 如果是图片文件绝对路径
-  if (fs.existsSync(backgroundPath) && fs.lstatSync(backgroundPath).isFile()) {
-    try {
-      if (/\.(jpg|png|gif|bmp|webp)$/i.test(backgroundPath)) {
-        return pathToFileURL(backgroundPath).href // 转换为 file:/// URL
-      } else {
-        throw new Error("文件不是有效的图片格式")
-      }
-    } catch (error) {
-      throw new Error(`读取图片文件失败: ${backgroundPath}, 错误: ${error.message}`)
-    }
-  }
-
-  // 如果以上条件都不满足，抛出错误
-  throw new Error(`无效的背景路径: ${backgroundPath}`)
+  throw new Error(`不支持的本地路径格式: ${localPath}`)
 }

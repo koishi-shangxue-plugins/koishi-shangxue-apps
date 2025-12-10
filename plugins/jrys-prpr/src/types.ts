@@ -1,3 +1,17 @@
+// 数据库表接口
+export interface JrysPrprData {
+  userid: string
+  channelId: string
+  lastSignIn: string
+}
+
+// 扩展 Koishi 的数据库表
+declare module 'koishi' {
+  interface Tables {
+    jrysprprdata: JrysPrprData
+  }
+}
+
 // 运势数据接口
 export interface JrysData {
   fortuneSummary: string

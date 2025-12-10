@@ -1,9 +1,8 @@
 import fs from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { URL, pathToFileURL, fileURLToPath } from 'node:url'
 import type { Context, Session } from 'koishi'
 import type { Config, JrysData } from '../types'
 import { getFontDataUrl } from './font'
-import { convertToBase64image } from './image'
 import { getFormattedDate } from './jrys'
 
 /**
@@ -201,23 +200,34 @@ ${dJson.unsignText}
 /**
  * 获取图片 Buffer（用于 raw_jrys 模式）
  */
-export async function getImageBuffer(ctx: Context, BackgroundURL: string): Promise<Buffer> {
-  if (BackgroundURL.startsWith('data:image/')) {
-    // Base64 图片数据
-    const base64Data = BackgroundURL.split(',')[1]
+export async function getImageBuffer(ctx: Context, rawUrl: string): Promise<Buffer> {
+  // 首先检查是否为 data URL
+  if (rawUrl.startsWith('data:image/')) {
+    const base64Data = rawUrl.split(',')[1]
     return Buffer.from(base64Data, 'base64')
-  } else if (BackgroundURL.startsWith('http://') || BackgroundURL.startsWith('https://')) {
-    // 网络 URL
-    const imageBuffer = await ctx.http.get(BackgroundURL, { responseType: 'arraybuffer' })
-    return Buffer.from(imageBuffer)
-  } else if (BackgroundURL.startsWith('file:///')) {
-    // 本地文件路径（file:/// 格式）
-    const localPath = fileURLToPath(BackgroundURL)
-    return fs.readFileSync(localPath)
-  } else if (fs.existsSync(BackgroundURL)) {
-    // 本地文件路径
-    return fs.readFileSync(BackgroundURL)
-  } else {
-    throw new Error('不支持的背景图格式')
   }
+
+  // 检查是否为网络 URL
+  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+    const response = await ctx.http.get(rawUrl, { responseType: 'arraybuffer' })
+    return Buffer.from(response)
+  }
+
+  // 否则，视为本地路径（可能是 file:/// URL 或普通文件系统路径）
+  let localPath: string;
+  if (rawUrl.startsWith('file:///')) {
+    try {
+      localPath = fileURLToPath(rawUrl)
+    } catch (error) {
+      throw new Error(`无效的 file URL: ${rawUrl}`)
+    }
+  } else {
+    localPath = rawUrl
+  }
+
+  if (fs.existsSync(localPath)) {
+    return fs.readFileSync(localPath)
+  }
+
+  throw new Error(`不支持的背景图格式或路径不存在: ${rawUrl}`)
 }

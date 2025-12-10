@@ -9,14 +9,14 @@ export async function recordSignIn(ctx: Context, userId: string, channelId: stri
   const currentTime = new Date()
   const dateString = currentTime.toISOString().split('T')[0] // 获取当前日期字符串
 
-  const [record] = await ctx.database.get('jrysprprdata' as any, { userid: userId, channelId })
+  const [record] = await ctx.database.get('jrysprprdata', { userid: userId, channelId })
 
   if (record) {
     // 更新用户签到时间
-    await ctx.database.set('jrysprprdata' as any, { userid: userId, channelId }, { lastSignIn: dateString })
+    await ctx.database.set('jrysprprdata', { userid: userId, channelId }, { lastSignIn: dateString })
   } else {
     // 创建新的签到记录
-    await ctx.database.create('jrysprprdata' as any, { userid: userId, channelId, lastSignIn: dateString })
+    await ctx.database.create('jrysprprdata', { userid: userId, channelId, lastSignIn: dateString })
   }
 }
 
@@ -29,17 +29,17 @@ export async function alreadySignedInToday(ctx: Context, userId: string, channel
 
   if (!config.Repeated_signin_for_different_groups) {
     // 如果不允许从不同群组签到，检查所有群组
-    const records = await ctx.database.get('jrysprprdata' as any, { userid: userId })
+    const records = await ctx.database.get('jrysprprdata', { userid: userId })
 
     // 检查是否有任何记录的签到日期是今天
-    return records.some((record: any) => record.lastSignIn === dateString)
+    return records.some(record => record.lastSignIn === dateString)
   } else {
     // 仅检查当前群组
-    const [record] = await ctx.database.get('jrysprprdata' as any, { userid: userId, channelId })
+    const [record] = await ctx.database.get('jrysprprdata', { userid: userId, channelId })
 
     if (record) {
       // 检查最后签到日期是否是今天
-      return (record as any).lastSignIn === dateString
+      return record.lastSignIn === dateString
     }
   }
 
