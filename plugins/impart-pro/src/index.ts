@@ -2,7 +2,7 @@
 
 import { Context } from 'koishi';
 import { Config, usage } from './config';
-import { applyCommands } from './commands';
+import { applyCommands } from './commands/index';
 import './types'; // 确保类型被正确加载
 
 export const name = 'impart-pro';
@@ -10,8 +10,8 @@ export const name = 'impart-pro';
 export { Config, usage };
 
 export const inject = {
-  required: ["i18n", "database", "monetary", "glyph"],
-  optional: ['puppeteer']
+  required: ["i18n", "database", "monetary"],
+  optional: ['puppeteer', 'glyph']
 };
 
 export function apply(ctx: Context, config: Config) {

@@ -193,7 +193,7 @@ export const Config: Schema<Config> = Schema.intersect([
     Schema.union([
       Schema.object({
         useCustomFont: Schema.const(true).required(),
-        font: Schema.dynamic('glyph.fonts').description('选择用于渲染排行榜图片的字体。'),
+        font: Schema.dynamic('glyph.fonts').description('选择用于渲染排行榜图片的字体。需要安装 `koishi-plugin-glyph` 插件才能使用此功能。'),
       }),
       Schema.object({
         useCustomFont: Schema.const(false),
