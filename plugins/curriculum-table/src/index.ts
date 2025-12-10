@@ -1,12 +1,35 @@
-import { Schema, Logger, h, Universal, Bot } from "koishi";
-
+import { Context, Schema, Logger, h, Universal, Bot } from "koishi";
+import type { } from 'koishi-plugin-glyph'
 import fs from 'node:fs';
 import path from 'node:path';
+import * as url from 'node:url';
+
+export interface CurriculumTable {
+  id: number
+  channelId: string
+  userid: string
+  username: string
+  useravatar: string
+  curriculumndate: string[]
+  curriculumname: string
+  curriculumtime: string
+  startDate: string
+  endDate: string
+}
+
+declare module 'koishi' {
+  interface Tables {
+    curriculumtable: CurriculumTable
+  }
+  interface Context {
+    cron?: (expression: string, callback: () => void) => void
+  }
+}
 
 export const name = "curriculum-table";
 export const inject = {
   required: ['puppeteer', "database"],
-  //  optional: ["cron"]//  加这个会卡死前端（）
+  optional: ["glyph"]
 };
 
 export const usage = `
@@ -197,9 +220,19 @@ export const Config = Schema.intersect([
   Schema.object({
     screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(60).description('设置图片压缩 保留质量（%）'),
     backgroundcolor: Schema.string().role('color').description("渲染的课表底色背景色").default("rgba(234, 228, 225, 1)"),
-    customFontPath: Schema.string().description("字体 URL (.ttf)<br>注意：需填入本地绝对路径的地址").default(path.join(__dirname, './../font/方正像素12.ttf')), // https://www.mostfont.com/font/VMnwofYeecb3N/%E6%96%B9%E6%AD%A3%E5%83%8F%E7%B4%A012
     footertext: Schema.string().role('textarea', { rows: [2, 4] }).description("页脚描述文字。换行请用`\<br\>`").default("输入 群友课程表 以查看指令帮助<br>Bot of koishi & koishi-plugin-curriculum-table"),
   }).description('渲染设置'),
+
+  Schema.object({
+    useGlyph: Schema.boolean().default(false).description('是否启用 `glyph` 字体服务。<br>启用后，将优先使用 `glyph` 服务提供的字体。'),
+  }).description('字体设置'),
+  Schema.union([
+    Schema.object({
+      useGlyph: Schema.const(true).required(),
+      fontFamily: Schema.dynamic('glyph.fonts').description('选择字体'),
+    }),
+    Schema.object({}),
+  ]),
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式 `非必要不开启`"),
@@ -207,14 +240,56 @@ export const Config = Schema.intersect([
   }).description('开发者选项'),
 ]);
 
-export async function apply(ctx, config) {
+export async function apply(ctx: Context, config) {
+  const logger = new Logger(`DEV:${name}`);
 
-  let cachedFontBase64;
-  if (!cachedFontBase64) {
-    cachedFontBase64 = getFontBase64(config.customFontPath);
+  // 字体加载逻辑
+  async function getFontFaceRule() {
+    const fontName = '千图马克手写体lite';
+    const localFontPath = path.join(__dirname, './../font/方正像素12.ttf');
+
+    // 优先使用 glyph 服务
+    if (config.useGlyph && ctx.glyph && config.fontFamily) {
+      const fontDataUrl = ctx.glyph.getFontDataUrl(config.fontFamily);
+      if (fontDataUrl) {
+        logger.info(`使用 glyph 字体: ${config.fontFamily}`);
+        return `@font-face { font-family: '${fontName}'; src: url('${fontDataUrl}'); }`;
+      }
+      logger.warn(`从 glyph 获取字体 ${config.fontFamily} 失败，将回退到本地字体。`);
+    }
+
+    // 回退到本地字体
+    try {
+      const fontBuffer = await fs.promises.readFile(localFontPath);
+      const base64Font = fontBuffer.toString('base64');
+      logger.info('使用本地字体。');
+      return `@font-face { font-family: '${fontName}'; src: url('data:font/ttf;base64,${base64Font}') format('truetype'); }`;
+    } catch (error) {
+      logger.error('加载本地字体文件失败:', error);
+      return `/* 无法加载本地字体 */`;
+    }
   }
 
-  ctx.on('ready', () => {
+
+  ctx.on('ready', async () => {
+    // 如果 glyph 服务存在，则检查并注册本地字体
+    if (ctx.glyph) {
+      const fontName = '千图马克手写体lite';
+      const fontPath = path.join(__dirname, './../font/方正像素12.ttf');
+      const fontFileUrl = url.pathToFileURL(fontPath).href;
+
+      try {
+        const fontExists = await ctx.glyph.checkFont(fontName, fontFileUrl);
+        if (fontExists) {
+          logger.info(`字体 '${fontName}' 已通过 glyph 服务准备就绪。`);
+        } else {
+          logger.warn(`字体 '${fontName}' 未能通过 glyph 服务成功加载。`);
+        }
+      } catch (error) {
+        logger.error(`通过 glyph 检查字体 '${fontName}' 时出错:`, error);
+      }
+    }
+
     ctx.model.extend('curriculumtable', {
       id: 'unsigned',
       channelId: 'string',
@@ -680,10 +755,10 @@ export async function apply(ctx, config) {
     });
   });
 
-  // 渲染课程表的函数 
+  // 渲染课程表的函数
   async function renderCourseTable(ctx, config, channelId, dayOffset = 0) {
     if (!ctx.puppeteer) {
-      ctx.logger.error("没有开启 puppeteer 服务，无法生成图片。");
+      logger.error("没有开启 puppeteer 服务，无法生成图片。");
       return null;
     }
 
@@ -693,7 +768,7 @@ export async function apply(ctx, config) {
       const allCourses = await ctx.database.get('curriculumtable', { channelId });
 
       if (allCourses.length === 0) {
-        ctx.logger.warn(`群组 ${channelId} 没有课程数据，无法渲染。`);
+        logger.warn(`群组 ${channelId} 没有课程数据，无法渲染。`);
         return null; // 没有课程数据
       }
 
@@ -813,6 +888,7 @@ export async function apply(ctx, config) {
         return a.timestamp - b.timestamp;
       });
 
+      const fontFaceRule = await getFontFaceRule();
       // HTML 模板
       const htmlTemplate = `
 <!DOCTYPE html>
@@ -824,7 +900,7 @@ export async function apply(ctx, config) {
 <style>
 /* 嵌入式 CSS 样式 */
 body {
-font-family: '方正像素12', sans-serif; /* 优先使用自定义字体，如果加载失败则使用 sans-serif */
+font-family: '千图马克手写体lite', sans-serif; /* 优先使用自定义字体，如果加载失败则使用 sans-serif */
 background-color: ${config.backgroundcolor};
 color: #333;
 margin: 0;
@@ -834,10 +910,7 @@ flex-direction: column;
 align-items: center;
 }
 
-@font-face {
-font-family: '方正像素12';
-src: url('data:font/ttf;base64,${cachedFontBase64}') format('truetype');
-}
+${fontFaceRule}
 
 #container {
 width: 95%; /* 扩展宽度 */
@@ -851,7 +924,7 @@ box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 阴影效果 */
 }
 
 h1 {
-font-family: '方正像素12', sans-serif; /* 优先使用自定义字体 */
+font-family: '千图马克手写体lite', sans-serif; /* 优先使用自定义字体 */
 font-size: 2.5em;
 text-align: center;
 margin-bottom: 30px;
@@ -1127,7 +1200,7 @@ ${status === 'next' && course.timeToStartText ? `<p class="time-remaining">${cou
 </html>
 `;
 
-      await page.setContent(htmlTemplate, { waitUntil: 'networkidle0' });
+      await page.setContent(htmlTemplate, { waitUntil: 'domcontentloaded' });
 
       const containerBoundingBox = await page.evaluate(() => {
         const container = document.getElementById('container');
@@ -1146,15 +1219,9 @@ ${status === 'next' && course.timeToStartText ? `<p class="time-remaining">${cou
 
     } catch (e) {
       if (page && config.pageclose) await page.close();
-      ctx.logger.error('生成课程表图片失败:', e);
+      logger.error('生成课程表图片失败:', e);
       return null;
     }
-  }
-
-  // 读取 TTF 字体文件并转换为 Base64 编码
-  function getFontBase64(fontPath) {
-    const fontBuffer = fs.readFileSync(fontPath);
-    return fontBuffer.toString('base64');
   }
 
   // 计算日期的辅助函数
