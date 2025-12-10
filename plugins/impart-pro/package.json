@@ -26,6 +26,8 @@
   },
   "devDependencies": {
     "koishi": "^4.18.7",
-    "koishi-plugin-glyph": "^3.0.0"
+    "koishi-plugin-glyph": "^3.0.0",
+    "koishi-plugin-monetary": "^0.1.3",
+    "koishi-plugin-puppeteer": "^3.9.0"
   }
 }
