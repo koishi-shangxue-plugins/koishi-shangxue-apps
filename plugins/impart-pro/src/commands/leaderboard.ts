@@ -75,7 +75,60 @@ export function applyLeaderboardCommands(ctx: Context, config: Config) {
           justify-content: center;
           align-items: flex-start;
           }
-          /* ... (rest of the CSS) */
+          .container {
+          background-color: white;
+          border-radius: 10px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          padding: 30px;
+          width: 100%;
+          max-width: 500px;
+          }
+          h1 {
+          text-align: center;
+          color: #2c3e50;
+          margin-bottom: 30px;
+          font-size: 28px;
+          }
+          .ranking-list {
+          list-style-type: none;
+          padding: 0;
+          margin: 0;
+          }
+          .ranking-item {
+          display: flex;
+          align-items: center;
+          padding: 15px 10px;
+          border-bottom: 1px solid #ecf0f1;
+          transition: background-color 0.3s;
+          }
+          .ranking-item:hover {
+          background-color: #f8f9fa;
+          }
+          .ranking-number {
+          font-size: 18px;
+          font-weight: bold;
+          margin-right: 15px;
+          min-width: 30px;
+          color: #7f8c8d;
+          }
+          .medal {
+          font-size: 24px;
+          margin-right: 15px;
+          }
+          .name {
+          flex-grow: 1;
+          font-size: 18px;
+          }
+          .milliliter {
+          font-weight: bold;
+          color: #3498db;
+          font-size: 18px;
+          }
+          .milliliter::after {
+          content: ' mL';
+          font-size: 14px;
+          color: #95a5a6;
+          }
           </style>
           </head>
           <body>
@@ -174,7 +227,60 @@ export function applyLeaderboardCommands(ctx: Context, config: Config) {
           justify-content: center;
           align-items: flex-start;
           }
-          /* ... (rest of the CSS) */
+          .container {
+          background-color: white;
+          border-radius: 10px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          padding: 30px;
+          width: 100%;
+          max-width: 500px;
+          }
+          h1 {
+          text-align: center;
+          color: #2c3e50;
+          margin-bottom: 30px;
+          font-size: 28px;
+          }
+          .ranking-list {
+          list-style-type: none;
+          padding: 0;
+          margin: 0;
+          }
+          .ranking-item {
+          display: flex;
+          align-items: center;
+          padding: 15px 10px;
+          border-bottom: 1px solid #ecf0f1;
+          transition: background-color 0.3s;
+          }
+          .ranking-item:hover {
+          background-color: #f8f9fa;
+          }
+          .ranking-number {
+          font-size: 18px;
+          font-weight: bold;
+          margin-right: 15px;
+          min-width: 30px;
+          color: #7f8c8d;
+          }
+          .medal {
+          font-size: 24px;
+          margin-right: 15px;
+          }
+          .name {
+          flex-grow: 1;
+          font-size: 18px;
+          }
+          .length {
+          font-weight: bold;
+          color: #e74c3c;
+          font-size: 18px;
+          }
+          .length::after {
+          content: ' cm';
+          font-size: 14px;
+          color: #95a5a6;
+          }
           </style>
           </head>
           <body>

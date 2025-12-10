@@ -1,6 +1,5 @@
 // src/types.ts
 
-import { Context } from 'koishi';
 import type { } from 'koishi-plugin-monetary';
 import type { } from 'koishi-plugin-puppeteer';
 import type { } from 'koishi-plugin-glyph';
@@ -18,7 +17,6 @@ export interface ImpartproTable {
   locked: boolean;
 }
 
-// 扩展 Koishi 的 Tables 接口，使其包含 impartpro 表
 declare module 'koishi' {
   interface Tables {
     impartpro: ImpartproTable;

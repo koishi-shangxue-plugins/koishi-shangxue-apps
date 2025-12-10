@@ -183,23 +183,25 @@ export const Config: Schema<Config> = Schema.intersect([
     milliliter_range: Schema.tuple([Number, Number]).description("注入毫升数的范围<br>默认`10 ± 100%`，即 0 ~ 20 mL").default([10, 100]),
   }).description('注入功能设置'),
 
-  Schema.intersect([
+  Schema.object({
+    imagemode: Schema.boolean().description('开启后，排行榜将使用 puppeteer 渲染图片发送').default(true),
+    leaderboardPeopleNumber: Schema.number().description('排行榜显示人数').default(15).min(3),
+    enableAllChannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名<br>关闭后 则仅展示当前频道的用户排名').default(false),
+  }).description('渲染 - 排行榜'),
+
+
+  Schema.object({
+    useCustomFont: Schema.boolean().description('是否为排行榜图片启用自定义字体<br>需要安装并且配置 `glyph` 插件。').default(false),
+  }).description('渲染 - 字体'),
+  Schema.union([
     Schema.object({
-      imagemode: Schema.boolean().description('开启后，排行榜将使用 puppeteer 渲染图片发送').default(true),
-      leaderboardPeopleNumber: Schema.number().description('排行榜显示人数').default(15).min(3),
-      enableAllChannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名`关闭则仅展示当前频道的用户排名`').default(false),
-      useCustomFont: Schema.boolean().description('是否为排行榜图片启用自定义字体').default(false),
+      useCustomFont: Schema.const(true).required(),
+      font: Schema.dynamic('glyph.fonts').description('选择用于渲染排行榜图片的字体。<br>需要开启 `glyph` 插件才能显示可用字体。  '),
     }),
-    Schema.union([
-      Schema.object({
-        useCustomFont: Schema.const(true).required(),
-        font: Schema.dynamic('glyph.fonts').description('选择用于渲染排行榜图片的字体。需要安装 `koishi-plugin-glyph` 插件才能使用此功能。'),
-      }),
-      Schema.object({
-        useCustomFont: Schema.const(false),
-      }),
-    ]),
-  ]).description('排行设置'),
+    Schema.object({
+      useCustomFont: Schema.const(false),
+    }),
+  ]),
 
   Schema.object({
     permissionScope: Schema.union([

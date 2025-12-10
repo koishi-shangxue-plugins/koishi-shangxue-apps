@@ -94,7 +94,8 @@ export function applyInjectCommand(ctx: Context, config: Config) {
       await ctx.database.set('impartpro', { userid: targetUserId }, { injectml: updatedInjectML });
 
       const totalML = injectData[formattedDate].toFixed(2);
-      const imageLink = `http://q.qlogo.cn/headimg_dl?dst_uin=${targetUserId}&spec=640`;
+      const getUserData = await session.bot.getUser(targetUserId);
+      const imageLink = getUserData.avatar
       return h.text(session.text('.inject-success', [session.username, targetUsername, randomML, totalML])) + `<p>` + h.image(imageLink);
     });
 }
