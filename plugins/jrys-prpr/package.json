@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-jrys-prpr",
   "description": "[<ruby>**jrys-prpr**<rp>（</rp><rt>点我查看预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/ae33f1b2e9dbc3fe89363a40fbf040703493298333289018.png)😽QQ官方json按钮支持，20个群即可发按钮！支持 monetary！很好看的字体！ 支持自动清理记录内容。",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

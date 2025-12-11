@@ -6,7 +6,7 @@ import type { Config } from '../types'
 
 // 默认字体配置
 export const defaultFontName = '千图马克手写体lite'
-export const localFontPath = path.resolve(__dirname, '../../data/千图马克手写体lite.ttf')
+export const localFontPath = path.join(__dirname, './../data/千图马克手写体lite.ttf')
 
 // 本地字体 Base64 缓存
 let cachedFontBase64: string | null = null
