@@ -6,7 +6,6 @@ import { } from '@koishijs/plugin-console'
 import { NextChatBot } from './bot'
 
 import { resolve } from 'node:path'
-import { Query } from 'koishi'
 
 // 全局日志函数
 export let loggerError: (message: any, ...args: any[]) => void;
