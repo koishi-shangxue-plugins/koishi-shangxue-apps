@@ -15,7 +15,7 @@ export default (ctx: Context) => {
       setup() {
         const iframe = ref<HTMLIFrameElement>()
         return () => h(resolveComponent('k-layout'), {}, {
-          default: () => h('iframe', { ref: iframe, src: "/nextchat-redirect", class: 'layout-iframe' }),
+          default: () => h('iframe', { ref: iframe, src: "/nextchat", class: 'layout-iframe' }),
         })
       },
     }),

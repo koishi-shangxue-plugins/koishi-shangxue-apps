@@ -66,7 +66,21 @@ export const Config: Schema<Config> = Schema.intersect([
     selfavatar: Schema.string().default('https://avatars.githubusercontent.com/u/153288546').description('机器人头像').role('link'),
     userId: Schema.string().default('anonymous').description('用户ID'),
     username: Schema.string().default('anonymous').description('用户昵称'),
-  }).description('会话设置'),
+  }).description('Session设置'),
+
+  Schema.object({
+    webUI: Schema.boolean().default(true).description('开启侧边栏注册跳转页'),
+  }).description('webUI设置'),
+  Schema.union([
+    Schema.object({
+      webUI: Schema.const(true),
+      NextChat_host: Schema.string().default('chat.bailili.top').description('NextChat webUI 的 **域名**').role('link'),
+
+    }),
+    Schema.object({
+      webUI: Schema.const(false).required(),
+    }),
+  ]),
 
   Schema.object({
     loggerInfo: Schema.boolean().default(false).description('启用详细日志输出'),
@@ -78,17 +92,21 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.on('ready', () => {
     if (ctx.server) {
-      // 生成动态URL
       const nextchatBaseUrl = 'https://chat.bailili.top'
-      const settings = {
-        key: config.token,
-        url: `http://localhost:5140/nextchat`,
-      }
-      const settingsQuery = encodeURIComponent(JSON.stringify(settings))
-      const dynamicUrl = `${nextchatBaseUrl}/#/?settings=${settingsQuery}`
 
-      // 注册重定向页面
+      // 注册重定向页面，动态生成URL
       ctx.server.get('/nextchat-redirect', async (koaCtx) => {
+        // 获取当前请求的协议和主机名
+        const protocol = koaCtx.protocol
+        const host = koaCtx.host
+
+        const settings = {
+          key: config.token,
+          url: `${protocol}://${host}/nextchat`,
+        }
+        const settingsQuery = encodeURIComponent(JSON.stringify(settings))
+        const dynamicUrl = `${nextchatBaseUrl}/#/?settings=${settingsQuery}`
+
         koaCtx.redirect(dynamicUrl)
       })
 
@@ -123,6 +141,138 @@ export function apply(ctx: Context, config: Config) {
       // 注册路由处理 OpenAI 格式的请求
       const apiPath = config.path || '/nextchat/v1/chat/completions'
 
+      // 注册 /nextchat 页面，显示跳转链接
+      ctx.server.get('/nextchat', async (koaCtx) => {
+        const protocol = koaCtx.protocol
+        const host = koaCtx.host
+        const nextchatBaseUrl = 'https://chat.bailili.top'
+
+        const settings = {
+          key: config.token,
+          url: `${protocol}://${host}/nextchat`,
+        }
+        const settingsQuery = encodeURIComponent(JSON.stringify(settings))
+        const targetUrl = `${nextchatBaseUrl}/#/?settings=${settingsQuery}`
+
+        koaCtx.type = 'html'
+        koaCtx.body = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NextChat - Koishi 适配器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 32px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-decoration: none;
+      padding: 15px 40px;
+      border-radius: 50px;
+      font-size: 18px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    .info {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      text-align: left;
+    }
+    .info h3 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    .info p {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    .info code {
+      background: #e9ecef;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: "Courier New", monospace;
+      font-size: 14px;
+    }
+    .warning {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      border-radius: 4px;
+      text-align: left;
+    }
+    .warning strong {
+      color: #856404;
+    }
+    .warning p {
+      color: #856404;
+      margin-top: 5px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <p class="subtitle">
+      点击下方按钮在新窗口打开 NextChat 界面<br>
+      已自动配置 API 地址和访问令牌
+    </p>
+    <a href="${targetUrl}" target="_blank" class="btn">
+      🚀 打开 NextChat
+    </a>
+    
+    <div class="info">
+      <h3>📋 配置信息</h3>
+      <p><strong>API 地址：</strong><code>${protocol}://${host}${apiPath}</code></p>
+      <p><strong>访问令牌：</strong><code>${config.token}</code></p>
+    </div>
+    
+  </div>
+</body>
+</html>
+        `
+      })
+
       // 注册路由
       ctx.server.get(apiPath, async (koaCtx) => {
         koaCtx.status = 405
@@ -134,6 +284,7 @@ export function apply(ctx: Context, config: Config) {
         koaCtx.set('Access-Control-Allow-Origin', '*')
         koaCtx.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
         koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+        koaCtx.set('Access-Control-Allow-Private-Network', 'true')
 
         if (koaCtx.method === 'OPTIONS') {
           logInfo(`[${config.selfId}] 处理OPTIONS预检请求: ${koaCtx.path}`)
@@ -157,6 +308,7 @@ export function apply(ctx: Context, config: Config) {
         koaCtx.set('Access-Control-Allow-Origin', '*')
         koaCtx.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
         koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+        koaCtx.set('Access-Control-Allow-Private-Network', 'true')
 
         try {
           // 记录请求信息
