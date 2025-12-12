@@ -69,18 +69,8 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description('Session设置'),
 
   Schema.object({
-    webUI: Schema.boolean().default(true).description('开启侧边栏注册跳转页'),
+    NextChat_host: Schema.string().default('https://chat.bailili.top/#/').description('NextChat webUI 的 **URL地址**').role('link'),
   }).description('webUI设置'),
-  Schema.union([
-    Schema.object({
-      webUI: Schema.const(true),
-      NextChat_host: Schema.string().default('chat.bailili.top').description('NextChat webUI 的 **域名**').role('link'),
-
-    }),
-    Schema.object({
-      webUI: Schema.const(false).required(),
-    }),
-  ]),
 
   Schema.object({
     loggerInfo: Schema.boolean().default(false).description('启用详细日志输出'),
