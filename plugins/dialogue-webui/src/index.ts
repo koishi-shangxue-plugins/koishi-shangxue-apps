@@ -68,6 +68,7 @@ export interface FilterCondition {
 // 过滤器组
 export interface FilterGroup {
   logic: 'and' | 'or'
+  connector?: 'and' | 'or'  // 与上一组的连接关系
   conditions: FilterCondition[]
 }
 
@@ -176,12 +177,22 @@ export function apply(ctx: Context, config: Config) {
     async function checkFilterConditions(dialogue: Dialogue, session: Session): Promise<boolean> {
       // 如果有新的过滤器系统
       if (dialogue.filterGroups && dialogue.filterGroups.length > 0) {
-        // 所有组之间是 AND 关系
-        for (const group of dialogue.filterGroups) {
+        // 第一个组的结果
+        let result = await checkFilterGroup(dialogue.filterGroups[0], session)
+
+        // 根据每个组的 connector 与前面的结果组合
+        for (let i = 1; i < dialogue.filterGroups.length; i++) {
+          const group = dialogue.filterGroups[i]
           const groupResult = await checkFilterGroup(group, session)
-          if (!groupResult) return false
+
+          if (group.connector === 'or') {
+            result = result || groupResult
+          } else {
+            result = result && groupResult
+          }
         }
-        return true
+
+        return result
       }
 
       // 兼容旧的 scope 系统

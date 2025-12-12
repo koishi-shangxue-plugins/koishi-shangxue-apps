@@ -201,9 +201,9 @@ const getFilterLabel = (dialogue: Dialogue) => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(var(--k-color-bg-rgb), 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px) brightness(0.5);
+  -webkit-backdrop-filter: blur(8px) brightness(0.5);
   display: flex;
   justify-content: center;
   align-items: center;

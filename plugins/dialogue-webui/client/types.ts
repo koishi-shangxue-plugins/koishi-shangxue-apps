@@ -34,6 +34,7 @@ export interface FilterCondition {
 // 过滤器组（支持与/或逻辑）
 export interface FilterGroup {
   logic: 'and' | 'or'  // 组内条件的逻辑关系
+  connector?: 'and' | 'or'  // 与上一组的连接关系（第一组不需要）
   conditions: FilterCondition[]
 }
 
