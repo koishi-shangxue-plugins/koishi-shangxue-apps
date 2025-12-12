@@ -2,10 +2,7 @@
   <div class="filter-builder">
     <div class="filter-header">
       <h4>过滤器设置</h4>
-      <div class="header-buttons">
-        <button class="k-button small" @click="addGroup('and')">添加「与」条件组</button>
-        <button class="k-button small" @click="addGroup('or')">添加「或」条件组</button>
-      </div>
+      <button class="k-button small" @click="addGroup">添加条件组</button>
     </div>
 
     <div v-if="!modelValue || modelValue.length === 0" class="empty-state">
@@ -34,32 +31,47 @@
       </div>
 
       <div class="conditions-list">
-        <div v-for="(condition, condIndex) in group.conditions" :key="condIndex" class="condition-row">
-          <select v-model="condition.field" class="k-select"
-            @change="() => emit('update:modelValue', props.modelValue || [])">
-            <option v-for="field in fieldOptions" :key="field.value" :value="field.value">
-              {{ field.label }}
-            </option>
-          </select>
+        <div v-for="(condition, condIndex) in group.conditions" :key="condIndex" class="condition-item">
+          <div class="condition-connector" v-if="condIndex > 0">
+            <span class="connector-label">与上一个条件的关系：</span>
+            <div class="group-logic">
+              <label>
+                <input type="radio" :value="'and'" v-model="condition.connector"
+                  @change="() => emit('update:modelValue', props.modelValue || [])" />
+                <span>与（AND）</span>
+              </label>
+              <label>
+                <input type="radio" :value="'or'" v-model="condition.connector"
+                  @change="() => emit('update:modelValue', props.modelValue || [])" />
+                <span>或（OR）</span>
+              </label>
+            </div>
+          </div>
 
-          <select v-model="condition.operator" class="k-select"
-            @change="() => emit('update:modelValue', props.modelValue || [])">
-            <option v-for="op in getOperatorsForField(condition.field)" :key="op.value" :value="op.value">
-              {{ op.label }}
-            </option>
-          </select>
+          <div class="condition-row">
+            <select v-model="condition.field" class="k-select"
+              @change="() => emit('update:modelValue', props.modelValue || [])">
+              <option v-for="field in fieldOptions" :key="field.value" :value="field.value">
+                {{ field.label }}
+              </option>
+            </select>
 
-          <input v-model="condition.value" class="k-input" :placeholder="getPlaceholderForField(condition.field)"
-            :type="getInputTypeForField(condition.field)"
-            @input="() => emit('update:modelValue', props.modelValue || [])" />
+            <select v-model="condition.operator" class="k-select"
+              @change="() => emit('update:modelValue', props.modelValue || [])">
+              <option v-for="op in getOperatorsForField(condition.field)" :key="op.value" :value="op.value">
+                {{ op.label }}
+              </option>
+            </select>
 
-          <button class="k-button danger small" @click="removeCondition(groupIndex, condIndex)">删除</button>
+            <input v-model="condition.value" class="k-input" :placeholder="getPlaceholderForField(condition.field)"
+              :type="getInputTypeForField(condition.field)"
+              @input="() => emit('update:modelValue', props.modelValue || [])" />
+
+            <button class="k-button danger small" @click="removeCondition(groupIndex, condIndex)">删除</button>
+          </div>
         </div>
 
-        <div class="condition-buttons">
-          <button class="k-button small" @click="addCondition(groupIndex, 'and')">添加「与」条件</button>
-          <button class="k-button small" @click="addCondition(groupIndex, 'or')">添加「或」条件</button>
-        </div>
+        <button class="k-button small" @click="addCondition(groupIndex)">添加条件</button>
       </div>
     </div>
 
@@ -159,11 +171,10 @@ const getInputTypeForField = (field: FilterField | '') => {
 }
 
 // 添加条件组
-const addGroup = (connector: 'and' | 'or' = 'and') => {
+const addGroup = () => {
   const newGroups = [...(props.modelValue || [])]
   newGroups.push({
-    logic: 'and', // 组内默认使用 AND
-    connector, // 与上一组的连接关系
+    connector: 'and', // 与上一组的连接关系，默认 AND
     conditions: []
   })
   emit('update:modelValue', newGroups)
@@ -177,15 +188,14 @@ const removeGroup = (groupIndex: number) => {
 }
 
 // 添加条件
-const addCondition = (groupIndex: number, logic: 'and' | 'or') => {
+const addCondition = (groupIndex: number) => {
   const newGroups = [...(props.modelValue || [])]
-  // 更新组的逻辑关系
-  newGroups[groupIndex].logic = logic
   // 添加新条件，使用第一个选项作为默认值
   newGroups[groupIndex].conditions.push({
     field: fieldOptions[0].value as FilterField,
     operator: allOperators[0].value as FilterOperator,
-    value: ''
+    value: '',
+    connector: 'and' // 默认与上一个条件是 AND 关系
   })
   emit('update:modelValue', newGroups)
 }
@@ -288,8 +298,13 @@ const generateCodePreview = () => {
 
     if (groupConditions.length === 0) return
 
-    const connector = group.logic === 'and' ? ' && ' : ' || '
-    const groupCondition = groupConditions.join(connector)
+    // 构建组内条件，使用每个条件的 connector
+    let groupCondition = groupConditions[0]
+    for (let i = 1; i < groupConditions.length; i++) {
+      const cond = group.conditions[i]
+      const connectorSymbol = cond.connector === 'or' ? ' || ' : ' && '
+      groupCondition += connectorSymbol + groupConditions[i]
+    }
 
     // 如果有多个条件，用括号包裹
     if (groupConditions.length > 1) {
@@ -369,6 +384,7 @@ const generateCodePreview = () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .connector-label {
@@ -388,10 +404,18 @@ const generateCodePreview = () => {
   cursor: pointer;
 }
 
-.condition-buttons {
+.condition-item {
+  margin-bottom: 0.5rem;
+}
+
+.condition-connector {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--k-color-bg-card);
+  border-radius: 4px;
 }
 
 .k-select {

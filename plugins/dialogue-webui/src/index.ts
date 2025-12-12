@@ -63,11 +63,11 @@ export interface FilterCondition {
   field: FilterField
   operator: FilterOperator
   value: string | number | boolean
+  connector?: 'and' | 'or'  // 与上一个条件的连接关系
 }
 
 // 过滤器组
 export interface FilterGroup {
-  logic: 'and' | 'or'
   connector?: 'and' | 'or'  // 与上一组的连接关系
   conditions: FilterCondition[]
 }
@@ -215,17 +215,22 @@ export function apply(ctx: Context, config: Config) {
     async function checkFilterGroup(group: FilterGroup, session: Session): Promise<boolean> {
       if (group.conditions.length === 0) return true
 
-      const results: boolean[] = []
+      // 第一个条件的结果
+      let result = await checkCondition(group.conditions[0], session)
 
-      for (const condition of group.conditions) {
-        const result = await checkCondition(condition, session)
-        results.push(result)
+      // 根据每个条件的 connector 与前面的结果组合
+      for (let i = 1; i < group.conditions.length; i++) {
+        const condition = group.conditions[i]
+        const conditionResult = await checkCondition(condition, session)
+
+        if (condition.connector === 'or') {
+          result = result || conditionResult
+        } else {
+          result = result && conditionResult
+        }
       }
 
-      // 根据逻辑关系返回结果
-      return group.logic === 'and'
-        ? results.every(r => r)
-        : results.some(r => r)
+      return result
     }
 
     // 检查单个条件

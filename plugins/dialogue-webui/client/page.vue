@@ -24,7 +24,7 @@
           <div class="table-cell" style="flex: 1;">{{ getTypeLabel(dialogue.type) }}</div>
           <div class="table-cell" style="flex: 1;">{{ getFilterLabel(dialogue) }}</div>
           <div class="table-cell actions" style="flex: 0 0 240px;">
-            <button class="k-button primary small" @click="openEditModal(dialogue)">编辑</button>
+            <button class="k-button small" @click="openEditModal(dialogue)">编辑</button>
             <button class="k-button small" @click="openFilterModal(dialogue)">条件</button>
             <button class="k-button danger small" @click="handleDelete(dialogue.id)">删除</button>
           </div>
@@ -201,13 +201,20 @@ const getFilterLabel = (dialogue: Dialogue) => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px) brightness(0.5);
-  -webkit-backdrop-filter: blur(8px) brightness(0.5);
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+}
+
+/* 深色主题下额外降低亮度 */
+@media (prefers-color-scheme: dark) {
+  .modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
 }
 
 .modal-panel {
