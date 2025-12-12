@@ -53,9 +53,8 @@ export class NextChatBot extends Bot {
     logInfo(`[${this.selfId}] 处理用户消息: "${userMessage}"`, { userId, channelId });
 
     // 检查是否是 NextChat 的新对话提示词
-    if (userMessage.includes('使用四到五个字直接返回这句话的简要主题') &&
-      userMessage.includes('不要解释、不要标点、不要语气词、不要多余文本')) {
-      logInfo(`[${this.selfId}] 检测到新对话提示词，返回固定文本`);
+    if (userMessage.includes('使用四到五个字直接返回这句话的简要主题') && userMessage.includes('不要解释、不要标点、不要语气词、不要多余文本')
+      || userMessage.includes('这是历史聊天总结作为前情提要')) {
       return this.createResponse('新的聊天', model, stream);
     }
 
@@ -198,11 +197,11 @@ export class NextChatBot extends Bot {
         },
         audio: (attrs) => {
           const url = attrs.src || attrs.url || ''
-          return `![audio](${url})`
+          return `[🔊 点击跳转音频](${url})`
         },
         video: (attrs) => {
-          const url = attrs.src || attrs.url || ''
-          return `![video](${url})`
+          //  const url = attrs.src || attrs.url || ''
+          return `[暂不支持视频预览]`
         },
         at: (attrs) => {
           const result = `@${attrs.name || attrs.id}`

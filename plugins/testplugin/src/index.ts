@@ -54,6 +54,24 @@ export function apply(ctx: Context) {
   // })
 
   // ctx.cache.set('foo', 'bar', 114514)
+
+  command
+    .subcommand('.prompt [id]')
+    .action(async ({ session }, id) => {
+      const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg")
+      const filedata = await file.data
+      const filemime = await file.type
+      const base64data = await Buffer.from(filedata).toString("base64")
+      await session.send([
+        h.image(`data:${filemime};base64,` + base64data),
+        "请发送文本"
+      ])
+
+      const a = await session.prompt(30 * 1000)
+      await session.send(a)
+      return
+    })
+
   command
     .subcommand('.base [id]')
     .action(async ({ session }, id) => {
