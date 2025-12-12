@@ -6,14 +6,14 @@ export function useDialogLogic() {
   // State
   const dialogues = ref<Dialogue[]>([])
   const showModal = ref(false)
+  const showFilterModal = ref(false)
   const isEditMode = ref(false)
   const currentDialogue = reactive<Partial<Dialogue>>({
     id: null,
     question: '',
     answer: '',
     type: 'keyword',
-    scope: 'global',
-    contextId: '',
+    filterGroups: [],
   })
 
   // 从后端获取数据
@@ -28,7 +28,7 @@ export function useDialogLogic() {
   // onMounted - 确保在组件挂载后执行
   onMounted(fetchDialogues)
 
-  // 打开“添加”模态框
+  // 打开"添加"模态框
   const openAddModal = () => {
     isEditMode.value = false
     Object.assign(currentDialogue, {
@@ -36,17 +36,31 @@ export function useDialogLogic() {
       question: '',
       answer: '',
       type: 'keyword',
-      scope: 'global',
-      contextId: '',
+      filterGroups: [],
     })
     showModal.value = true
   }
 
-  // 打开“编辑”模态框
+  // 打开"编辑"模态框
   const openEditModal = (dialogue: Dialogue) => {
     isEditMode.value = true
-    Object.assign(currentDialogue, dialogue)
+    // 确保 filterGroups 存在，兼容旧数据
+    Object.assign(currentDialogue, {
+      ...dialogue,
+      filterGroups: dialogue.filterGroups || []
+    })
     showModal.value = true
+  }
+
+  // 打开"过滤器设置"模态框
+  const openFilterModal = (dialogue: Dialogue) => {
+    isEditMode.value = true
+    // 确保 filterGroups 存在，兼容旧数据
+    Object.assign(currentDialogue, {
+      ...dialogue,
+      filterGroups: dialogue.filterGroups || []
+    })
+    showFilterModal.value = true
   }
 
   // 保存（创建或更新）
@@ -67,6 +81,19 @@ export function useDialogLogic() {
       await fetchDialogues()
     } catch (error) {
       console.error('保存失败:', error)
+    }
+  }
+
+  // 保存过滤器设置
+  const handleSaveFilter = async () => {
+    if (!currentDialogue.id) return
+
+    try {
+      await (send as any)('webdialogue/update', currentDialogue)
+      showFilterModal.value = false
+      await fetchDialogues()
+    } catch (error) {
+      console.error('保存过滤器失败:', error)
     }
   }
 
@@ -91,11 +118,14 @@ export function useDialogLogic() {
   return {
     dialogues,
     showModal,
+    showFilterModal,
     isEditMode,
     currentDialogue,
     openAddModal,
     openEditModal,
+    openFilterModal,
     handleSave,
+    handleSaveFilter,
     handleDelete,
   }
 }

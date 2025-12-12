@@ -1,0 +1,469 @@
+<template>
+  <div class="filter-builder">
+    <div class="filter-header">
+      <h4>过滤器设置</h4>
+      <div class="header-buttons">
+        <button class="k-button small" @click="addGroup('and')">添加「与」条件组</button>
+        <button class="k-button small" @click="addGroup('or')">添加「或」条件组</button>
+      </div>
+    </div>
+
+    <div v-if="!modelValue || modelValue.length === 0" class="empty-state">
+      <p>暂无过滤条件，将匹配所有消息</p>
+    </div>
+
+    <div v-for="(group, groupIndex) in modelValue" :key="groupIndex" class="filter-group">
+      <div class="group-header">
+        <span class="group-label">条件组 {{ groupIndex + 1 }}</span>
+        <div class="group-logic">
+          <label>
+            <input type="radio" :value="'and'" v-model="group.logic" />
+            <span>与（AND）</span>
+          </label>
+          <label>
+            <input type="radio" :value="'or'" v-model="group.logic" />
+            <span>或（OR）</span>
+          </label>
+        </div>
+        <button class="k-button danger small" @click="removeGroup(groupIndex)">删除组</button>
+      </div>
+
+      <div class="conditions-list">
+        <div v-for="(condition, condIndex) in group.conditions" :key="condIndex" class="condition-row">
+          <select v-model="condition.field" class="k-select">
+            <option value="">选择字段</option>
+            <option v-for="field in fieldOptions" :key="field.value" :value="field.value">
+              {{ field.label }}
+            </option>
+          </select>
+
+          <select v-model="condition.operator" class="k-select">
+            <option value="">选择操作符</option>
+            <option v-for="op in getOperatorsForField(condition.field)" :key="op.value" :value="op.value">
+              {{ op.label }}
+            </option>
+          </select>
+
+          <input v-model="condition.value" class="k-input" :placeholder="getPlaceholderForField(condition.field)"
+            :type="getInputTypeForField(condition.field)"
+            @input="() => emit('update:modelValue', props.modelValue || [])" />
+
+          <button class="k-button danger small" @click="removeCondition(groupIndex, condIndex)">删除</button>
+        </div>
+
+        <button class="k-button small" @click="addCondition(groupIndex)">
+          添加「{{ group.logic === 'and' ? '与' : '或' }}」条件
+        </button>
+      </div>
+    </div>
+
+    <!-- 代码预览 -->
+    <div v-if="modelValue && modelValue.length > 0" class="code-preview">
+      <h4>过滤条件预览</h4>
+      <pre><code>{{ generateCodePreview() }}</code></pre>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { computed } from 'vue'
+import { FilterGroup, FilterCondition, FilterField, FilterOperator } from './types'
+
+const props = defineProps<{
+  modelValue?: FilterGroup[]
+}>()
+
+const emit = defineEmits<{
+  'update:modelValue': [value: FilterGroup[]]
+}>()
+
+// 字段选项
+const fieldOptions = [
+  { label: '用户ID', value: 'userId' },
+  { label: '频道ID', value: 'channelId' },
+  { label: '群组ID', value: 'guildId' },
+  { label: '机器人ID', value: 'selfId' },
+  { label: '平台', value: 'platform' },
+  { label: '是否私聊', value: 'isDirect' },
+  { label: '用户权限等级', value: 'authority' },
+  { label: '用户昵称', value: 'nickname' },
+  { label: '用户名', value: 'username' },
+  { label: '用户角色', value: 'roles' },
+]
+
+// 所有操作符
+const allOperators = [
+  { label: '等于', value: 'equals' },
+  { label: '不等于', value: 'notEquals' },
+  { label: '包含', value: 'contains' },
+  { label: '不包含', value: 'notContains' },
+  { label: '大于', value: 'greaterThan' },
+  { label: '小于', value: 'lessThan' },
+  { label: '大于等于', value: 'greaterOrEqual' },
+  { label: '小于等于', value: 'lessOrEqual' },
+  { label: '在列表中', value: 'in' },
+  { label: '不在列表中', value: 'notIn' },
+]
+
+// 根据字段类型返回适用的操作符
+const getOperatorsForField = (field: FilterField | '') => {
+  if (!field) return allOperators
+
+  const numericFields = ['authority']
+  const stringFields = ['userId', 'channelId', 'guildId', 'selfId', 'platform', 'nickname', 'username']
+  const booleanFields = ['isDirect']
+  const arrayFields = ['roles']
+
+  if (numericFields.includes(field)) {
+    return allOperators.filter(op =>
+      ['equals', 'notEquals', 'greaterThan', 'lessThan', 'greaterOrEqual', 'lessOrEqual'].includes(op.value)
+    )
+  } else if (booleanFields.includes(field)) {
+    return allOperators.filter(op => ['equals', 'notEquals'].includes(op.value))
+  } else if (arrayFields.includes(field)) {
+    return allOperators.filter(op => ['contains', 'notContains', 'in', 'notIn'].includes(op.value))
+  } else {
+    return allOperators.filter(op =>
+      ['equals', 'notEquals', 'contains', 'notContains', 'in', 'notIn'].includes(op.value)
+    )
+  }
+}
+
+// 根据字段返回输入框占位符
+const getPlaceholderForField = (field: FilterField | '') => {
+  const placeholders: Record<string, string> = {
+    userId: '输入用户ID',
+    channelId: '输入频道ID',
+    guildId: '输入群组ID',
+    selfId: '输入机器人ID',
+    platform: '输入平台名称（如：onebot）',
+    isDirect: '输入 true 或 false',
+    authority: '输入权限等级（数字）',
+    nickname: '输入昵称关键词',
+    username: '输入用户名',
+    roles: '输入角色（如：owner,admin）',
+  }
+  return placeholders[field as string] || '输入值'
+}
+
+// 根据字段返回输入框类型
+const getInputTypeForField = (field: FilterField | '') => {
+  if (field === 'authority') return 'number'
+  return 'text'
+}
+
+// 添加条件组
+const addGroup = (logic: 'and' | 'or' = 'and') => {
+  const newGroups = [...(props.modelValue || [])]
+  newGroups.push({
+    logic,
+    conditions: []
+  })
+  emit('update:modelValue', newGroups)
+}
+
+// 删除条件组
+const removeGroup = (groupIndex: number) => {
+  const newGroups = [...(props.modelValue || [])]
+  newGroups.splice(groupIndex, 1)
+  emit('update:modelValue', newGroups)
+}
+
+// 添加条件
+const addCondition = (groupIndex: number) => {
+  const newGroups = [...(props.modelValue || [])]
+  newGroups[groupIndex].conditions.push({
+    field: '' as FilterField,
+    operator: '' as FilterOperator,
+    value: ''
+  })
+  emit('update:modelValue', newGroups)
+}
+
+// 删除条件
+const removeCondition = (groupIndex: number, condIndex: number) => {
+  const newGroups = [...(props.modelValue || [])]
+  newGroups[groupIndex].conditions.splice(condIndex, 1)
+  emit('update:modelValue', newGroups)
+}
+
+// 生成代码预览
+const generateCodePreview = () => {
+  if (!props.modelValue || props.modelValue.length === 0) {
+    return '// 无过滤条件'
+  }
+
+  const allGroupConditions: string[] = []
+
+  props.modelValue.forEach((group) => {
+    if (group.conditions.length === 0) return
+
+    const groupConditions = group.conditions.map(cond => {
+      const fieldMap: Record<string, string> = {
+        userId: 'session.userId',
+        channelId: 'session.channelId',
+        guildId: 'session.guildId',
+        selfId: 'session.selfId',
+        platform: 'session.platform',
+        isDirect: 'session.isDirect',
+        authority: 'session.user.authority',
+        nickname: 'session.user.nickname',
+        username: 'session.username',
+        roles: 'session.event.member?.roles',
+      }
+
+      const field = fieldMap[cond.field] || cond.field
+
+      // 处理布尔值
+      let value: string
+      if (cond.field === 'isDirect') {
+        // 布尔字段不需要引号
+        value = String(cond.value).toLowerCase() === 'true' ? 'true' : 'false'
+      } else if (typeof cond.value === 'number') {
+        value = String(cond.value)
+      } else {
+        value = `"${cond.value}"`
+      }
+
+      switch (cond.operator) {
+        case 'equals':
+          return `${field} === ${value}`
+        case 'notEquals':
+          return `${field} !== ${value}`
+        case 'contains':
+          if (cond.field === 'roles') {
+            return `${field}?.includes(${value})`
+          }
+          return `${field}?.includes(${value})`
+        case 'notContains':
+          if (cond.field === 'roles') {
+            return `!${field}?.includes(${value})`
+          }
+          return `!${field}?.includes(${value})`
+        case 'greaterThan':
+          return `${field} > ${value}`
+        case 'lessThan':
+          return `${field} < ${value}`
+        case 'greaterOrEqual':
+          return `${field} >= ${value}`
+        case 'lessOrEqual':
+          return `${field} <= ${value}`
+        case 'in':
+          // 处理数组：支持全角、半角逗号分隔，每个元素都加引号
+          const inArray = String(cond.value)
+            .split(/[,，]/)
+            .map(v => v.trim())
+            .filter(v => v)
+            .map(v => `"${v}"`)
+            .join(', ')
+          return `[${inArray}].includes(${field})`
+        case 'notIn':
+          // 处理数组：支持全角、半角逗号分隔，每个元素都加引号
+          const notInArray = String(cond.value)
+            .split(/[,，]/)
+            .map(v => v.trim())
+            .filter(v => v)
+            .map(v => `"${v}"`)
+            .join(', ')
+          return `![${notInArray}].includes(${field})`
+        default:
+          return `${field} ${cond.operator} ${value}`
+      }
+    })
+
+    const connector = group.logic === 'and' ? ' && ' : ' || '
+    const groupCondition = groupConditions.join(connector)
+
+    // 如果有多个条件，用括号包裹
+    if (groupConditions.length > 1) {
+      allGroupConditions.push(`(${groupCondition})`)
+    } else {
+      allGroupConditions.push(groupCondition)
+    }
+  })
+
+  // 所有组之间用 && 连接
+  const finalCondition = allGroupConditions.join('\n  && ')
+
+  return `if (${finalCondition}) {\n  // 触发关键词回复\n}`
+}
+</script>
+
+<style scoped>
+.filter-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.filter-header h4 {
+  margin: 0;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  color: var(--k-color-text-light);
+  border: 1px dashed var(--k-color-border);
+  border-radius: 4px;
+}
+
+.filter-group {
+  border: 1px solid var(--k-color-border);
+  border-radius: 4px;
+  padding: 1rem;
+  background-color: var(--k-color-bg);
+}
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--k-color-border);
+}
+
+.group-label {
+  font-weight: bold;
+}
+
+.group-logic {
+  display: flex;
+  gap: 1rem;
+}
+
+.group-logic label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.condition-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--k-color-border);
+  border-radius: 4px;
+  background-color: var(--k-color-bg-card);
+}
+
+.condition-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section-label {
+  font-weight: bold;
+  font-size: 0.875rem;
+  color: var(--k-color-text);
+}
+
+.radio-group-horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.radio-label {
+  position: relative;
+  display: inline-block;
+}
+
+.radio-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.radio-button {
+  display: block;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--k-color-border);
+  border-radius: 4px;
+  background-color: var(--k-color-bg);
+  color: var(--k-color-text);
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.radio-input:checked+.radio-button {
+  background-color: var(--k-color-primary);
+  color: white;
+  border-color: var(--k-color-primary);
+}
+
+.radio-input:hover:not(:checked)+.radio-button {
+  background-color: var(--k-color-bg-hover);
+  border-color: var(--k-color-primary-light);
+}
+
+.radio-input:focus+.radio-button {
+  box-shadow: 0 0 0 2px var(--k-color-primary-light);
+}
+
+.value-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.value-input-row .k-input {
+  flex: 1;
+}
+
+.group-logic input[type="radio"] {
+  margin: 0;
+}
+
+.code-preview {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: var(--k-color-bg);
+  border: 1px solid var(--k-color-border);
+  border-radius: 4px;
+}
+
+.code-preview h4 {
+  margin: 0 0 0.5rem 0;
+}
+
+.code-preview pre {
+  margin: 0;
+  padding: 1rem;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.code-preview code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+</style>

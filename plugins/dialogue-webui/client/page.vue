@@ -11,7 +11,7 @@
         <div class="table-cell" style="flex: 1.5;">关键词</div>
         <div class="table-cell" style="flex: 2;">回复内容</div>
         <div class="table-cell" style="flex: 1;">类型</div>
-        <div class="table-cell" style="flex: 1;">范围</div>
+        <div class="table-cell" style="flex: 1;">过滤条件</div>
         <div class="table-cell" style="flex: 0 0 180px;">操作</div>
       </div>
       <div class="table-body">
@@ -22,16 +22,17 @@
           <div class="table-cell" style="flex: 1.5;" :title="dialogue.question">{{ dialogue.question }}</div>
           <div class="table-cell" style="flex: 2;" :title="dialogue.answer">{{ dialogue.answer }}</div>
           <div class="table-cell" style="flex: 1;">{{ getTypeLabel(dialogue.type) }}</div>
-          <div class="table-cell" style="flex: 1;">{{ getScopeLabel(dialogue.scope) }}</div>
-          <div class="table-cell actions" style="flex: 0 0 180px;">
+          <div class="table-cell" style="flex: 1;">{{ getFilterLabel(dialogue) }}</div>
+          <div class="table-cell actions" style="flex: 0 0 240px;">
             <button class="k-button primary small" @click="openEditModal(dialogue)">编辑</button>
+            <button class="k-button small" @click="openFilterModal(dialogue)">条件</button>
             <button class="k-button danger small" @click="handleDelete(dialogue.id)">删除</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 手动构建的模态框 -->
+    <!-- 编辑问答模态框 -->
     <div v-if="showModal" class="modal-backdrop" @click.self="showModal = false">
       <div class="modal-panel">
         <div class="modal-header">
@@ -58,35 +59,27 @@
               </label>
             </div>
           </div>
-
-          <!-- 范围选择 -->
-          <div class="form-item">
-            <label>范围</label>
-            <div class="radio-group">
-              <label v-for="option in scopeOptions" :key="option.value" class="radio-label">
-                <input type="radio" :value="option.value" v-model="currentDialogue.scope" class="radio-input">
-                <span class="radio-button">{{ option.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- 条件渲染：群组ID输入框 -->
-          <div v-if="currentDialogue.scope === 'group'" class="form-item">
-            <label>群组ID</label>
-            <input class="k-input" v-model="currentDialogue.contextId" placeholder="输入生效的群组ID（可使用逗号分隔多个ID）" />
-          </div>
-
-          <!-- 条件渲染：用户ID输入框 -->
-          <div v-if="currentDialogue.scope === 'private'" class="form-item">
-            <label>用户ID</label>
-            <input class="k-input" v-model="currentDialogue.contextId" placeholder="输入生效的用户ID（可使用逗号分隔多个ID）" />
-          </div>
-
         </div>
         <div class="modal-footer">
           <button class="k-button" @click="showModal = false">取消</button>
           <button v-if="isEditMode" class="k-button danger" @click="handleDelete(currentDialogue.id)">删除</button>
           <button class="k-button primary" @click="handleSave">{{ isEditMode ? '保存' : '创建' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 过滤器设置模态框 -->
+    <div v-if="showFilterModal" class="modal-backdrop" @click.self="showFilterModal = false">
+      <div class="modal-panel large">
+        <div class="modal-header">
+          <h3>过滤器设置 - {{ currentDialogue.question }}</h3>
+        </div>
+        <div class="modal-body">
+          <FilterBuilder v-model="currentDialogue.filterGroups" />
+        </div>
+        <div class="modal-footer">
+          <button class="k-button" @click="showFilterModal = false">取消</button>
+          <button class="k-button primary" @click="handleSaveFilter">保存</button>
         </div>
       </div>
     </div>
@@ -96,15 +89,20 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
 import { useDialogLogic } from './logic'
+import FilterBuilder from './filter.vue'
+import { Dialogue } from './types'
 
 const {
   dialogues,
   showModal,
+  showFilterModal,
   isEditMode,
   currentDialogue,
   openAddModal,
   openEditModal,
+  openFilterModal,
   handleSave,
+  handleSaveFilter,
   handleDelete,
 } = useDialogLogic()
 
@@ -112,15 +110,26 @@ const typeOptions = [
   { label: '关键词', value: 'keyword' },
   { label: '正则表达式', value: 'regexp' },
 ]
-const scopeOptions = [
-  { label: '全局', value: 'global' },
-  { label: '群组', value: 'group' },
-  { label: '私聊', value: 'private' },
-]
 
 const getTypeLabel = (value: string) => typeOptions.find(o => o.value === value)?.label || value
-const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === value)?.label || value
 
+// 获取过滤条件的简短描述
+const getFilterLabel = (dialogue: Dialogue) => {
+  if (dialogue.filterGroups && dialogue.filterGroups.length > 0) {
+    const totalConditions = dialogue.filterGroups.reduce((sum, group) => sum + group.conditions.length, 0)
+    return `${dialogue.filterGroups.length}组/${totalConditions}条件`
+  }
+  // 兼容旧数据
+  if (dialogue.scope) {
+    const scopeLabels: Record<string, string> = {
+      global: '全局',
+      group: '群组',
+      private: '私聊'
+    }
+    return scopeLabels[dialogue.scope] || dialogue.scope
+  }
+  return '无限制'
+}
 
 </script>
 
@@ -209,6 +218,12 @@ const getScopeLabel = (value: string) => scopeOptions.find(o => o.value === valu
   width: 90%;
   max-width: 500px;
   box-shadow: var(--k-shadow-2, 0 5px 15px rgba(0, 0, 0, 0.2));
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-panel.large {
+  max-width: 1000px;
 }
 
 .modal-header h3 {
