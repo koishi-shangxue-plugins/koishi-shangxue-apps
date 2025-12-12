@@ -97,21 +97,18 @@ export function useDialogLogic() {
     }
   }
 
-  // 删除
+  // 删除（不再包含确认逻辑，由调用方处理）
   const handleDelete = async (id: number | null | undefined) => {
     if (!id) return
-    // 二次确认
-    if (window.confirm('确定要删除这条问答吗？')) {
-      try {
-        await (send as any)('webdialogue/delete', id)
-        // 如果是在编辑模态框中删除，需要关闭模态框
-        if (showModal.value && isEditMode.value && currentDialogue.id === id) {
-          showModal.value = false
-        }
-        await fetchDialogues()
-      } catch (error) {
-        console.error('删除失败:', error)
+    try {
+      await (send as any)('webdialogue/delete', id)
+      // 如果是在编辑模态框中删除，需要关闭模态框
+      if (showModal.value && isEditMode.value && currentDialogue.id === id) {
+        showModal.value = false
       }
+      await fetchDialogues()
+    } catch (error) {
+      console.error('删除失败:', error)
     }
   }
 

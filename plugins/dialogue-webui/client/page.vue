@@ -2,31 +2,34 @@
   <div class="dialogue-card">
     <div class="card-header">
       <h2>问答管理</h2>
-      <button class="k-button primary" @click="openAddModal">添加新问答</button>
+      <button class="k-button add-action" @click="openAddModal">添加新问答</button>
     </div>
 
-    <!-- 手动构建的表格 -->
-    <div class="manual-table">
-      <div class="table-header">
-        <div class="table-cell" style="flex: 1.5;">关键词</div>
-        <div class="table-cell" style="flex: 2;">回复内容</div>
-        <div class="table-cell" style="flex: 1;">类型</div>
-        <div class="table-cell" style="flex: 1;">过滤条件</div>
-        <div class="table-cell" style="flex: 0 0 180px;">操作</div>
-      </div>
-      <div class="table-body">
-        <div v-if="!dialogues.length" class="table-row empty">
-          <div class="table-cell">暂无数据</div>
+    <!-- 手动构建的表格 - 添加横向滚动容器 -->
+    <div class="table-container">
+      <div class="manual-table">
+        <div class="table-header">
+          <div class="table-cell" style="flex: 1.5;">关键词</div>
+          <div class="table-cell" style="flex: 2;">回复内容</div>
+          <div class="table-cell" style="flex: 1;">类型</div>
+          <div class="table-cell" style="flex: 1;">过滤条件</div>
+          <div class="table-cell" style="flex: 0 0 180px;">操作</div>
         </div>
-        <div v-for="dialogue in dialogues" :key="dialogue.id" class="table-row">
-          <div class="table-cell" style="flex: 1.5;" :title="dialogue.question">{{ dialogue.question }}</div>
-          <div class="table-cell" style="flex: 2;" :title="dialogue.answer">{{ dialogue.answer }}</div>
-          <div class="table-cell" style="flex: 1;">{{ getTypeLabel(dialogue.type) }}</div>
-          <div class="table-cell" style="flex: 1;">{{ getFilterLabel(dialogue) }}</div>
-          <div class="table-cell actions" style="flex: 0 0 240px;">
-            <button class="k-button small" @click="openEditModal(dialogue)">编辑</button>
-            <button class="k-button small" @click="openFilterModal(dialogue)">条件</button>
-            <button class="k-button danger small" @click="handleDelete(dialogue.id)">删除</button>
+        <div class="table-body">
+          <div v-if="!dialogues.length" class="table-row empty">
+            <div class="table-cell">暂无数据</div>
+          </div>
+          <div v-for="dialogue in dialogues" :key="dialogue.id" class="table-row">
+            <div class="table-cell" style="flex: 1.5;" :title="dialogue.question">{{ dialogue.question }}</div>
+            <div class="table-cell" style="flex: 2;" :title="dialogue.answer">{{ dialogue.answer }}</div>
+            <div class="table-cell" style="flex: 1;">{{ getTypeLabel(dialogue.type) }}</div>
+            <div class="table-cell" style="flex: 1;">{{ getFilterLabel(dialogue) }}</div>
+            <div class="table-cell actions" style="flex: 0 0 240px;">
+              <button class="k-button small" @click="openEditModal(dialogue)">编辑</button>
+              <button class="k-button small" @click="openFilterModal(dialogue)">条件</button>
+              <button class="k-button small delete-action"
+                @click="confirmDelete(dialogue.id, dialogue.question)">删除</button>
+            </div>
           </div>
         </div>
       </div>
@@ -62,7 +65,8 @@
         </div>
         <div class="modal-footer">
           <button class="k-button" @click="showModal = false">取消</button>
-          <button v-if="isEditMode" class="k-button danger" @click="handleDelete(currentDialogue.id)">删除</button>
+          <button v-if="isEditMode" class="k-button delete-action"
+            @click="confirmDelete(currentDialogue.id, currentDialogue.question || '')">删除</button>
           <button class="k-button primary" @click="handleSave">{{ isEditMode ? '保存' : '创建' }}</button>
         </div>
       </div>
@@ -72,7 +76,7 @@
     <div v-if="showFilterModal" class="modal-backdrop" @click.self="showFilterModal = false">
       <div class="modal-panel large">
         <div class="modal-header">
-          <h3>过滤器设置 - {{ currentDialogue.question }}</h3>
+          <h3>过滤器设置{{ currentDialogue.question ? ' - ' + currentDialogue.question : '' }}</h3>
         </div>
         <div class="modal-body">
           <FilterBuilder v-model="currentDialogue.filterGroups" />
@@ -88,6 +92,7 @@
 
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import { useDialogLogic } from './logic'
 import FilterBuilder from './filter.vue'
 import { Dialogue } from './types'
@@ -105,6 +110,26 @@ const {
   handleSaveFilter,
   handleDelete,
 } = useDialogLogic()
+
+// 确认删除问答
+const confirmDelete = async (id: number | null | undefined, question: string) => {
+  if (!id) return
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除问答 "${question}" 吗？<br><br>此操作不可恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true
+      }
+    )
+    handleDelete(id)
+  } catch {
+    // 用户取消删除
+  }
+}
 
 const typeOptions = [
   { label: '关键词', value: 'keyword' },
@@ -152,7 +177,16 @@ const getFilterLabel = (dialogue: Dialogue) => {
   font-size: 1.25rem;
 }
 
+/* 表格横向滚动容器 - 手机端适配 */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .manual-table {
+  min-width: 800px;
+  /* 设置最小宽度，确保在小屏幕上可以横向滚动 */
   display: flex;
   flex-direction: column;
   margin-top: 1rem;
@@ -193,6 +227,35 @@ const getFilterLabel = (dialogue: Dialogue) => {
 
 .table-cell.actions {
   gap: 0.5rem;
+  flex-shrink: 0;
+  /* 防止操作按钮被压缩 */
+}
+
+/* 手机端优化 */
+@media (max-width: 768px) {
+  .dialogue-card {
+    padding: 0.5rem;
+  }
+
+  .card-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .card-header h2 {
+    font-size: 1.125rem;
+  }
+
+  .modal-panel {
+    width: 95%;
+    padding: 1rem;
+  }
+
+  .modal-panel.large {
+    width: 95%;
+    max-width: none;
+  }
 }
 
 .modal-backdrop {
@@ -264,34 +327,15 @@ const getFilterLabel = (dialogue: Dialogue) => {
   padding: 0.5rem 1rem;
   border-radius: 4px;
   border: 1px solid var(--k-color-border);
-  background-color: var(--k-color-bg-btn);
+  background-color: var(--k-color-bg-btn, var(--k-color-bg));
   color: var(--k-color-text);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .k-button:hover {
-  background-color: var(--k-color-bg-hover);
-}
-
-.k-button.primary {
-  background-color: var(--k-color-primary);
-  color: white;
-  border-color: var(--k-color-primary);
-}
-
-.k-button.primary:hover {
-  background-color: var(--k-color-primary-dark);
-}
-
-.k-button.danger {
-  background-color: var(--k-color-danger);
-  color: white;
-  border-color: var(--k-color-danger);
-}
-
-.k-button.danger:hover {
-  background-color: var(--k-color-danger-dark);
+  background-color: var(--k-color-bg-hover, var(--k-color-bg));
+  filter: brightness(1.1);
 }
 
 .k-button.small {
@@ -305,8 +349,18 @@ textarea.k-input {
   padding: 0.5rem;
   border: 1px solid var(--k-color-border);
   border-radius: 4px;
-  background-color: var(--k-color-bg);
-  color: var(--k-color-text);
+  background-color: var(--k-card-bg, var(--k-color-bg));
+  color: var(--k-text-color, var(--k-color-text));
+}
+
+/* 深色主题优化 */
+@media (prefers-color-scheme: dark) {
+
+  .k-input,
+  textarea.k-input {
+    background-color: var(--k-card-bg, #2a2a2a);
+    color: var(--k-text-color, #e0e0e0);
+  }
 }
 
 textarea.k-input {
@@ -336,8 +390,8 @@ textarea.k-input {
   padding: 0.5rem 1rem;
   border: 1px solid var(--k-color-border);
   border-radius: 4px;
-  background-color: var(--k-color-bg);
-  color: var(--k-color-text);
+  background-color: var(--k-card-bg, var(--k-color-bg));
+  color: var(--k-text-color, var(--k-color-text));
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -348,7 +402,20 @@ textarea.k-input {
   border-color: var(--k-color-primary);
 }
 
+.radio-input:hover:not(:checked)+.radio-button {
+  background-color: var(--k-color-bg-hover, var(--k-color-bg));
+  border-color: var(--k-color-primary-light, var(--k-color-primary));
+}
+
 .radio-input:focus+.radio-button {
-  box-shadow: 0 0 0 2px var(--k-color-primary-light);
+  box-shadow: 0 0 0 2px var(--k-color-primary-light, rgba(64, 158, 255, 0.2));
+}
+
+/* 深色主题优化 */
+@media (prefers-color-scheme: dark) {
+  .radio-button {
+    background-color: var(--k-card-bg, #2a2a2a);
+    color: var(--k-text-color, #e0e0e0);
+  }
 }
 </style>

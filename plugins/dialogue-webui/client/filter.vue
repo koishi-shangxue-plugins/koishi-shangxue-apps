@@ -2,7 +2,7 @@
   <div class="filter-builder">
     <div class="filter-header">
       <h4>过滤器设置</h4>
-      <button class="k-button small" @click="addGroup">添加条件组</button>
+      <button class="k-button small add-action" @click="addGroup">添加条件组</button>
     </div>
 
     <div v-if="!modelValue || modelValue.length === 0" class="empty-state">
@@ -27,7 +27,7 @@
             </label>
           </div>
         </div>
-        <button class="k-button danger small" @click="removeGroup(groupIndex)">删除组</button>
+        <button class="k-button small delete-action" @click="confirmRemoveGroup(groupIndex)">删除组</button>
       </div>
 
       <div class="conditions-list">
@@ -67,11 +67,12 @@
               :type="getInputTypeForField(condition.field)"
               @input="() => emit('update:modelValue', props.modelValue || [])" />
 
-            <button class="k-button danger small" @click="removeCondition(groupIndex, condIndex)">删除</button>
+            <button class="k-button small delete-action"
+              @click="confirmRemoveCondition(groupIndex, condIndex)">删除条件</button>
           </div>
         </div>
 
-        <button class="k-button small" @click="addCondition(groupIndex)">添加条件</button>
+        <button class="k-button small add-action" @click="addCondition(groupIndex)">添加条件</button>
       </div>
     </div>
 
@@ -85,6 +86,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import { FilterGroup, FilterCondition, FilterField, FilterOperator } from './types'
 
 const props = defineProps<{
@@ -187,6 +189,25 @@ const removeGroup = (groupIndex: number) => {
   emit('update:modelValue', newGroups)
 }
 
+// 确认删除条件组
+const confirmRemoveGroup = async (groupIndex: number) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除条件组 ${groupIndex + 1} 吗？<br><br>此操作不可恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true
+      }
+    )
+    removeGroup(groupIndex)
+  } catch {
+    // 用户取消删除
+  }
+}
+
 // 添加条件
 const addCondition = (groupIndex: number) => {
   const newGroups = [...(props.modelValue || [])]
@@ -205,6 +226,25 @@ const removeCondition = (groupIndex: number, condIndex: number) => {
   const newGroups = [...(props.modelValue || [])]
   newGroups[groupIndex].conditions.splice(condIndex, 1)
   emit('update:modelValue', newGroups)
+}
+
+// 确认删除条件
+const confirmRemoveCondition = async (groupIndex: number, condIndex: number) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除此条件吗？<br><br>此操作不可恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true
+      }
+    )
+    removeCondition(groupIndex, condIndex)
+  } catch {
+    // 用户取消删除
+  }
 }
 
 // 生成代码预览
@@ -422,15 +462,28 @@ const generateCodePreview = () => {
   padding: 0.5rem;
   border: 1px solid var(--k-color-border);
   border-radius: 4px;
-  background-color: var(--k-color-bg);
-  color: var(--k-color-text);
+  background-color: var(--k-card-bg, var(--k-color-bg));
+  color: var(--k-text-color, var(--k-color-text));
   min-width: 120px;
   cursor: pointer;
 }
 
 .k-select option {
-  background-color: var(--k-color-bg);
-  color: var(--k-color-text);
+  background-color: var(--k-card-bg, var(--k-color-bg));
+  color: var(--k-text-color, var(--k-color-text));
+}
+
+/* 深色主题优化 */
+@media (prefers-color-scheme: dark) {
+  .k-select {
+    background-color: var(--k-card-bg, #2a2a2a);
+    color: var(--k-text-color, #e0e0e0);
+  }
+
+  .k-select option {
+    background-color: var(--k-card-bg, #2a2a2a);
+    color: var(--k-text-color, #e0e0e0);
+  }
 }
 
 .condition-row {

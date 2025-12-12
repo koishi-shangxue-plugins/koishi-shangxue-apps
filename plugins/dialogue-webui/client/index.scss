@@ -3,3 +3,52 @@
     height: 100%;
     border: none;
 }
+
+/* 统一按钮样式 - 添加/创建类按钮使用主题色 */
+.k-button.add-action {
+  background-color: var(--k-color-primary);
+  color: white;
+  border-color: var(--k-color-primary);
+}
+
+.k-button.add-action:hover {
+  background-color: var(--k-color-primary-dark, var(--k-color-primary));
+  filter: brightness(0.9);
+}
+
+/* 统一删除按钮样式 */
+.k-button.delete-action {
+  background-color: var(--k-color-danger, #f56c6c);
+  color: white;
+  border-color: var(--k-color-danger, #f56c6c);
+}
+
+.k-button.delete-action:hover {
+  background-color: var(--k-color-danger-dark, #f56c6c);
+  filter: brightness(0.9);
+}
+
+/* 优化下拉框在深色主题下的显示 */
+.k-select {
+  background-color: var(--k-card-bg, var(--k-color-bg));
+  color: var(--k-text-color, var(--k-color-text));
+  border: 1px solid var(--k-color-border);
+}
+
+.k-select option {
+  background-color: var(--k-card-bg, var(--k-color-bg));
+  color: var(--k-text-color, var(--k-color-text));
+}
+
+/* 深色主题优化 */
+@media (prefers-color-scheme: dark) {
+  .k-select {
+    background-color: var(--k-card-bg, #2a2a2a);
+    color: var(--k-text-color, #e0e0e0);
+  }
+  
+  .k-select option {
+    background-color: var(--k-card-bg, #2a2a2a);
+    color: var(--k-text-color, #e0e0e0);
+  }
+}
