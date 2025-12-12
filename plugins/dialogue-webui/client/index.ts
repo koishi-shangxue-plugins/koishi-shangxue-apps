@@ -6,9 +6,11 @@ import './icons'
 
 export default (ctx: Context) => {
   ctx.page({
-    name: 'dialogue-webui',
+    name: 'dialogue',
     path: '/dialogue-webui',
     icon: 'activity:dialogue',
+    desc: "",
+    authority: 4,
     component: defineComponent({
       setup() {
         return () => h(resolveComponent('k-layout'), {}, {
