@@ -55,6 +55,26 @@ export function apply(ctx: Context) {
 
   // ctx.cache.set('foo', 'bar', 114514)
 
+
+  // let testInterval: NodeJS.Timeout | null = null;
+  // ctx.command('log-test', '压力测试日志输出')
+  //   .action(async ({ session }) => {
+  //     if (testInterval) {
+  //       clearInterval(testInterval);
+  //       testInterval = null;
+  //       return '日志压力测试已停止。';
+  //     } else {
+  //       let i = 0;
+  //       testInterval = setInterval(() => {
+  //         const loggers = ['test', 'database', 'adapter-onebot', 'http-server', 'plugin-a', 'plugin-b'];
+  //         const loggerName = loggers[i % loggers.length];
+  //         ctx.logger(loggerName).info(`压力测试日志 #${i++} - 这是一个为了测试长文本而生成的随机字符串: ${Math.random().toString(36).substring(7)}`);
+  //       }, 10); // 每 10 毫秒输出一次以产生高压力
+  //       return '日志压力测试已开始。再次运行命令以停止。';
+  //     }
+  //   });
+
+
   command
     .subcommand('.prompt [id]')
     .action(async ({ session }, id) => {

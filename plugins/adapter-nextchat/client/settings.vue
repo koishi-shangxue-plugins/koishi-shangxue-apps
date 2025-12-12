@@ -1,6 +1,6 @@
 <template>
   <div class="nextchat-settings">
-    <k-comment type="primary">
+    <k-comment v-if="data" type="primary">
       <div class="content">
         <p class="subtitle"></p>
         <p class="subtitle">点击下方按钮在新窗口打开 NextChat 界面</p>
@@ -25,13 +25,29 @@
         </div>
       </div>
     </k-comment>
+    <div v-else>
+      <!-- 不渲染任何东西 -->
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, inject, ref } from 'vue';
 
+const local = inject('manager.settings.local', ref({ name: '' })) as any;
 const config = inject('manager.settings.config', ref({})) as any;
+
+// 插件的预期名称 包名
+const PLUGIN_NAME = 'koishi-plugin-adapter-nextchat';
+
+const data = computed(() => {
+  // 名称不匹配，返回 null，阻止组件渲染
+  if (!local.value || local.value.name !== PLUGIN_NAME) {
+    return null;
+  }
+  // 名称匹配，返回一个真值(truthy)对象，触发渲染
+  return {};
+});
 
 // 计算API地址
 const apiUrl = computed(() => {
