@@ -185,22 +185,20 @@ export class NextChatBot extends Bot {
 
       const result = h.transform([element], {
         text: (attrs) => {
-          logInfo(`[${this.selfId}] 处理 text:`, attrs.content)
-          return attrs.content
+          let content = attrs.content
+          return content
         },
         image: (attrs) => {
           const url = attrs.src || attrs.url || ''
-          logInfo(`[${this.selfId}] 处理 image, URL长度:`, url.length)
           return `![image](${url})`
         },
         img: (attrs) => {
           const url = attrs.src || attrs.url || ''
-          logInfo(`[${this.selfId}] 处理 image, URL长度:`, url.length)
           return `![image](${url})`
         },
         audio: (attrs) => {
           const url = attrs.src || attrs.url || ''
-          return `[音频: ${url}]`
+          return `![audio](${url})`
         },
         video: (attrs) => {
           const url = attrs.src || attrs.url || ''
@@ -208,10 +206,9 @@ export class NextChatBot extends Bot {
         },
         at: (attrs) => {
           const result = `@${attrs.name || attrs.id}`
-          logInfo(`[${this.selfId}] 处理 at 元素:`, attrs, `结果:`, result)
           return result
         },
-        quote: (attrs, children) => `> ${children.join('')}`,
+        //  quote: (attrs, children) => `> ${children.join('')}`,
         p: (attrs, children) => {
           // p 元素：手动递归处理子元素
           logInfo(`[${this.selfId}] 处理 p 元素，子元素数量:`, children.length)
