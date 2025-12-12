@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-dialogue-webui",
   "description": "也许是dialogue插件的webui版本（？）灵感来自 word-core 插件",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

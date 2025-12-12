@@ -1,7 +1,6 @@
 <template>
   <div class="filter-builder">
     <div class="filter-header">
-      <h4>过滤器设置</h4>
       <button class="k-button small add-action" @click="addGroup">添加条件组</button>
     </div>
 
@@ -378,13 +377,9 @@ const generateCodePreview = () => {
 
 .filter-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: 1rem;
-}
-
-.filter-header h4 {
-  margin: 0;
 }
 
 .header-buttons {
@@ -460,29 +455,30 @@ const generateCodePreview = () => {
 
 .k-select {
   padding: 0.5rem;
-  border: 1px solid var(--k-color-border);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 4px;
-  background-color: var(--k-card-bg, var(--k-color-bg));
-  color: var(--k-text-color, var(--k-color-text));
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #2c3e50;
   min-width: 120px;
   cursor: pointer;
 }
 
 .k-select option {
-  background-color: var(--k-card-bg, var(--k-color-bg));
-  color: var(--k-text-color, var(--k-color-text));
+  background-color: white;
+  color: #2c3e50;
 }
 
 /* 深色主题优化 */
 @media (prefers-color-scheme: dark) {
   .k-select {
-    background-color: var(--k-card-bg, #2a2a2a);
-    color: var(--k-text-color, #e0e0e0);
+    background-color: rgba(50, 50, 50, 0.9);
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .k-select option {
-    background-color: var(--k-card-bg, #2a2a2a);
-    color: var(--k-text-color, #e0e0e0);
+    background-color: #323232;
+    color: #e0e0e0;
   }
 }
 

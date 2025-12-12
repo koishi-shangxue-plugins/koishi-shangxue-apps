@@ -25,7 +25,7 @@ export function useDialogLogic() {
     }
   }
 
-  // onMounted - 确保在组件挂载后执行
+  // onMounted
   onMounted(fetchDialogues)
 
   // 打开"添加"模态框
@@ -97,7 +97,7 @@ export function useDialogLogic() {
     }
   }
 
-  // 删除（不再包含确认逻辑，由调用方处理）
+  // 删除
   const handleDelete = async (id: number | null | undefined) => {
     if (!id) return
     try {

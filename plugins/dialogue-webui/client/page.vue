@@ -76,7 +76,8 @@
     <div v-if="showFilterModal" class="modal-backdrop" @click.self="showFilterModal = false">
       <div class="modal-panel large">
         <div class="modal-header">
-          <h3>过滤器设置{{ currentDialogue.question ? ' - ' + currentDialogue.question : '' }}</h3>
+          <h3>{{ currentDialogue.question || '过滤器设置' }}</h3>
+          <p class="modal-subtitle">过滤器设置</p>
         </div>
         <div class="modal-body">
           <FilterBuilder v-model="currentDialogue.filterGroups" />
@@ -153,7 +154,7 @@ const getFilterLabel = (dialogue: Dialogue) => {
     }
     return scopeLabels[dialogue.scope] || dialogue.scope
   }
-  return '无限制'
+  return '无'
 }
 
 </script>
@@ -186,7 +187,6 @@ const getFilterLabel = (dialogue: Dialogue) => {
 
 .manual-table {
   min-width: 800px;
-  /* 设置最小宽度，确保在小屏幕上可以横向滚动 */
   display: flex;
   flex-direction: column;
   margin-top: 1rem;
@@ -228,7 +228,6 @@ const getFilterLabel = (dialogue: Dialogue) => {
 .table-cell.actions {
   gap: 0.5rem;
   flex-shrink: 0;
-  /* 防止操作按钮被压缩 */
 }
 
 /* 手机端优化 */
@@ -273,7 +272,6 @@ const getFilterLabel = (dialogue: Dialogue) => {
   z-index: 1000;
 }
 
-/* 深色主题下额外降低亮度 */
 @media (prefers-color-scheme: dark) {
   .modal-backdrop {
     background-color: rgba(0, 0, 0, 0.7);
@@ -297,7 +295,14 @@ const getFilterLabel = (dialogue: Dialogue) => {
 }
 
 .modal-header h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+}
+
+.modal-subtitle {
   margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+  color: var(--k-color-text-light, #999);
 }
 
 .modal-body {
@@ -326,16 +331,20 @@ const getFilterLabel = (dialogue: Dialogue) => {
 .k-button {
   padding: 0.5rem 1rem;
   border-radius: 4px;
-  border: 1px solid var(--k-color-border);
-  background-color: var(--k-color-bg-btn, var(--k-color-bg));
-  color: var(--k-color-text);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #2c3e50;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s;
+  font-weight: 500;
 }
 
 .k-button:hover {
-  background-color: var(--k-color-bg-hover, var(--k-color-bg));
-  filter: brightness(1.1);
+  background-color: rgba(240, 240, 240, 0.9);
+}
+
+.k-button:active {
+  background-color: rgba(230, 230, 230, 0.9);
 }
 
 .k-button.small {
@@ -343,23 +352,66 @@ const getFilterLabel = (dialogue: Dialogue) => {
   font-size: 0.875rem;
 }
 
+.k-button.primary {
+  background-color: #409eff;
+  color: white;
+  border: none;
+}
+
+.k-button.primary:hover {
+  background-color: #66b1ff;
+}
+
+.k-button.primary:active {
+  background-color: #3a8ee6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .k-button {
+    background-color: rgba(50, 50, 50, 0.9);
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .k-button:hover {
+    background-color: rgba(70, 70, 70, 0.9);
+  }
+
+  .k-button:active {
+    background-color: rgba(60, 60, 60, 0.9);
+  }
+}
+
 .k-input,
 textarea.k-input {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid var(--k-color-border);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 4px;
-  background-color: var(--k-card-bg, var(--k-color-bg));
-  color: var(--k-text-color, var(--k-color-text));
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #2c3e50;
 }
 
-/* 深色主题优化 */
+.k-input:focus,
+textarea.k-input:focus {
+  outline: none;
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+
 @media (prefers-color-scheme: dark) {
 
   .k-input,
   textarea.k-input {
-    background-color: var(--k-card-bg, #2a2a2a);
-    color: var(--k-text-color, #e0e0e0);
+    background-color: rgba(50, 50, 50, 0.9);
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .k-input:focus,
+  textarea.k-input:focus {
+    border-color: #409eff;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.3);
   }
 }
 
@@ -388,34 +440,39 @@ textarea.k-input {
 .radio-button {
   display: block;
   padding: 0.5rem 1rem;
-  border: 1px solid var(--k-color-border);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 4px;
-  background-color: var(--k-card-bg, var(--k-color-bg));
-  color: var(--k-text-color, var(--k-color-text));
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #2c3e50;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s;
+  font-weight: 500;
 }
 
 .radio-input:checked+.radio-button {
-  background-color: var(--k-color-primary);
+  background-color: #409eff;
   color: white;
-  border-color: var(--k-color-primary);
+  border-color: #409eff;
 }
 
 .radio-input:hover:not(:checked)+.radio-button {
-  background-color: var(--k-color-bg-hover, var(--k-color-bg));
-  border-color: var(--k-color-primary-light, var(--k-color-primary));
+  background-color: rgba(240, 240, 240, 0.9);
+  border-color: #409eff;
 }
 
 .radio-input:focus+.radio-button {
-  box-shadow: 0 0 0 2px var(--k-color-primary-light, rgba(64, 158, 255, 0.2));
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
 }
 
-/* 深色主题优化 */
 @media (prefers-color-scheme: dark) {
   .radio-button {
-    background-color: var(--k-card-bg, #2a2a2a);
-    color: var(--k-text-color, #e0e0e0);
+    background-color: rgba(50, 50, 50, 0.9);
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .radio-input:hover:not(:checked)+.radio-button {
+    background-color: rgba(70, 70, 70, 0.9);
   }
 }
 </style>
