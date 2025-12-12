@@ -164,7 +164,7 @@ export class NextChatBot extends Bot {
     logInfo(`[${this.selfId}] fragmentToString 输入类型:`, typeof fragment, Array.isArray(fragment))
 
     if (typeof fragment === 'string') {
-      logInfo(`[${this.selfId}] 是字符串:`, fragment)
+      logInfo(`[${this.selfId}] 是字符串:`, fragment.substring(0, 100))
       return fragment
     }
 
@@ -172,16 +172,16 @@ export class NextChatBot extends Bot {
       logInfo(`[${this.selfId}] 是数组，长度:`, fragment.length)
       // 递归处理数组中的每个元素
       const result = fragment.map((item, index) => {
-        logInfo(`[${this.selfId}] 处理数组元素 ${index}:`, typeof item, item)
+        logInfo(`[${this.selfId}] 处理数组元素 ${index}:`, typeof item)
         return this.fragmentToString(item)
       }).join('')
-      logInfo(`[${this.selfId}] 数组处理结果:`, result.substring(0, 100))
+      logInfo(`[${this.selfId}] 数组处理结果长度:`, result.length)
       return result
     }
 
     if (fragment && typeof fragment === 'object' && 'type' in fragment) {
       const element = fragment as h
-      logInfo(`[${this.selfId}] 是 h 元素，类型:`, element.type)
+      logInfo(`[${this.selfId}] 是 h 元素，类型:`, element.type, `attrs:`, element.attrs)
 
       const result = h.transform([element], {
         text: (attrs) => {
@@ -206,16 +206,28 @@ export class NextChatBot extends Bot {
           const url = attrs.src || attrs.url || ''
           return `![video](${url})`
         },
-        at: (attrs) => `@${attrs.name || attrs.id}`,
+        at: (attrs) => {
+          const result = `@${attrs.name || attrs.id}`
+          logInfo(`[${this.selfId}] 处理 at 元素:`, attrs, `结果:`, result)
+          return result
+        },
         quote: (attrs, children) => `> ${children.join('')}`,
         p: (attrs, children) => {
-          // p 元素：递归处理子元素
+          // p 元素：手动递归处理子元素
           logInfo(`[${this.selfId}] 处理 p 元素，子元素数量:`, children.length)
+          // children 是 Element 对象数组，需要递归处理
+          if (Array.isArray(children) && children.length > 0 && typeof children[0] === 'object') {
+            return children.map(child => this.fragmentToString(child)).join('')
+          }
           return children.join('')
         },
         default: (attrs, children) => {
-          // 默认处理：递归处理子元素
+          // 默认处理：手动递归处理子元素
           logInfo(`[${this.selfId}] 使用 default 处理，类型:`, element.type, `子元素数量:`, children.length)
+          // children 是 Element 对象数组，需要递归处理
+          if (Array.isArray(children) && children.length > 0 && typeof children[0] === 'object') {
+            return children.map(child => this.fragmentToString(child)).join('')
+          }
           return children.join('')
         },
       }).join('')
