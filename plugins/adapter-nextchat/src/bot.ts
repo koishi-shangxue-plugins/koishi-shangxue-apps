@@ -1,4 +1,4 @@
-import { Bot, Context, Universal, h, Fragment } from 'koishi'
+import { Bot, Context, Universal, h, Fragment, Session } from 'koishi'
 import { Config, logInfo, logDebug, loggerError, loggerInfo } from './index'
 
 export class NextChatBot extends Bot {
@@ -17,6 +17,7 @@ export class NextChatBot extends Bot {
     this.online()
     const globalBot = this.ctx.bots.find(b => b.platform === 'nextchat' && b.selfId === this.selfId)
     if (globalBot) {
+      logInfo(`[${this.selfId}] Bot已成功注册`)
     } else {
       loggerError(`[${this.selfId}] Bot未能注册！`)
     }
@@ -24,10 +25,14 @@ export class NextChatBot extends Bot {
 
   async stop() {
     this.offline()
+    await super.stop()
   }
 
-  // 用于在单次请求中缓存 sendMessage 的内容
-  private responseBuffers = new Map<string, string[]>();
+  // 用于存储待处理的请求响应
+  private pendingResponses = new Map<string, {
+    resolve: (content: string) => void
+    messages: string[]
+  }>();
 
   // 处理 OpenAI 格式的聊天完成请求
   async handleChatCompletion(body: any): Promise<any> {
@@ -46,56 +51,76 @@ export class NextChatBot extends Bot {
 
     logInfo(`[${this.selfId}] 处理用户消息: "${userMessage}"`, { userId, channelId });
 
-    // 为本次请求设置响应缓冲区
-    this.responseBuffers.set(channelId, []);
+    // 检查是否是 NextChat 的新对话提示词
+    if (userMessage.includes('使用四到五个字直接返回这句话的简要主题') &&
+      userMessage.includes('不要解释、不要标点、不要语气词、不要多余文本')) {
+      logInfo(`[${this.selfId}] 检测到新对话提示词，返回固定文本`);
+      return this.createResponse('新的聊天', model, stream);
+    }
 
     try {
-      // 处理指令前缀
-      const prefixes = [].concat(this.ctx.root.config.prefix ?? []);
-      prefixes.sort((a, b) => b.length - a.length);
-      let commandMessage = userMessage;
-      for (const prefix of prefixes) {
-        if (userMessage.startsWith(prefix)) {
-          commandMessage = userMessage.slice(prefix.length);
-          break;
-        }
-      }
-
-      // 创建 session
-      const session = this.session({
-        type: 'message',
-        subtype: 'private',
-        channel: { id: channelId, type: Universal.Channel.Type.TEXT },
-        user: { id: userId, name: username },
+      // 创建一个 Promise 来等待响应
+      const responsePromise = new Promise<string>((resolve) => {
+        this.pendingResponses.set(channelId, {
+          resolve,
+          messages: []
+        });
       });
-      session.content = userMessage;
-      logInfo(session)
 
-      // 执行指令并获取最终返回值
-      // @ts-ignore
-      const returnValue = await session.execute(commandMessage, true);
+      // 创建并分发 session
+      const session = this.createSession(userMessage, userId, username, channelId);
+      logInfo(`[${this.selfId}] 分发 session:`, session);
 
-      // 从缓冲区获取所有中间消息
-      const bufferedMessages = this.responseBuffers.get(channelId) || [];
-      const returnMessage = this.fragmentToString(returnValue);
+      // 通过 dispatch 分发会话，让 Koishi 中间件系统处理
+      this.dispatch(session);
 
-      // 合并所有消息
-      const allMessages = [...bufferedMessages];
-      if (returnMessage) {
-        allMessages.push(returnMessage);
-      }
+      // 等待响应（设置超时）
+      const timeoutPromise = new Promise<string>((_, reject) => {
+        setTimeout(() => reject(new Error('响应超时')), 30 * 1000);
+      });
 
-      const responseContent = allMessages.join('\n') || ' ';
+      const responseContent = await Promise.race([responsePromise, timeoutPromise]);
+
       logInfo(`[${this.selfId}] 完整响应内容:`, responseContent);
-      return this.createResponse(responseContent, model, stream);
+      return this.createResponse(responseContent || ' ', model, stream);
 
     } catch (error) {
-      loggerError(`[${this.selfId}] 命令执行出错:`, error);
-      return this.createResponse(`执行命令时发生错误: ${error.message}`, model, stream);
+      // loggerError(`[${this.selfId}] 处理消息出错:`, error);
+      return this.createResponse(``, model, stream);
     } finally {
-      // 清理缓冲区，防止内存泄漏
-      this.responseBuffers.delete(channelId);
+      // 清理待处理的响应
+      this.pendingResponses.delete(channelId);
     }
+  }
+
+  // 创建 session
+  private createSession(content: string, userId: string, username: string, channelId: string) {
+    const session = this.session({
+      type: 'message',
+      subtype: 'private',
+      platform: 'nextchat',
+      selfId: this.selfId,
+      timestamp: Date.now(),
+      channel: {
+        id: channelId,
+        type: Universal.Channel.Type.DIRECT,
+      },
+      user: {
+        id: userId,
+        name: username,
+      },
+      message: {
+        id: Date.now().toString(),
+        content: content,
+        elements: h.parse(content),
+      },
+    });
+
+    session.content = content;
+    session.channelId = channelId;
+    session.isDirect = true;
+
+    return session;
   }
 
   // 创建响应对象
@@ -200,15 +225,21 @@ export class NextChatBot extends Bot {
   }
 
   async sendMessage(channelId: string, content: Fragment): Promise<string[]> {
-    logInfo(content)
+    logInfo(`[${this.selfId}] sendMessage 被调用`, { channelId, content })
 
-    const buffer = this.responseBuffers.get(channelId);
-    if (buffer) {
+    const pending = this.pendingResponses.get(channelId);
+    if (pending) {
       const contentStr = this.fragmentToString(content);
-      buffer.push(contentStr);
+      pending.messages.push(contentStr);
+
+      // 立即返回响应并清理
+      const fullResponse = pending.messages.join('\n');
+      pending.resolve(fullResponse);
+
       // 返回一个虚拟的消息 ID
       return [Date.now().toString()];
     }
+
     loggerError(`[${this.selfId}] sendMessage 被意外调用，无待处理请求`, { channelId });
     return [];
   }
