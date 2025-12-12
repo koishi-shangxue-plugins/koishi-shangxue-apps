@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-adapter-nextchat",
   "description": "nextchat适配器",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -14,8 +14,14 @@
   "keywords": [
     "chatbot",
     "koishi",
-    "plugin"
+    "plugin",
+    "adapter",
+    "nextchat"
   ],
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
+  },
   "peerDependencies": {
     "@koishijs/plugin-console": "^5.11.0",
     "koishi": "^4.16.0"
