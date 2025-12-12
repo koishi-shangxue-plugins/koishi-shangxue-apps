@@ -180,53 +180,50 @@ export class NextChatBot extends Bot {
 
     if (fragment && typeof fragment === 'object' && 'type' in fragment) {
       const element = fragment as h
-      logInfo(`[${this.selfId}] 是 h 元素，类型:`, element.type, `attrs:`, element.attrs)
+      logInfo(element)
 
-      const result = h.transform([element], {
-        text: (attrs) => {
-          let content = attrs.content
-          return content
-        },
-        image: (attrs) => {
-          const url = attrs.src || attrs.url || ''
-          return `![image](${url})`
-        },
-        img: (attrs) => {
-          const url = attrs.src || attrs.url || ''
-          return `![image](${url})`
-        },
-        audio: (attrs) => {
-          const url = attrs.src || attrs.url || ''
-          return `[🔊 点击跳转音频](${url})`
-        },
-        video: (attrs) => {
-          //  const url = attrs.src || attrs.url || ''
-          return `[暂不支持视频预览]`
-        },
-        at: (attrs) => {
-          const result = `@${attrs.name || attrs.id}`
-          return result
-        },
-        //  quote: (attrs, children) => `> ${children.join('')}`,
-        p: (attrs, children) => {
+      let result = ''
+
+      switch (element.type) {
+        case 'text':
+          result = element.attrs.content || ''
+          break
+
+        case 'image':
+        case 'img':
+          const imageUrl = element.attrs.src || element.attrs.url || ''
+          result = `![image](${imageUrl})`
+          break
+
+        case 'audio':
+          const audioUrl = element.attrs.src || element.attrs.url || ''
+          result = `[🔊 点击跳转音频](${audioUrl})`
+          break
+
+        case 'video':
+          result = `[暂不支持视频预览]`
+          break
+
+        case 'at':
+          result = `@${element.attrs.name || element.attrs.id}`
+          break
+
+        case 'p':
           // p 元素：手动递归处理子元素
-          logInfo(`[${this.selfId}] 处理 p 元素，子元素数量:`, children.length)
-          // children 是 Element 对象数组，需要递归处理
-          if (Array.isArray(children) && children.length > 0 && typeof children[0] === 'object') {
-            return children.map(child => this.fragmentToString(child)).join('')
+          logInfo(`[${this.selfId}] 处理 p 元素，子元素数量:`, element.children?.length || 0)
+          if (element.children && element.children.length > 0) {
+            result = element.children.map(child => this.fragmentToString(child)).join('')
           }
-          return children.join('')
-        },
-        default: (attrs, children) => {
+          break
+
+        default:
           // 默认处理：手动递归处理子元素
-          logInfo(`[${this.selfId}] 使用 default 处理，类型:`, element.type, `子元素数量:`, children.length)
-          // children 是 Element 对象数组，需要递归处理
-          if (Array.isArray(children) && children.length > 0 && typeof children[0] === 'object') {
-            return children.map(child => this.fragmentToString(child)).join('')
+          logInfo(`[${this.selfId}] 使用 default 处理，类型:`, element.type, `子元素数量:`, element.children?.length || 0)
+          if (element.children && element.children.length > 0) {
+            result = element.children.map(child => this.fragmentToString(child)).join('')
           }
-          return children.join('')
-        },
-      }).join('')
+          break
+      }
 
       logInfo(`[${this.selfId}] h元素处理结果长度:`, result.length)
       return result

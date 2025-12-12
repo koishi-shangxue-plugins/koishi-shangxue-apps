@@ -57,7 +57,7 @@ interface ChatCompletionRequest {
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     path: Schema.string().default('/nextchat/v1/chat/completions').description('API 路径').role('link'),
-    token: Schema.string().default('sk-nextchat-koishi-adapter').description('访问令牌（APIkey）'),
+    token: Schema.string().default('sk-nextchat-koishi-adapter').description('访问令牌（APIkey）').role('textarea', { rows: [2, 4] }),
   }).description('基础设置'),
 
   Schema.object({
@@ -70,7 +70,7 @@ export const Config: Schema<Config> = Schema.intersect([
 
   Schema.object({
     NextChat_host: Schema.string().default('https://chat.bailili.top/#/').description('NextChat webUI 的 **URL地址**').role('link'),
-  }).description('webUI设置'),
+  }).description('WebUI设置'),
 
   Schema.object({
     loggerInfo: Schema.boolean().default(false).description('启用详细日志输出'),
