@@ -252,7 +252,7 @@ export class NextChatBot extends Bot {
           // p 元素：手动递归处理子元素
           logInfo(`[${this.selfId}] 处理 p 元素，子元素数量:`, element.children?.length || 0)
           if (element.children && element.children.length > 0) {
-            result = element.children.map(child => this.fragmentToString(child)).join('')
+            result = element.children.map(child => this.fragmentToString(child)).join('') + '\n'
           }
           break
 
