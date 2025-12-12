@@ -2,7 +2,7 @@ import { Bot, Context, Universal, h, Fragment, Session } from 'koishi'
 import { Config, logInfo, logDebug, loggerError, loggerInfo } from './index'
 
 export class NextChatBot extends Bot {
-  static inject = ['server']
+  static inject = ['server', 'i18n']
 
   constructor(ctx: Context, config: Config) {
     super(ctx, config, 'nextchat');
@@ -187,6 +187,46 @@ export class NextChatBot extends Bot {
       switch (element.type) {
         case 'text':
           result = element.attrs.content || ''
+          break
+
+        case 'i18n':
+          // 处理国际化文本
+          const path = element.attrs?.path
+          logInfo(`[${this.selfId}] 处理 i18n 元素，path:`, path)
+          logInfo(`[${this.selfId}] i18n 是否可用:`, !!this.ctx['i18n'])
+
+          if (path && this.ctx['i18n']) {
+            const i18n = this.ctx['i18n'] as any
+            try {
+              const locales = i18n.fallback([])
+              logInfo(`[${this.selfId}] i18n locales:`, locales)
+              const rendered = i18n.render(locales, [path], element.attrs || {})
+              logInfo(`[${this.selfId}] i18n 渲染结果:`, rendered, `类型:`, typeof rendered)
+
+              // i18n.render 返回的是 Element 数组，需要递归处理
+              if (rendered) {
+                if (typeof rendered === 'string') {
+                  result = rendered
+                } else if (Array.isArray(rendered)) {
+                  // 递归处理返回的 Element 数组
+                  result = this.fragmentToString(rendered)
+                } else {
+                  result = this.fragmentToString(rendered)
+                }
+                logInfo(`[${this.selfId}] i18n 成功渲染为:`, result)
+              } else {
+                result = `[${path}]`
+                logInfo(`[${this.selfId}] i18n 渲染结果为空，使用 fallback`)
+              }
+            } catch (e) {
+              // i18n解析失败，使用fallback
+              logInfo(`[${this.selfId}] i18n解析失败:`, e)
+              result = `[${path}]`
+            }
+          } else {
+            logInfo(`[${this.selfId}] i18n 不可用或 path 为空`)
+            result = `[${path || 'i18n'}]`
+          }
           break
 
         case 'image':
