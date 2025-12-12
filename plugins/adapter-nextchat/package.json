@@ -5,8 +5,10 @@
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
+    "client",
+    "dist",
     "lib",
-    "dist"
+    "src"
   ],
   "license": "MIT",
   "keywords": [
