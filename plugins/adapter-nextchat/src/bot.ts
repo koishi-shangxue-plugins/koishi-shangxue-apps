@@ -32,6 +32,7 @@ export class NextChatBot extends Bot {
   private pendingResponses = new Map<string, {
     resolve: (content: string) => void
     messages: string[]
+    timer?: NodeJS.Timeout
   }>();
 
   // 处理 OpenAI 格式的聊天完成请求
@@ -88,7 +89,11 @@ export class NextChatBot extends Bot {
       // loggerError(`[${this.selfId}] 处理消息出错:`, error);
       return this.createResponse(``, model, stream);
     } finally {
-      // 清理待处理的响应
+      // 清理待处理的响应和定时器
+      const pending = this.pendingResponses.get(channelId);
+      if (pending?.timer) {
+        clearTimeout(pending.timer);
+      }
       this.pendingResponses.delete(channelId);
     }
   }
@@ -156,24 +161,70 @@ export class NextChatBot extends Bot {
 
   // 将 Fragment 转换为字符串
   private fragmentToString(fragment: Fragment): string {
+    logInfo(`[${this.selfId}] fragmentToString 输入类型:`, typeof fragment, Array.isArray(fragment))
+
     if (typeof fragment === 'string') {
+      logInfo(`[${this.selfId}] 是字符串:`, fragment)
       return fragment
     }
+
     if (Array.isArray(fragment)) {
-      return fragment.map(item => this.fragmentToString(item)).join('')
+      logInfo(`[${this.selfId}] 是数组，长度:`, fragment.length)
+      // 递归处理数组中的每个元素
+      const result = fragment.map((item, index) => {
+        logInfo(`[${this.selfId}] 处理数组元素 ${index}:`, typeof item, item)
+        return this.fragmentToString(item)
+      }).join('')
+      logInfo(`[${this.selfId}] 数组处理结果:`, result.substring(0, 100))
+      return result
     }
+
     if (fragment && typeof fragment === 'object' && 'type' in fragment) {
       const element = fragment as h
-      return h.transform([element], {
-        text: (attrs) => attrs.content,
-        image: (attrs) => `[图片: ${attrs.src || attrs.url || ''}]`,
-        audio: (attrs) => `[音频: ${attrs.src || attrs.url || ''}]`,
-        video: (attrs) => `[视频: ${attrs.src || attrs.url || ''}]`,
+      logInfo(`[${this.selfId}] 是 h 元素，类型:`, element.type)
+
+      const result = h.transform([element], {
+        text: (attrs) => {
+          logInfo(`[${this.selfId}] 处理 text:`, attrs.content)
+          return attrs.content
+        },
+        image: (attrs) => {
+          const url = attrs.src || attrs.url || ''
+          logInfo(`[${this.selfId}] 处理 image, URL长度:`, url.length)
+          return `![image](${url})`
+        },
+        img: (attrs) => {
+          const url = attrs.src || attrs.url || ''
+          logInfo(`[${this.selfId}] 处理 image, URL长度:`, url.length)
+          return `![image](${url})`
+        },
+        audio: (attrs) => {
+          const url = attrs.src || attrs.url || ''
+          return `[音频: ${url}]`
+        },
+        video: (attrs) => {
+          const url = attrs.src || attrs.url || ''
+          return `![video](${url})`
+        },
         at: (attrs) => `@${attrs.name || attrs.id}`,
         quote: (attrs, children) => `> ${children.join('')}`,
-        default: () => '',
+        p: (attrs, children) => {
+          // p 元素：递归处理子元素
+          logInfo(`[${this.selfId}] 处理 p 元素，子元素数量:`, children.length)
+          return children.join('')
+        },
+        default: (attrs, children) => {
+          // 默认处理：递归处理子元素
+          logInfo(`[${this.selfId}] 使用 default 处理，类型:`, element.type, `子元素数量:`, children.length)
+          return children.join('')
+        },
       }).join('')
+
+      logInfo(`[${this.selfId}] h元素处理结果长度:`, result.length)
+      return result
     }
+
+    logInfo(`[${this.selfId}] 其他类型，转为字符串:`, fragment)
     return String(fragment)
   }
 
@@ -225,16 +276,29 @@ export class NextChatBot extends Bot {
   }
 
   async sendMessage(channelId: string, content: Fragment): Promise<string[]> {
-    logInfo(`[${this.selfId}] sendMessage 被调用`, { channelId, content })
+    logInfo(`[${this.selfId}] sendMessage 被调用`, { channelId })
+    logInfo(`[${this.selfId}] Fragment 类型:`, typeof content, Array.isArray(content))
 
     const pending = this.pendingResponses.get(channelId);
     if (pending) {
       const contentStr = this.fragmentToString(content);
+      logInfo(`[${this.selfId}] 转换后的内容长度:`, contentStr.length)
+      logInfo(`[${this.selfId}] 转换后的内容前100字符:`, contentStr.substring(0, 100))
       pending.messages.push(contentStr);
 
-      // 立即返回响应并清理
-      const fullResponse = pending.messages.join('\n');
-      pending.resolve(fullResponse);
+      // 使用 setTimeout 延迟 resolve，等待可能的后续消息
+      // 如果已经有定时器，先清除它
+      if (pending.timer) {
+        clearTimeout(pending.timer);
+      }
+
+      // 设置新的定时器，50ms 后 resolve
+      pending.timer = setTimeout(() => {
+        const fullResponse = pending.messages.join('\n');
+        logInfo(`[${this.selfId}] 最终响应内容长度:`, fullResponse.length)
+        logInfo(`[${this.selfId}] 最终响应内容前200字符:`, fullResponse.substring(0, 200))
+        pending.resolve(fullResponse);
+      }, 50);
 
       // 返回一个虚拟的消息 ID
       return [Date.now().toString()];
