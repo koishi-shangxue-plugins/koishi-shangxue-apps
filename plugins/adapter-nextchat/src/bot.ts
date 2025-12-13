@@ -37,7 +37,7 @@ export class NextChatBot extends Bot {
 
   // 处理 OpenAI 格式的聊天完成请求
   async handleChatCompletion(body: any): Promise<any> {
-    const { messages, stream = false, model = 'gpt-3.5-turbo' } = body;
+    const { messages, stream = false, model = 'koishi' } = body;
 
     const lastUserMessage = messages.filter(m => m.role === 'user').pop();
     if (!lastUserMessage) {

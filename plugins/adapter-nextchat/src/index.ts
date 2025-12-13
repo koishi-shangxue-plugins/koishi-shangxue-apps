@@ -32,7 +32,7 @@ export const usage = `
 
 export interface Config {
   path?: string;
-  token?: string;
+  APIkey?: { token: string; auth: number }[];
   selfId?: string;
   selfname?: string;
   selfavatar?: string;
@@ -57,7 +57,31 @@ interface ChatCompletionRequest {
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     path: Schema.string().default('/nextchat/v1/chat/completions').description('API 路径').role('link'),
-    token: Schema.string().default('sk-nextchat-koishi-adapter').description('访问令牌（APIkey）').role('textarea', { rows: [2, 4] }),
+    APIkey: Schema.array(Schema.object({
+      token: Schema.string().description('APIkey'),
+      auth: Schema.number().default(1).min(0).max(5).step(1).description('权限等级'),
+    })).role('table').description('APIkey 权限设置').default([
+      {
+        "token": "sk-fXzPq8rGjK5tLwMhN7bVcFdE2uIaYxS1oQp0iUjH6yT3eW",
+        "auth": 5
+      },
+      {
+        "token": "sk-aBcD1eFg2hIj3KlM4nOp5QrS6tUv7WxY8zAb9Cd0EfG1hI",
+        "auth": 4
+      },
+      {
+        "token": "sk-qWeR7tYuI8oP9aSdF0gHjK1lLzX2cVbN3mMq4wEr5TyU6i",
+        "auth": 3
+      },
+      {
+        "token": "sk-mN0bV1cX2zL3kJa4sDf5gHj6KlQ7wEr8TyU9iOp0aSdFgH",
+        "auth": 2
+      },
+      {
+        "token": "sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN",
+        "auth": 1
+      }
+    ]),
   }).description('基础设置'),
 
   Schema.object({
@@ -90,8 +114,13 @@ export function apply(ctx: Context, config: Config) {
         const protocol = koaCtx.protocol
         const host = koaCtx.host
 
+        // 查找权限不小于1的最低权限的 token
+        const suitableKey = config.APIkey
+          ?.filter(k => k.auth >= 1)
+          .sort((a, b) => a.auth - b.auth)[0];
+
         const settings = {
-          key: config.token,
+          key: suitableKey?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN', // 添加最终备用 token
           url: `${protocol}://${host}/nextchat`,
         }
         const settingsQuery = encodeURIComponent(JSON.stringify(settings))
@@ -137,8 +166,12 @@ export function apply(ctx: Context, config: Config) {
         const host = koaCtx.host
         const nextchatBaseUrl = 'https://chat.bailili.top'
 
+        const suitableKey = config.APIkey
+          ?.filter(k => k.auth >= 1)
+          .sort((a, b) => a.auth - b.auth)[0];
+
         const settings = {
-          key: config.token,
+          key: suitableKey?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN', // 添加最终备用 token
           url: `${protocol}://${host}/nextchat`,
         }
         const settingsQuery = encodeURIComponent(JSON.stringify(settings))
@@ -254,7 +287,7 @@ export function apply(ctx: Context, config: Config) {
     <div class="info">
       <h3>📋 配置信息</h3>
       <p><strong>API 地址：</strong><code>${protocol}://${host}${apiPath}</code></p>
-      <p><strong>访问令牌：</strong><code>${config.token}</code></p>
+      <p><strong>访问令牌（示例）：</strong><code>${config.APIkey?.filter(k => k.auth >= 1).sort((a, b) => a.auth - b.auth)[0]?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN'}</code></p>
     </div>
     
   </div>
@@ -262,6 +295,23 @@ export function apply(ctx: Context, config: Config) {
 </html>
         `
       })
+
+      // 处理模型列表请求
+      ctx.server.get('/nextchat/v1/models', async (koaCtx) => {
+        logInfo(`[${config.selfId}] 收到GET请求: ${koaCtx.method} ${koaCtx.path}`);
+        koaCtx.set('Access-Control-Allow-Origin', '*');
+        koaCtx.body = {
+          object: 'list',
+          data: [
+            {
+              id: 'koishi',
+              object: 'model',
+              created: Math.floor(Date.now() / 1000),
+              owned_by: 'koishi',
+            },
+          ],
+        };
+      });
 
       // 注册路由
       ctx.server.get(apiPath, async (koaCtx) => {
@@ -306,17 +356,39 @@ export function apply(ctx: Context, config: Config) {
           logInfo(`[${config.selfId}] 请求头:`, JSON.stringify(koaCtx.headers, null, 2))
           logDebug(`[${config.selfId}] 详细请求头:`, koaCtx.headers)
 
-          // 验证 token（如果配置了）
-          if (config.token) {
-            const auth = koaCtx.headers.authorization
-            if (!auth || !auth.startsWith('Bearer ') || auth.slice(7) !== config.token) {
-              loggerError(`[${config.selfId}] Token 验证失败，期望: Bearer ${config.token}，实际: ${auth}`)
-              koaCtx.status = 401
-              koaCtx.body = { error: { message: 'Unauthorized', type: 'invalid_request_error' } }
-              return
-            }
-            logDebug(`[${config.selfId}] Token 验证通过`)
+          // 验证 token
+          const authHeader = koaCtx.headers.authorization;
+          const providedToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+          if (!providedToken) {
+            loggerError(`[${config.selfId}] 未提供 Token`);
+            koaCtx.status = 401;
+            koaCtx.body = {
+              error: {
+                code: "",
+                message: `无效的令牌 (request id: ${new Date().toISOString().replace(/[-:.]/g, '')})`,
+                type: "new_api_error"
+              }
+            };
+            return;
           }
+
+          const isValidToken = config.APIkey?.some(key => key.token === providedToken);
+
+          if (!isValidToken) {
+            loggerError(`[${config.selfId}] Token 验证失败，提供的 Token: ${providedToken}`);
+            koaCtx.status = 401;
+            koaCtx.body = {
+              error: {
+                code: "",
+                message: `无效的令牌 (request id: ${new Date().toISOString().replace(/[-:.]/g, '')})`,
+                type: "new_api_error"
+              }
+            };
+            return;
+          }
+
+          logDebug(`[${config.selfId}] Token 验证通过`);
 
           const body = (koaCtx.request as any).body as ChatCompletionRequest
           logInfo(`[${config.selfId}] 请求体:`, JSON.stringify(body, null, 2))

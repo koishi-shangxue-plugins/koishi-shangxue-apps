@@ -20,7 +20,7 @@
           </div>
           <div class="info-item">
             <span class="label">访问令牌：</span>
-            <code>{{ config?.token || 'sk-nextchat-koishi-adapter' }}</code>
+            <code>{{ defaultApiKey }}</code>
           </div>
         </div>
       </div>
@@ -57,6 +57,18 @@ const apiUrl = computed(() => {
   return `${protocol}//${host}${path}`;
 });
 
+// 计算默认的 API Key
+const defaultApiKey = computed(() => {
+  const apiKeys = config.value?.APIkey;
+  if (!apiKeys || !Array.isArray(apiKeys) || apiKeys.length === 0) {
+    return 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN';
+  }
+  const suitableKey = apiKeys
+    .filter(k => k.auth >= 1)
+    .sort((a, b) => a.auth - b.auth)[0];
+  return suitableKey?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN';
+});
+
 // 打开NextChat
 function openNextChat() {
   const protocol = window.location.protocol;
@@ -74,7 +86,7 @@ function openNextChat() {
   }
 
   const settings = {
-    key: config.value?.token || 'sk-nextchat-koishi-adapter',
+    key: defaultApiKey.value,
     url: `${protocol}//${host}/nextchat`,
   };
 
