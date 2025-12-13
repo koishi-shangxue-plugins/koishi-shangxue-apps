@@ -118,29 +118,6 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.on('ready', () => {
     if (ctx.server) {
-      const nextchatBaseUrl = 'https://chat.bailili.top'
-
-      // 注册重定向页面，动态生成URL
-      ctx.server.get('/nextchat-redirect', async (koaCtx) => {
-        // 获取当前请求的协议和主机名
-        const protocol = koaCtx.protocol
-        const host = koaCtx.host
-
-        // 查找权限不小于1的最低权限的 token
-        const suitableKey = config.APIkey
-          ?.filter(k => k.auth >= 1)
-          .sort((a, b) => a.auth - b.auth)[0];
-
-        const settings = {
-          key: suitableKey?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN',
-          url: `${protocol}://${host}/nextchat`,
-        }
-        const settingsQuery = encodeURIComponent(JSON.stringify(settings))
-        const dynamicUrl = `${nextchatBaseUrl}/#/?settings=${settingsQuery}`
-
-        koaCtx.redirect(dynamicUrl)
-      })
-
       // 注册控制台入口
       ctx.console.addEntry({
         dev: resolve(__dirname, '../client/index.ts'),
@@ -470,8 +447,7 @@ export function apply(ctx: Context, config: Config) {
       })
 
       loggerInfo(`NextChat 适配器已启动
-      监听路径: http://localhost:${ctx.server.port}${apiPath}
-      重定向页面: http://localhost:${ctx.server.port}/nextchat-redirect`)
+      监听路径: http://localhost:${ctx.server.port}${apiPath}`)
     }
   })
 }
