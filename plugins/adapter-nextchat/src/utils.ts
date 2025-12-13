@@ -2,6 +2,11 @@ import { h } from 'koishi'
 import { NextChatBot } from './bot'
 import { logInfo, loggerError } from './logger'
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+// 读取 HTML 模板
+export const htmlTemplate = readFileSync(resolve(__dirname, './../templates/nextchat-page.html'), 'utf-8')
 /**
  * 转换媒体 URL，将非 HTTP/HTTPS 的 URL 通过 assets 服务转存
  * @param bot Bot 实例

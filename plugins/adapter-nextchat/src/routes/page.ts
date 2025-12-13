@@ -1,10 +1,6 @@
 import type { Context } from 'koishi'
 import type { Config } from '../types'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-
-// 读取 HTML 模板
-const htmlTemplate = readFileSync(resolve(__dirname, './../templates/nextchat-page.html'), 'utf-8')
+import { htmlTemplate } from '../utils'
 
 /**
  * 从配置的 NextChat_host 中提取基础 URL
