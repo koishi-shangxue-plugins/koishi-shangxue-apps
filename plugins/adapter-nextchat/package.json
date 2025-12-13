@@ -1,10 +1,11 @@
 {
   "name": "koishi-plugin-adapter-nextchat",
   "description": "nextchat适配器",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
+    "templates",
     "client",
     "dist",
     "lib",
