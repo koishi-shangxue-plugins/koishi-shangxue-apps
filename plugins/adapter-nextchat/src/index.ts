@@ -99,18 +99,14 @@ export const Config: Schema<Config> = Schema.intersect([
 ]);
 
 export function apply(ctx: Context, config: Config) {
-  // 声明需要使用的用户字段
   ctx.on('before-attach-user', (_, fields) => {
     fields.add('authority')
   })
-
-  // 注册一个全局中间件来处理权限更新
+  // 注册全局前置中间件 处理权限更新
   ctx.middleware(async (session: Session<'authority'>, next) => {
-    // 仅处理来自 nextchat 平台且带有 _authority 临时属性的会话
     if (session.platform === 'nextchat' && session['_authority'] !== undefined) {
       const authority = session['_authority'];
-      // 因为我们在 middleware 签名中指定了 Session<'authority'>,
-      // Koishi 会自动为我们 observeUser, 所以这里 user 和 authority 字段是类型安全的
+      await session.observeUser(['authority']);
       if (session.user.authority !== authority) {
         logInfo(`[${session.selfId}] 用户 ${session.userId} 的权限从 ${session.user.authority} 更新为 ${authority}`);
         session.user.authority = authority;
@@ -118,7 +114,7 @@ export function apply(ctx: Context, config: Config) {
       }
     }
     return next();
-  });
+  }, true);
 
   ctx.on('ready', () => {
     if (ctx.server) {
@@ -136,7 +132,7 @@ export function apply(ctx: Context, config: Config) {
           .sort((a, b) => a.auth - b.auth)[0];
 
         const settings = {
-          key: suitableKey?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN', // 添加最终备用 token
+          key: suitableKey?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN',
           url: `${protocol}://${host}/nextchat`,
         }
         const settingsQuery = encodeURIComponent(JSON.stringify(settings))
@@ -187,7 +183,7 @@ export function apply(ctx: Context, config: Config) {
           .sort((a, b) => a.auth - b.auth)[0];
 
         const settings = {
-          key: suitableKey?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN', // 添加最终备用 token
+          key: suitableKey?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN',
           url: `${protocol}://${host}/nextchat`,
         }
         const settingsQuery = encodeURIComponent(JSON.stringify(settings))
@@ -336,7 +332,7 @@ export function apply(ctx: Context, config: Config) {
       })
 
       ctx.server.all(apiPath, async (koaCtx, next) => {
-        // 设置CORS头
+        // CORS头
         koaCtx.set('Access-Control-Allow-Origin', '*')
         koaCtx.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
         koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
@@ -360,7 +356,7 @@ export function apply(ctx: Context, config: Config) {
       ctx.server.post(apiPath, async (koaCtx) => {
         const startTime = Date.now()
 
-        // 设置CORS头
+        // CORS头
         koaCtx.set('Access-Control-Allow-Origin', '*')
         koaCtx.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
         koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
