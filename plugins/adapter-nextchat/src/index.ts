@@ -108,7 +108,7 @@ export function apply(ctx: Context, config: Config) {
       const authority = session['_authority'];
       await session.observeUser(['authority']);
       if (session.user.authority !== authority) {
-        logInfo(`[${session.selfId}] 用户 ${session.userId} 的权限从 ${session.user.authority} 更新为 ${authority}`);
+        //  logInfo(`[${session.selfId}] 用户 ${session.userId} 的权限从 ${session.user.authority} 更新为 ${authority}`);
         session.user.authority = authority;
         await session.user.$update();
       }
