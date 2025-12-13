@@ -97,6 +97,20 @@ export const Config: Schema<Config> = Schema.intersect([
           "video",
           "file"
         ]
+      },
+      {
+        "modelname": "koishi-text",
+        "element": [
+          "text"
+        ]
+      },
+      {
+        "modelname": "koishi-image",
+        "element": [
+          "text",
+          "image",
+          "img"
+        ]
       }
     ]),
   }).description('OpenAI - API设置'),
