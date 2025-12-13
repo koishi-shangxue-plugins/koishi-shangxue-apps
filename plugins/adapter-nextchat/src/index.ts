@@ -33,6 +33,7 @@ export const usage = `
 export interface Config {
   path?: string;
   APIkey?: { token: string; auth: number }[];
+  models?: { modelname: string; element: string[] }[];
   selfId?: string;
   selfname?: string;
   selfavatar?: string;
@@ -80,7 +81,25 @@ export const Config: Schema<Config> = Schema.intersect([
         "auth": 1
       }
     ]),
-  }).description('基础设置'),
+    models: Schema.array(Schema.object({
+      modelname: Schema.string().description('模型名称'),
+      element: Schema
+        .array(Schema.union(['text', 'image', 'img', 'audio', 'video', 'file']))
+        .description('可渲染的消息元素'),
+    })).role('table').description('模型配置').default([
+      {
+        "modelname": "koishi",
+        "element": [
+          "text",
+          "image",
+          "img",
+          "audio",
+          "video",
+          "file"
+        ]
+      }
+    ]),
+  }).description('OpenAI - API设置'),
 
   Schema.object({
     selfId: Schema.string().default('nextchat').description('机器人 ID'),
@@ -303,16 +322,22 @@ export function apply(ctx: Context, config: Config) {
       ctx.server.get('/nextchat/v1/models', async (koaCtx) => {
         setCorsHeaders(koaCtx)
 
+        // 从配置中获取模型列表
+        const modelList = config.models?.map(model => ({
+          id: model.modelname,
+          object: 'model',
+          created: Math.floor(Date.now() / 1000),
+          owned_by: 'koishi',
+        })) || [{
+          id: 'koishi',
+          object: 'model',
+          created: Math.floor(Date.now() / 1000),
+          owned_by: 'koishi',
+        }];
+
         koaCtx.body = {
           object: 'list',
-          data: [
-            {
-              id: 'koishi',
-              object: 'model',
-              created: Math.floor(Date.now() / 1000),
-              owned_by: 'koishi',
-            },
-          ],
+          data: modelList,
         };
       });
 
@@ -439,6 +464,23 @@ export function apply(ctx: Context, config: Config) {
             return
           }
 
+          // 验证模型是否存在
+          const requestedModel = body.model || 'koishi';
+          const modelConfig = config.models?.find(m => m.modelname === requestedModel);
+
+          if (!modelConfig) {
+            loggerError(`[${config.selfId}] 模型不存在: ${requestedModel}`);
+            koaCtx.status = 503;
+            koaCtx.body = {
+              error: {
+                code: "model_not_found",
+                message: `模型 ${requestedModel} 无可用渠道（distributor） (request id: ${new Date().toISOString().replace(/[-:.]/g, '')})`,
+                type: "new_api_error"
+              }
+            };
+            return;
+          }
+
           // 获取 Bot 实例
           const bot = ctx.bots.find(b => b.platform === 'nextchat' && b.selfId === config.selfId)
           if (!bot) {
@@ -457,7 +499,7 @@ export function apply(ctx: Context, config: Config) {
           const username = providedToken;
 
           const nextChatBot = bot as unknown as NextChatBot
-          const response = await nextChatBot.handleChatCompletion(body, validKey.auth, userId, username)
+          const response = await nextChatBot.handleChatCompletion(body, validKey.auth, userId, username, modelConfig.element)
 
           const processingTime = Date.now() - startTime
 
