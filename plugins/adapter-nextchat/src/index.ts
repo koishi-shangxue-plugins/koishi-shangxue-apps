@@ -285,10 +285,24 @@ export function apply(ctx: Context, config: Config) {
         `
       })
 
+      // 处理模型列表请求的 OPTIONS 预检
+      ctx.server.options('/nextchat/v1/models', async (koaCtx) => {
+        koaCtx.set('Access-Control-Allow-Origin', '*')
+        koaCtx.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
+        koaCtx.set('Access-Control-Max-Age', '86400')
+        koaCtx.status = 204
+        koaCtx.body = ''
+      })
+
       // 处理模型列表请求
       ctx.server.get('/nextchat/v1/models', async (koaCtx) => {
         logInfo(`[${config.selfId}] 收到GET请求: ${koaCtx.method} ${koaCtx.path}`);
-        koaCtx.set('Access-Control-Allow-Origin', '*');
+        // 设置 CORS 头
+        koaCtx.set('Access-Control-Allow-Origin', '*')
+        koaCtx.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
+
         koaCtx.body = {
           object: 'list',
           data: [
@@ -309,15 +323,19 @@ export function apply(ctx: Context, config: Config) {
       })
 
       ctx.server.all(apiPath, async (koaCtx, next) => {
-        // CORS头
+        // 完整的 CORS 头配置，允许从任何源访问
         koaCtx.set('Access-Control-Allow-Origin', '*')
-        koaCtx.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+        koaCtx.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
+        koaCtx.set('Access-Control-Allow-Credentials', 'true')
+        koaCtx.set('Access-Control-Max-Age', '86400') // 预检请求缓存 24 小时
+        koaCtx.set('Access-Control-Expose-Headers', 'Content-Length, Content-Type')
         koaCtx.set('Access-Control-Allow-Private-Network', 'true')
 
         if (koaCtx.method === 'OPTIONS') {
           logInfo(`[${config.selfId}] 处理OPTIONS预检请求: ${koaCtx.path}`)
-          koaCtx.status = 200
+          koaCtx.status = 204 // No Content，更符合 OPTIONS 规范
+          koaCtx.body = ''
           return
         }
 
@@ -333,11 +351,6 @@ export function apply(ctx: Context, config: Config) {
       ctx.server.post(apiPath, async (koaCtx) => {
         const startTime = Date.now()
 
-        // CORS头
-        koaCtx.set('Access-Control-Allow-Origin', '*')
-        koaCtx.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
-        koaCtx.set('Access-Control-Allow-Private-Network', 'true')
 
         try {
           // 记录请求信息
