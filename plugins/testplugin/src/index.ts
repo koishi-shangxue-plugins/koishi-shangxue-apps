@@ -74,6 +74,14 @@ export function apply(ctx: Context) {
   //     }
   //   });
 
+
+  ctx.command('trans')
+    .action(async ({ session }) => {
+      ctx.assets.transform("")
+      ctx.logger.info("===")
+      return
+    })
+
   ctx.command('aauth')
     .userFields(["authority"])
     .action(async ({ session }) => {

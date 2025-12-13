@@ -1,5 +1,6 @@
 import { Bot, Context, Universal, h, Fragment, Session } from 'koishi'
 import { Config, logInfo, logDebug, loggerError, loggerInfo } from './index'
+import { transformUrl } from './utils'
 import { } from '@koishijs/assets'
 
 export class NextChatBot extends Bot<Context, Config> {
@@ -183,7 +184,7 @@ export class NextChatBot extends Bot<Context, Config> {
 
     if (fragment && typeof fragment === 'object' && 'type' in fragment) {
       const element = fragment as h
-      logInfo(element)
+      logInfo(`[${this.selfId}] 处理元素类型:`, element.type, `attrs:`, element.attrs)
 
       let result = ''
 
@@ -237,12 +238,8 @@ export class NextChatBot extends Bot<Context, Config> {
         case 'img': {
           let url = element.attrs.src || element.attrs.url || '';
           if (!url.startsWith('http')) {
-            try {
-              url = await this.ctx.assets.transform(url);
-            } catch (error) {
-              loggerError(`[${this.selfId}] 图片转存失败:`, error);
-              url = '';
-            }
+            const transformedUrl = await transformUrl(this, h.image(url).toString());
+            url = transformedUrl || '';
           }
           result = url ? `![image](${url})` : '[图片转存失败]';
           break;
@@ -251,12 +248,8 @@ export class NextChatBot extends Bot<Context, Config> {
         case 'audio': {
           let url = element.attrs.src || element.attrs.url || '';
           if (!url.startsWith('http')) {
-            try {
-              url = await this.ctx.assets.transform(url);
-            } catch (error) {
-              loggerError(`[${this.selfId}] 音频转存失败:`, error);
-              url = '';
-            }
+            const transformedUrl = await transformUrl(this, h.audio(url).toString());
+            url = transformedUrl || '';
           }
           result = url ? `[🔊 点击收听音频](${url})` : '[音频转存失败]';
           break;
@@ -265,12 +258,8 @@ export class NextChatBot extends Bot<Context, Config> {
         case 'video': {
           let url = element.attrs.src || element.attrs.url || '';
           if (!url.startsWith('http')) {
-            try {
-              url = await this.ctx.assets.transform(url);
-            } catch (error) {
-              loggerError(`[${this.selfId}] 视频转存失败:`, error);
-              url = '';
-            }
+            const transformedUrl = await transformUrl(this, h.video(url).toString());
+            url = transformedUrl || '';
           }
           result = url ? `[🎬 点击观看视频](${url})` : '[视频转存失败]';
           break;
