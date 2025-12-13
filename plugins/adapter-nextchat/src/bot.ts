@@ -1,8 +1,9 @@
 import { Bot, Context, Universal, h, Fragment, Session } from 'koishi'
 import { Config, logInfo, logDebug, loggerError, loggerInfo } from './index'
+import { } from '@koishijs/assets'
 
 export class NextChatBot extends Bot {
-  static inject = ['server', 'i18n']
+  static inject = ['server', 'i18n', 'assets']
 
   constructor(ctx: Context, config: Config) {
     super(ctx, config, 'nextchat');
@@ -160,7 +161,7 @@ export class NextChatBot extends Bot {
   }
 
   // 将 Fragment 转换为字符串
-  private fragmentToString(fragment: Fragment): string {
+  private async fragmentToString(fragment: Fragment): Promise<string> {
     logInfo(`[${this.selfId}] fragmentToString 输入类型:`, typeof fragment, Array.isArray(fragment))
 
     if (typeof fragment === 'string') {
@@ -171,10 +172,11 @@ export class NextChatBot extends Bot {
     if (Array.isArray(fragment)) {
       logInfo(`[${this.selfId}] 是数组，长度:`, fragment.length)
       // 递归处理数组中的每个元素
-      const result = fragment.map((item, index) => {
+      const results = await Promise.all(fragment.map((item, index) => {
         logInfo(`[${this.selfId}] 处理数组元素 ${index}:`, typeof item)
         return this.fragmentToString(item)
-      }).join('')
+      }));
+      const result = results.join('');
       logInfo(`[${this.selfId}] 数组处理结果长度:`, result.length)
       return result
     }
@@ -210,9 +212,10 @@ export class NextChatBot extends Bot {
                   result = rendered
                 } else if (Array.isArray(rendered)) {
                   // 递归处理返回的 Element 数组
-                  result = this.fragmentToString(rendered)
+                  // 确保对异步函数的调用使用了 await
+                  result = await this.fragmentToString(rendered)
                 } else {
-                  result = this.fragmentToString(rendered)
+                  result = await this.fragmentToString(rendered)
                 }
                 logInfo(`[${this.selfId}] i18n 成功渲染为:`, result)
               } else {
@@ -231,19 +234,47 @@ export class NextChatBot extends Bot {
           break
 
         case 'image':
-        case 'img':
-          const imageUrl = element.attrs.src || element.attrs.url || ''
-          result = `![image](${imageUrl})`
-          break
+        case 'img': {
+          let url = element.attrs.src || element.attrs.url || '';
+          if (!url.startsWith('http')) {
+            try {
+              url = await this.ctx.assets.transform(url);
+            } catch (error) {
+              loggerError(`[${this.selfId}] 图片转存失败:`, error);
+              url = '';
+            }
+          }
+          result = url ? `![image](${url})` : '[图片转存失败]';
+          break;
+        }
 
-        case 'audio':
-          const audioUrl = element.attrs.src || element.attrs.url || ''
-          result = `[🔊 点击跳转音频](${audioUrl})`
-          break
+        case 'audio': {
+          let url = element.attrs.src || element.attrs.url || '';
+          if (!url.startsWith('http')) {
+            try {
+              url = await this.ctx.assets.transform(url);
+            } catch (error) {
+              loggerError(`[${this.selfId}] 音频转存失败:`, error);
+              url = '';
+            }
+          }
+          result = url ? `[🔊 点击收听音频](${url})` : '[音频转存失败]';
+          break;
+        }
 
-        case 'video':
-          result = `[暂不支持视频预览]`
-          break
+        case 'video': {
+          let url = element.attrs.src || element.attrs.url || '';
+          if (!url.startsWith('http')) {
+            try {
+              url = await this.ctx.assets.transform(url);
+            } catch (error) {
+              loggerError(`[${this.selfId}] 视频转存失败:`, error);
+              url = '';
+            }
+          }
+          result = url ? `[🎬 点击观看视频](${url})` : '[视频转存失败]';
+          break;
+        }
 
         case 'at':
           result = `@${element.attrs.name || element.attrs.id}`
@@ -253,7 +284,7 @@ export class NextChatBot extends Bot {
           // p 元素：手动递归处理子元素
           logInfo(`[${this.selfId}] 处理 p 元素，子元素数量:`, element.children?.length || 0)
           if (element.children && element.children.length > 0) {
-            result = element.children.map(child => this.fragmentToString(child)).join('') + '\n'
+            result = (await Promise.all(element.children.map(child => this.fragmentToString(child)))).join('') + '\n'
           }
           break
 
@@ -261,7 +292,7 @@ export class NextChatBot extends Bot {
           // 默认处理：手动递归处理子元素
           logInfo(`[${this.selfId}] 使用 default 处理，类型:`, element.type, `子元素数量:`, element.children?.length || 0)
           if (element.children && element.children.length > 0) {
-            result = element.children.map(child => this.fragmentToString(child)).join('')
+            result = (await Promise.all(element.children.map(child => this.fragmentToString(child)))).join('')
           }
           break
       }
@@ -327,7 +358,7 @@ export class NextChatBot extends Bot {
 
     const pending = this.pendingResponses.get(channelId);
     if (pending) {
-      const contentStr = this.fragmentToString(content);
+      const contentStr = await this.fragmentToString(content);
       logInfo(`[${this.selfId}] 转换后的内容长度:`, contentStr.length)
       logInfo(`[${this.selfId}] 转换后的内容前100字符:`, contentStr.substring(0, 100))
       pending.messages.push(contentStr);
