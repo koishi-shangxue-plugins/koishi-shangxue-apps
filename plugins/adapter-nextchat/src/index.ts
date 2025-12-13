@@ -285,12 +285,17 @@ export function apply(ctx: Context, config: Config) {
         `
       })
 
-      // 处理模型列表请求的 OPTIONS 预检
-      ctx.server.options('/nextchat/v1/models', async (koaCtx) => {
+      // 通用的 CORS 头
+      const setCorsHeaders = (koaCtx) => {
         koaCtx.set('Access-Control-Allow-Origin', '*')
         koaCtx.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
         koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
         koaCtx.set('Access-Control-Max-Age', '86400')
+      }
+
+      // 处理模型列表请求的 OPTIONS 预检
+      ctx.server.options('/nextchat/v1/models', async (koaCtx) => {
+        setCorsHeaders(koaCtx)
         koaCtx.status = 204
         koaCtx.body = ''
       })
@@ -298,10 +303,7 @@ export function apply(ctx: Context, config: Config) {
       // 处理模型列表请求
       ctx.server.get('/nextchat/v1/models', async (koaCtx) => {
         logInfo(`[${config.selfId}] 收到GET请求: ${koaCtx.method} ${koaCtx.path}`);
-        // 设置 CORS 头
-        koaCtx.set('Access-Control-Allow-Origin', '*')
-        koaCtx.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
+        setCorsHeaders(koaCtx)
 
         koaCtx.body = {
           object: 'list',
@@ -313,6 +315,46 @@ export function apply(ctx: Context, config: Config) {
               owned_by: 'koishi',
             },
           ],
+        };
+      });
+
+      // 处理账单使用情况请求的 OPTIONS 预检
+      ctx.server.options('/nextchat/dashboard/billing/usage', async (koaCtx) => {
+        setCorsHeaders(koaCtx)
+        koaCtx.status = 204
+        koaCtx.body = ''
+      })
+
+      // 处理账单使用情况请求
+      ctx.server.get('/nextchat/dashboard/billing/usage', async (koaCtx) => {
+        logInfo(`[${config.selfId}] 收到账单使用情况请求: ${koaCtx.query.start_date} - ${koaCtx.query.end_date}`);
+        setCorsHeaders(koaCtx)
+
+        koaCtx.body = {
+          object: 'list',
+          total_usage: 11451.4
+        };
+      });
+
+      // 处理订阅信息请求的 OPTIONS 预检
+      ctx.server.options('/nextchat/dashboard/billing/subscription', async (koaCtx) => {
+        setCorsHeaders(koaCtx)
+        koaCtx.status = 204
+        koaCtx.body = ''
+      })
+
+      // 处理订阅信息请求
+      ctx.server.get('/nextchat/dashboard/billing/subscription', async (koaCtx) => {
+        logInfo(`[${config.selfId}] 收到订阅信息请求`);
+        setCorsHeaders(koaCtx)
+
+        koaCtx.body = {
+          object: 'billing_subscription',
+          has_payment_method: true,
+          soft_limit_usd: 1919810,
+          hard_limit_usd: 1919810,
+          system_hard_limit_usd: 1919810,
+          access_until: 0 // 0 表示永久访问
         };
       });
 
