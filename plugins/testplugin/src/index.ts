@@ -74,6 +74,14 @@ export function apply(ctx: Context) {
   //     }
   //   });
 
+  ctx.command('aauth')
+    .userFields(["authority"])
+    .action(async ({ session }) => {
+      const auth = session.user.authority
+      ctx.logger.info(auth)
+      await session.send(h.text(auth.toString()))
+      return
+    })
 
   command
     .subcommand('.prompt [id]')

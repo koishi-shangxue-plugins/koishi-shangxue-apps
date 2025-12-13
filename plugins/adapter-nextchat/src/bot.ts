@@ -36,7 +36,7 @@ export class NextChatBot extends Bot {
   }>();
 
   // 处理 OpenAI 格式的聊天完成请求
-  async handleChatCompletion(body: any): Promise<any> {
+  async handleChatCompletion(body: any, authority: number, userId: string, username: string): Promise<any> {
     const { messages, stream = false, model = 'koishi' } = body;
 
     const lastUserMessage = messages.filter(m => m.role === 'user').pop();
@@ -46,8 +46,6 @@ export class NextChatBot extends Bot {
     }
 
     const userMessage = lastUserMessage.content.trim();
-    const userId = body.user || this.config.userId || 'anonymous';
-    const username = body.username || this.config.username || 'anonymous';
     const channelId = `private:${userId}`;
 
     logInfo(`[${this.selfId}] 处理用户消息: "${userMessage}"`, { userId, channelId });
@@ -67,8 +65,8 @@ export class NextChatBot extends Bot {
         });
       });
 
-      // 创建并分发 session
-      const session = this.createSession(userMessage, userId, username, channelId);
+      // 创建并分发 session，同时传递权限等级
+      const session = this.createSession(userMessage, userId, username, channelId, authority);
       logInfo(`[${this.selfId}] 分发 session:`, session);
 
       // 通过 dispatch 分发会话，让 Koishi 中间件系统处理
@@ -98,7 +96,7 @@ export class NextChatBot extends Bot {
   }
 
   // 创建 session
-  private createSession(content: string, userId: string, username: string, channelId: string) {
+  private createSession(content: string, userId: string, username: string, channelId: string, authority: number) {
     const session = this.session({
       type: 'message',
       subtype: 'private',
@@ -123,6 +121,9 @@ export class NextChatBot extends Bot {
     session.content = content;
     session.channelId = channelId;
     session.isDirect = true;
+
+    // 将权限等级附加到 session 的一个临时属性上
+    session['_authority'] = authority;
 
     return session;
   }

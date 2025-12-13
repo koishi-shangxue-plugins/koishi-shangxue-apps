@@ -1,4 +1,4 @@
-import { Context, Schema, Logger } from 'koishi'
+import { Context, Schema, Logger, Session } from 'koishi'
 
 import { } from '@koishijs/plugin-server'
 import { } from '@koishijs/plugin-console'
@@ -14,7 +14,7 @@ export let logInfo: (message: any, ...args: any[]) => void;
 export let logDebug: (message: any, ...args: any[]) => void;
 
 export const name = 'adapter-nextchat'
-export const inject = ['server', 'console']
+export const inject = ['server', 'console', 'database']
 export const reusable = false
 export const filter = false
 
@@ -36,8 +36,6 @@ export interface Config {
   selfId?: string;
   selfname?: string;
   selfavatar?: string;
-  userId?: string;
-  username?: string;
   loggerInfo?: boolean;
   loggerDebug?: boolean;
 }
@@ -88,8 +86,6 @@ export const Config: Schema<Config> = Schema.intersect([
     selfId: Schema.string().default('nextchat').description('机器人 ID'),
     selfname: Schema.string().default('nextchat').description('机器人昵称'),
     selfavatar: Schema.string().default('https://avatars.githubusercontent.com/u/153288546').description('机器人头像').role('link'),
-    userId: Schema.string().default('anonymous').description('用户ID'),
-    username: Schema.string().default('anonymous').description('用户昵称'),
   }).description('Session设置'),
 
   Schema.object({
@@ -103,6 +99,26 @@ export const Config: Schema<Config> = Schema.intersect([
 ]);
 
 export function apply(ctx: Context, config: Config) {
+  // 声明需要使用的用户字段
+  ctx.on('before-attach-user', (_, fields) => {
+    fields.add('authority')
+  })
+
+  // 注册一个全局中间件来处理权限更新
+  ctx.middleware(async (session: Session<'authority'>, next) => {
+    // 仅处理来自 nextchat 平台且带有 _authority 临时属性的会话
+    if (session.platform === 'nextchat' && session['_authority'] !== undefined) {
+      const authority = session['_authority'];
+      // 因为我们在 middleware 签名中指定了 Session<'authority'>,
+      // Koishi 会自动为我们 observeUser, 所以这里 user 和 authority 字段是类型安全的
+      if (session.user.authority !== authority) {
+        logInfo(`[${session.selfId}] 用户 ${session.userId} 的权限从 ${session.user.authority} 更新为 ${authority}`);
+        session.user.authority = authority;
+        await session.user.$update();
+      }
+    }
+    return next();
+  });
 
   ctx.on('ready', () => {
     if (ctx.server) {
@@ -373,9 +389,9 @@ export function apply(ctx: Context, config: Config) {
             return;
           }
 
-          const isValidToken = config.APIkey?.some(key => key.token === providedToken);
+          const validKey = config.APIkey?.find(key => key.token === providedToken);
 
-          if (!isValidToken) {
+          if (!validKey) {
             loggerError(`[${config.selfId}] Token 验证失败，提供的 Token: ${providedToken}`);
             koaCtx.status = 401;
             koaCtx.body = {
@@ -388,7 +404,7 @@ export function apply(ctx: Context, config: Config) {
             return;
           }
 
-          logDebug(`[${config.selfId}] Token 验证通过`);
+          logDebug(`[${config.selfId}] Token 验证通过，权限等级: ${validKey.auth}`);
 
           const body = (koaCtx.request as any).body as ChatCompletionRequest
           logInfo(`[${config.selfId}] 请求体:`, JSON.stringify(body, null, 2))
@@ -415,8 +431,11 @@ export function apply(ctx: Context, config: Config) {
           logDebug(`[${config.selfId}] 找到Bot实例: platform=${bot.platform}, selfId=${bot.selfId}`)
 
           // 处理对话请求
+          const userId = providedToken;
+          const username = providedToken;
+
           const nextChatBot = bot as unknown as NextChatBot
-          const response = await nextChatBot.handleChatCompletion(body)
+          const response = await nextChatBot.handleChatCompletion(body, validKey.auth, userId, username)
 
           const processingTime = Date.now() - startTime
 
