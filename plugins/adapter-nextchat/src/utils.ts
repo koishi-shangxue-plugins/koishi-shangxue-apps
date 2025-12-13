@@ -1,6 +1,6 @@
 import { h } from 'koishi'
 import { NextChatBot } from './bot'
-import { logInfo, loggerError } from './index'
+import { logInfo, loggerError } from './logger'
 
 /**
  * 转换媒体 URL，将非 HTTP/HTTPS 的 URL 通过 assets 服务转存
