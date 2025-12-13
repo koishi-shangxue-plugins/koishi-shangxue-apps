@@ -108,7 +108,6 @@ export function apply(ctx: Context, config: Config) {
       const authority = session['_authority'];
       await session.observeUser(['authority']);
       if (session.user.authority !== authority) {
-        //  logInfo(`[${session.selfId}] 用户 ${session.userId} 的权限从 ${session.user.authority} 更新为 ${authority}`);
         session.user.authority = authority;
         await session.user.$update();
       }
@@ -302,7 +301,6 @@ export function apply(ctx: Context, config: Config) {
 
       // 处理模型列表请求
       ctx.server.get('/nextchat/v1/models', async (koaCtx) => {
-        logInfo(`[${config.selfId}] 收到GET请求: ${koaCtx.method} ${koaCtx.path}`);
         setCorsHeaders(koaCtx)
 
         koaCtx.body = {
@@ -327,7 +325,6 @@ export function apply(ctx: Context, config: Config) {
 
       // 处理账单使用情况请求
       ctx.server.get('/nextchat/dashboard/billing/usage', async (koaCtx) => {
-        logInfo(`[${config.selfId}] 收到账单使用情况请求: ${koaCtx.query.start_date} - ${koaCtx.query.end_date}`);
         setCorsHeaders(koaCtx)
 
         koaCtx.body = {
@@ -345,7 +342,6 @@ export function apply(ctx: Context, config: Config) {
 
       // 处理订阅信息请求
       ctx.server.get('/nextchat/dashboard/billing/subscription', async (koaCtx) => {
-        logInfo(`[${config.selfId}] 收到订阅信息请求`);
         setCorsHeaders(koaCtx)
 
         koaCtx.body = {
@@ -375,7 +371,6 @@ export function apply(ctx: Context, config: Config) {
         koaCtx.set('Access-Control-Allow-Private-Network', 'true')
 
         if (koaCtx.method === 'OPTIONS') {
-          logInfo(`[${config.selfId}] 处理OPTIONS预检请求: ${koaCtx.path}`)
           koaCtx.status = 204 // No Content，更符合 OPTIONS 规范
           koaCtx.body = ''
           return
@@ -392,7 +387,6 @@ export function apply(ctx: Context, config: Config) {
 
       ctx.server.post(apiPath, async (koaCtx) => {
         const startTime = Date.now()
-
 
         try {
           // 记录请求信息
