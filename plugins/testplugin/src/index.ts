@@ -256,32 +256,41 @@ export function apply(ctx: Context) {
       return
     })
 
+  // command
+  //   .subcommand('.log [content:text]')
+  //   .action(async ({ session }, content) => {
+  //     // 权限检查
+  //     if (!content || !(
+  //       session.userId.includes("7756242") ||
+  //       session.userId.includes("1919892171") ||
+  //       session.userId.includes("679a51f1d4893") ||
+  //       session.platform.includes("sandbox")
+  //     )) {
+  //       return "不符合要求"
+  //     }
+  //     try {
+  //       const contextNames = ['ctx', 'h', 'session', 'inspect'];
+  //       const contextValues = [ctx, h, session, inspect];
+  //       const dynamicFunction = new Function(...contextNames, `return ${content}`);
+  //       const result = dynamicFunction(...contextValues);
+  //       const loggerstr = inspect(result, { depth: null, colors: true })
+  //       ctx.logger.info(loggerstr);
+  //       await session.send("已经打印！")
+  //       return;
+  //     } catch (e) {
+  //       ctx.logger.warn(`执行代码时出错: ${e.stack}`);
+  //       return `执行代码时出错：${e.message}`;
+  //     }
+  //   });
+
   command
-    .subcommand('.log [content:text]')
-    .action(async ({ session }, content) => {
-      // 权限检查
-      if (!content || !(
-        session.userId.includes("7756242") ||
-        session.userId.includes("1919892171") ||
-        session.userId.includes("679a51f1d4893") ||
-        session.platform.includes("sandbox")
-      )) {
-        return "不符合要求"
-      }
-      try {
-        const contextNames = ['ctx', 'h', 'session', 'inspect'];
-        const contextValues = [ctx, h, session, inspect];
-        const dynamicFunction = new Function(...contextNames, `return ${content}`);
-        const result = dynamicFunction(...contextValues);
-        const loggerstr = inspect(result, { depth: null, colors: true })
-        ctx.logger.info(loggerstr);
-        await session.send("已经打印！")
-        return;
-      } catch (e) {
-        ctx.logger.warn(`执行代码时出错: ${e.stack}`);
-        return `执行代码时出错：${e.message}`;
-      }
-    });
+    .subcommand('.log')
+    .action(async ({ session }) => {
+      ctx.logger.info("测试打印！！！")
+      ctx.logger.info("++++++++++++++++++++")
+      await session.send("已经打印！")
+      return
+    })
 
 
   command
