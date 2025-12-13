@@ -2,7 +2,7 @@ import { Bot, Context, Universal, h, Fragment, Session } from 'koishi'
 import { Config, logInfo, logDebug, loggerError, loggerInfo } from './index'
 import { } from '@koishijs/assets'
 
-export class NextChatBot extends Bot {
+export class NextChatBot extends Bot<Context, Config> {
   static inject = ['server', 'i18n', 'assets']
 
   constructor(ctx: Context, config: Config) {
