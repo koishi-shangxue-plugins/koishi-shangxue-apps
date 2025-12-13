@@ -61,12 +61,12 @@ const apiUrl = computed(() => {
 const defaultApiKey = computed(() => {
   const apiKeys = config.value?.APIkey;
   if (!apiKeys || !Array.isArray(apiKeys) || apiKeys.length === 0) {
-    return 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN';
+    return 'sk-default';
   }
   const suitableKey = apiKeys
     .filter(k => k.auth >= 1)
     .sort((a, b) => a.auth - b.auth)[0];
-  return suitableKey?.token || 'sk-pLhGjFkDsA0qW1eR2tY3uI4oP5aS6dF7gH8jK9lLzXcVbN';
+  return suitableKey?.token || 'sk-default';
 });
 
 // 打开NextChat

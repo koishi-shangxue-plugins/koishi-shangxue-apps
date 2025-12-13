@@ -89,7 +89,7 @@ export class NextChatBot extends Bot<Context, Config> {
       // 清理待处理的响应和定时器
       const pending = this.pendingResponses.get(channelId);
       if (pending?.timer) {
-        clearTimeout(pending.timer);
+        pending.timer();
       }
       this.pendingResponses.delete(channelId);
     }
@@ -175,14 +175,13 @@ export class NextChatBot extends Bot<Context, Config> {
       logInfo(`[${this.selfId}] 转换后的内容前100字符:`, contentStr.substring(0, 100))
       pending.messages.push(contentStr);
 
-      // 使用 setTimeout 延迟 resolve，等待可能的后续消息
       // 如果已经有定时器，先清除它
       if (pending.timer) {
-        clearTimeout(pending.timer);
+        pending.timer();
       }
 
       // 设置新的定时器，50ms 后 resolve
-      pending.timer = setTimeout(() => {
+      pending.timer = this.ctx.setTimeout(() => {
         const fullResponse = pending.messages.join('\n');
         logInfo(`[${this.selfId}] 最终响应内容长度:`, fullResponse.length)
         logInfo(`[${this.selfId}] 最终响应内容前200字符:`, fullResponse.substring(0, 200))
@@ -257,6 +256,7 @@ export class NextChatBot extends Bot<Context, Config> {
     return {
       id: userId,
       name: userId,
+      avatar: this.config.selfavatar || 'https://avatars.githubusercontent.com/u/153288546',
     }
   }
 
