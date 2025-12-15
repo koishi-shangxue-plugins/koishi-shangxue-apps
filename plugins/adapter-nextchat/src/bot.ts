@@ -56,8 +56,8 @@ export class NextChatBot extends Bot<Context, Config> {
           elements.push(h('image', { url: part.image_url.url }));
         }
       }
-      // 对每个元素实例调用 .toString() 并连接
-      userMessage = elements.map(el => el.toString()).join('');
+      // 对每个元素实例调用 .toString() 并用空格连接，确保文本和图片元素之间有分隔
+      userMessage = elements.map(el => el.toString()).join(' ');
     } else {
       userMessage = '';
     }
