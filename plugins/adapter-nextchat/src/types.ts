@@ -29,6 +29,8 @@ export interface Config {
   NextChat_host?: string;
   loggerInfo?: boolean;
   loggerDebug?: boolean;
+  autoReplyKeywords?: { keyword: string }[];
+  autoReplyContent?: string;
 }
 
 // 待处理响应接口

@@ -33,6 +33,12 @@ export class NextChatBot extends Bot<Context, Config> {
   // 用于存储待处理的请求响应
   private pendingResponses = new Map<string, PendingResponse>();
 
+  // 用于存储等待 prompt 输入的 session
+  private pendingPrompts = new Map<string, {
+    resolve: (value: string) => void;
+    timestamp: number;
+  }>();
+
   // 处理 OpenAI 格式的聊天完成请求
   async handleChatCompletion(body: any, authority: number, userId: string, username: string, allowedElements: string[]): Promise<any> {
     const { messages, stream = false, model = 'koishi' } = body;
@@ -48,16 +54,20 @@ export class NextChatBot extends Bot<Context, Config> {
       userMessage = lastUserMessage.content.trim();
     } else if (Array.isArray(lastUserMessage.content)) {
       // 处理数组格式的 content，构建一个 Koishi 元素数组
-      const elements = [];
+      const parts: string[] = [];
       for (const part of lastUserMessage.content) {
         if (part.type === 'text' && part.text) {
-          elements.push(h.text(part.text));
+          // 只添加非空文本
+          const trimmedText = part.text.trim();
+          if (trimmedText) {
+            parts.push(trimmedText);
+          }
         } else if (part.type === 'image_url' && part.image_url) {
-          elements.push(h('image', { url: part.image_url.url }));
+          parts.push(h('image', { url: part.image_url.url }).toString());
         }
       }
-      // 对每个元素实例调用 .toString() 并用空格连接，确保文本和图片元素之间有分隔
-      userMessage = elements.map(el => el.toString()).join(' ');
+      // 用空格连接各部分，确保文本和图片元素之间有分隔
+      userMessage = parts.join(' ');
     } else {
       userMessage = '';
     }
@@ -65,13 +75,54 @@ export class NextChatBot extends Bot<Context, Config> {
 
     logInfo(`[${this.selfId}] 处理用户 ${userId} 消息: `, userMessage);
 
-    // 检查是否是 NextChat 的新对话提示词
-    if (userMessage.includes('使用四到五个字直接返回这句话的简要主题') && userMessage.includes('不要解释、不要标点、不要语气词、不要多余文本')
-      || userMessage.includes('这是历史聊天总结作为前情提要')) {
-      return this.createResponse('新的聊天', model, stream);
+    // 检查是否匹配自动回复关键词
+    const autoReplyKeywords = this.config.autoReplyKeywords || [];
+    const autoReplyContent = this.config.autoReplyContent || '';
+
+    if (autoReplyKeywords.length > 0) {
+      for (const item of autoReplyKeywords) {
+        if (userMessage.includes(item.keyword)) {
+          logInfo(`[${this.selfId}] 检测到自动回复关键词: ${item.keyword}，返回固定内容`);
+          return this.createResponse(autoReplyContent, model, stream);
+        }
+      }
     }
 
     try {
+      // 检查是否有等待 prompt 的 session
+      logInfo(`[${this.selfId}] 检查 pendingPrompts，channelId: ${channelId}`);
+      logInfo(`[${this.selfId}] pendingPrompts 内容:`, Array.from(this.pendingPrompts.keys()));
+
+      const pendingPrompt = this.pendingPrompts.get(channelId);
+      if (pendingPrompt) {
+        // 如果有等待的 prompt，直接将消息传递给它
+        logInfo(`[${this.selfId}] 找到等待的 prompt，将消息传递给它: ${userMessage}`);
+        pendingPrompt.resolve(userMessage);
+        this.pendingPrompts.delete(channelId);
+
+        // 等待原始 session 的响应完成
+        const originalPending = this.pendingResponses.get(channelId);
+        if (originalPending) {
+          logInfo(`[${this.selfId}] 等待原始 session 完成处理`);
+          const responsePromise = new Promise<string>((resolve) => {
+            originalPending.resolve = resolve;
+          });
+
+          const timeoutPromise = new Promise<string>((_, reject) => {
+            setTimeout(() => reject(new Error('响应超时')), 30 * 1000);
+          });
+
+          const responseContent = await Promise.race([responsePromise, timeoutPromise]);
+          logInfo(`[${this.selfId}] prompt 后的完整响应:\n`, responseContent);
+          return this.createResponse(responseContent || ' ', model, stream);
+        }
+
+        // 如果没有找到原始 pending，返回空响应
+        return this.createResponse('', model, stream);
+      }
+
+      logInfo(`[${this.selfId}] 没有找到等待的 prompt，创建新 session`);
+
       // 创建一个 Promise 来等待响应
       const responsePromise = new Promise<string>((resolve) => {
         this.pendingResponses.set(channelId, {
@@ -112,6 +163,7 @@ export class NextChatBot extends Bot<Context, Config> {
 
   // 创建 session
   private createSession(content: string, userId: string, username: string, channelId: string, authority: number) {
+    const bot = this;
     const session = this.session({
       type: 'message',
       subtype: 'private',
@@ -139,6 +191,45 @@ export class NextChatBot extends Bot<Context, Config> {
 
     // 将权限等级附加到 session 的一个临时属性上
     session['_authority'] = authority;
+
+    // 保存原始的 prompt 方法
+    const originalPrompt = session.prompt.bind(session);
+
+    // 创建一个包装函数来处理跨请求的 prompt
+    const wrappedPrompt = function (this: any, ...args: any[]): any {
+      // 如果第一个参数是数字（超时时间）
+      if (typeof args[0] === 'number' || args[0] === undefined) {
+        const timeout = args[0];
+        logInfo(`[${bot.selfId}] session.prompt 被调用，channelId: ${channelId}, timeout: ${timeout}`);
+
+        // 创建一个 Promise 来等待下一条消息
+        return new Promise<string>((resolve, reject) => {
+          logInfo(`[${bot.selfId}] 将 prompt resolve 存入 pendingPrompts，channelId: ${channelId}`);
+          bot.pendingPrompts.set(channelId, {
+            resolve,
+            timestamp: Date.now()
+          });
+          logInfo(`[${bot.selfId}] pendingPrompts 当前内容:`, Array.from(bot.pendingPrompts.keys()));
+
+          // 设置超时
+          const timeoutMs = timeout || 60000;
+          setTimeout(() => {
+            if (bot.pendingPrompts.has(channelId)) {
+              logInfo(`[${bot.selfId}] prompt 超时，channelId: ${channelId}`);
+              bot.pendingPrompts.delete(channelId);
+              reject(new Error('Prompt timeout'));
+            }
+          }, timeoutMs);
+        });
+      } else {
+        // 否则调用原始的 prompt 方法（带回调的版本）
+        logInfo(`[${bot.selfId}] 调用原始 prompt 方法（带回调）`);
+        return originalPrompt.apply(this, args);
+      }
+    };
+
+    // 替换 prompt 方法
+    session.prompt = wrappedPrompt as any;
 
     return session;
   }
@@ -190,11 +281,17 @@ export class NextChatBot extends Bot<Context, Config> {
         clearTimeout(pending.timer);
       }
 
-      // 设置新的定时器，50ms 后 resolve
-      pending.timer = setTimeout(() => {
-        const fullResponse = pending.messages.join('\n');
-        pending.resolve(fullResponse);
-      }, 50);
+      // 检查是否有等待的 prompt，如果有则不要 resolve
+      if (this.pendingPrompts.has(channelId)) {
+        logInfo(`[${this.selfId}] 检测到 prompt 等待中，不 resolve 响应`);
+        // 不设置定时器，等待 prompt 完成
+      } else {
+        // 设置新的定时器，50ms 后 resolve
+        pending.timer = setTimeout(() => {
+          const fullResponse = pending.messages.join('\n');
+          pending.resolve(fullResponse);
+        }, 50);
+      }
 
       // 返回一个虚拟的消息 ID
       return [Date.now().toString()];

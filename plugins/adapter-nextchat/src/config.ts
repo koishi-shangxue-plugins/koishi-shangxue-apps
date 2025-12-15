@@ -54,6 +54,22 @@ const defaultModels: { modelname: string; element: ('text' | 'image' | 'img' | '
     }
   ]
 
+const defaultAutoReplyKeywords =
+  [
+    {
+      "keyword": "使用四到五个字直接返回这句话的简要主题，不要解释、不要标点、不要语气词、不要多余文本，不要加粗，如果没有主题，请直接返回"
+    },
+    {
+      "keyword": "Generate a concise, 3-5 word title with an emoji summarizing the chat history."
+    },
+    {
+      "keyword": "Suggest 3-5 relevant follow-up questions or prompts that the user might naturally ask next in this conversation"
+    },
+    {
+      "keyword": "Generate 1-3 broad tags categorizing the main themes of the chat history, along with 1-3 more specific subtopic tags"
+    }
+  ]
+
 export const ConfigSchema: Schema<Config> = Schema.intersect([
   Schema.object({
     path: Schema.string().default('/nextchat/v1/chat/completions').description('API 路径').role('link'),
@@ -77,7 +93,15 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
 
   Schema.object({
     NextChat_host: Schema.string().default('https://www.happieapi.top/#/chat').description('NextChat webUI 的 **URL地址**').role('link'),
-  }).description('WebUI设置'),
+  }).description('NextChat设置'),
+
+
+  Schema.object({
+    autoReplyContent: Schema.string().default('').description('自动回复内容<br>当检测到关键词时返回的固定内容（留空则返回空字符串）'),
+    autoReplyKeywords: Schema.array(Schema.object({
+      keyword: Schema.string().description('关键词'),
+    })).role('table').default(defaultAutoReplyKeywords).description('自动回复关键词列表<br>当消息包含这些关键词时，将自动回复固定内容而不触发 Koishi 命令'),
+  }).description('客户端自动请求过滤'),
 
   Schema.object({
     loggerInfo: Schema.boolean().default(false).description('启用详细日志输出'),
