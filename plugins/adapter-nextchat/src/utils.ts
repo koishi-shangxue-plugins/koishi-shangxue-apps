@@ -16,7 +16,7 @@ export const htmlTemplate = readFileSync(resolve(__dirname, './../templates/next
 export async function transformUrl(bot: NextChatBot, elementString: string): Promise<string> {
   try {
     if (!bot.ctx.assets) {
-      loggerError(`[${bot.selfId}] assets 服务不可用，请安装 @koishijs/plugin-assets 插件`)
+      loggerError(`[${bot.selfId}] assets 服务不可用，请安装 assets 服务插件`)
       return ''
     }
 

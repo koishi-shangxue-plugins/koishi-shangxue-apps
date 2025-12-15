@@ -66,17 +66,17 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
       element: Schema
         .array(Schema.union(['text', 'image', 'img', 'audio', 'video', 'file']))
         .description('可渲染的消息元素'),
-    })).role('table').description('模型配置').default(defaultModels),
+    })).role('table').description('模型设定<br>`这里以gemini开头是为了让nextchat客户端上传图片，`<br>`否则可能会遇到输入了图片但是不传给koishi的情况。`').default(defaultModels),
   }).description('OpenAI - API设置'),
 
   Schema.object({
-    selfId: Schema.string().default('nextchat').description('机器人 ID'),
-    selfname: Schema.string().default('nextchat').description('机器人昵称'),
-    selfavatar: Schema.string().default('https://avatars.githubusercontent.com/u/153288546').description('用户和机器人的头像').role('link'),
+    selfId: Schema.string().default('nextchat').description('机器人 ID').disabled(),
+    selfname: Schema.string().default('nextchat').description('机器人昵称').disabled(),
+    selfavatar: Schema.string().default('https://nextnext.chat/favicon.ico').description('用户和机器人的头像').role('link'),
   }).description('Session设置'),
 
   Schema.object({
-    NextChat_host: Schema.string().default('https://chat.bailili.top/#/').description('NextChat webUI 的 **URL地址**').role('link'),
+    NextChat_host: Schema.string().default('https://www.happieapi.top/#/chat').description('NextChat webUI 的 **URL地址**').role('link'),
   }).description('WebUI设置'),
 
   Schema.object({

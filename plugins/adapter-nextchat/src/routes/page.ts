@@ -11,7 +11,7 @@ function getNextChatBaseUrl(nextChatHost: string): string {
     return `${url.protocol}//${url.host}`
   } catch {
     // 如果解析失败，返回默认值
-    return 'https://chat.bailili.top'
+    return 'https://www.happieapi.top'
   }
 }
 
@@ -25,7 +25,7 @@ export function registerPageRoute(ctx: Context, config: Config) {
   ctx.server.get('/nextchat', async (koaCtx) => {
     const protocol = koaCtx.protocol
     const host = koaCtx.host
-    const nextchatBaseUrl = getNextChatBaseUrl(config.NextChat_host || 'https://chat.bailili.top/#/')
+    const nextchatBaseUrl = getNextChatBaseUrl(config.NextChat_host || 'https://www.happieapi.top/#/chat')
 
     const suitableKey = config.APIkey
       ?.filter(k => k.auth >= 1)

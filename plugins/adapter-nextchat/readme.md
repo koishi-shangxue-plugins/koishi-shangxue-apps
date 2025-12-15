@@ -4,44 +4,15 @@
 
 NextChat 适配器 - 通过 NextChat 界面与 Koishi 对话
 
-## 功能特性
+## 使用说明
 
-- ✨ 支持 OpenAI API 格式，完全兼容 NextChat 客户端
-- 🎨 提供友好的 Web 界面，一键跳转到 NextChat
-- 🔐 支持多个 API Key 配置，可设置不同权限等级
-- 🤖 支持多模型配置，可控制不同模型的消息渲染方式
-- 📝 支持文本、图片、音频、视频、文件等多种消息类型
-- 🔄 自动权限同步，根据 API Key 设置用户权限
-
-## 安装
-
-```bash
-npm install koishi-plugin-adapter-nextchat
-```
-
-或在 Koishi 控制台的插件市场中搜索 `adapter-nextchat` 安装。
-
-## 使用方法
-
-### 1. 启用插件
-
-在 Koishi 控制台中启用 `adapter-nextchat` 插件。
-
-### 2. 配置插件
-
-#### API 设置
-
-- **API 路径**：默认为 `/nextchat/v1/chat/completions`
-- **APIkey 权限设置**：配置多个 API Key 及其对应的权限等级（0-5）
-- **模型配置**：配置可用的模型及其支持的消息元素类型
-
-#### 模型配置说明
+### 模型配置说明
 
 插件默认提供三种模型：
 
-- **koishi**：支持所有消息类型（文本、图片、音频、视频、文件）
-- **koishi-text**：仅支持文本消息
-- **koishi-image**：支持文本和图片消息
+- 支持所有消息类型（文本、图片、音频、视频、文件）
+- 仅支持文本消息
+- 支持文本和图片消息
 
 你可以根据需要自定义模型配置，控制不同模型渲染的消息类型。
 
@@ -50,10 +21,6 @@ npm install koishi-plugin-adapter-nextchat
 - **机器人 ID**：默认为 `nextchat`
 - **机器人昵称**：默认为 `nextchat`
 - **用户和机器人的头像**：设置头像 URL，用户和机器人都将使用此头像
-
-#### WebUI 设置
-
-- **NextChat webUI 的 URL 地址**：默认为 `https://chat.bailili.top/#/`
 
 ### 3. 访问 NextChat
 
@@ -74,46 +41,10 @@ npm install koishi-plugin-adapter-nextchat
    - 例如：`sk-fXzPq8rGjK5tLwMhN7bVcFdE2uIaYxS1oQp0iUjH6yT3eW`
 
 3. **模型名称**：选择配置中的模型
-   - 例如：`koishi`、`koishi-text`、`koishi-image`
 
 ### 4. 开始对话
 
 配置完成后，在 NextChat 中发送消息，即可与 Koishi 机器人对话。
-
-## 配置示例
-
-```yaml
-adapter-nextchat:
-  path: /nextchat/v1/chat/completions
-  APIkey:
-    - token: sk-your-api-key-1
-      auth: 5
-    - token: sk-your-api-key-2
-      auth: 3
-  models:
-    - modelname: koishi
-      element:
-        - text
-        - image
-        - img
-        - audio
-        - video
-        - file
-    - modelname: koishi-text
-      element:
-        - text
-    - modelname: koishi-image
-      element:
-        - text
-        - image
-        - img
-  selfId: nextchat
-  selfname: Koishi
-  selfavatar: https://avatars.githubusercontent.com/u/153288546
-  NextChat_host: https://chat.bailili.top/#/
-  loggerInfo: false
-  loggerDebug: false
-```
 
 ## 权限说明
 

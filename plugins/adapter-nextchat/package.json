@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-adapter-nextchat",
-  "description": "nextchat适配器",
-  "version": "0.4.2",
+  "description": "NextChat 适配器 - 通过 NextChat 界面与 Koishi 对话。支持 OpenAI API 格式。",
+  "version": "0.4.3",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -17,11 +17,22 @@
     "koishi",
     "plugin",
     "adapter",
-    "nextchat"
+    "nextchat",
+    "openai-like"
   ],
   "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
   "bugs": {
     "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
+  },
+  "koishi": {
+    "service": {
+      "required": [
+        "server",
+        "console",
+        "database",
+        "assets"
+      ]
+    }
   },
   "peerDependencies": {
     "@koishijs/plugin-console": "^5.11.0",
