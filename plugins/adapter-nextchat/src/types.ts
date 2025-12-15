@@ -4,7 +4,13 @@
 export interface ChatCompletionRequest {
   messages: Array<{
     role: string;
-    content: string;
+    content: string | Array<{
+      type: 'text' | 'image_url';
+      text?: string;
+      image_url?: {
+        url: string;
+      };
+    }>;
   }>;
   stream?: boolean;
   model?: string;

@@ -43,7 +43,24 @@ export class NextChatBot extends Bot<Context, Config> {
       return this.createResponse('没有找到用户消息。', model, stream);
     }
 
-    const userMessage = lastUserMessage.content.trim();
+    let userMessage: string;
+    if (typeof lastUserMessage.content === 'string') {
+      userMessage = lastUserMessage.content.trim();
+    } else if (Array.isArray(lastUserMessage.content)) {
+      // 处理数组格式的 content，构建一个 Koishi 元素数组
+      const elements = [];
+      for (const part of lastUserMessage.content) {
+        if (part.type === 'text' && part.text) {
+          elements.push(h.text(part.text));
+        } else if (part.type === 'image_url' && part.image_url) {
+          elements.push(h('image', { url: part.image_url.url }));
+        }
+      }
+      // 对每个元素实例调用 .toString() 并连接
+      userMessage = elements.map(el => el.toString()).join('');
+    } else {
+      userMessage = '';
+    }
     const channelId = `private:${userId}`;
 
     logInfo(`[${this.selfId}] 处理用户 ${userId} 消息: `, userMessage);

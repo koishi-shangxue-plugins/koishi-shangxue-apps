@@ -1,28 +1,58 @@
 import { Schema } from 'koishi'
 import type { Config } from './types'
 
-const defaultAPIKeys: { token: string; auth: number }[] = [
-  { token: "sk-fXzPq8rGjK5tLwMhN7bVcFdE2uIaYxS1oQp0iUjH6yT3eW", auth: 5 },
-  { token: "sk-aBcD1eFg2hIj3KlM4nOp5QrS6tUv7WxY8zAb9Cd0EfG1hI", auth: 4 },
-  { token: "sk-qWeR7tYuI8oP9aSdF0gHjK1lLzX2cVbN3mMq4wEr5TyU6i", auth: 3 },
-  { token: "sk-mN0bV1cX2zL3kJa4sDf5gHj6KlQ7wEr8TyU9iOp0aSdFgH", auth: 2 },
-  { token: "sk-default", auth: 1 }
-]
+const defaultAPIKeys: { token: string; auth: number }[] =
+  [
+    {
+      "token": "sk-fXzPq8rGjK5tLwMhN7bVcFdE2uIaYxS1oQp0iUjH6yT3eW",
+      "auth": 5
+    },
+    {
+      "token": "sk-aBcD1eFg2hIj3KlM4nOp5QrS6tUv7WxY8zAb9Cd0EfG1hI",
+      "auth": 4
+    },
+    {
+      "token": "sk-qWeR7tYuI8oP9aSdF0gHjK1lLzX2cVbN3mMq4wEr5TyU6i",
+      "auth": 3
+    },
+    {
+      "token": "sk-mN0bV1cX2zL3kJa4sDf5gHj6KlQ7wEr8TyU9iOp0aSdFgH",
+      "auth": 2
+    },
+    {
+      "token": "sk-default",
+      "auth": 1
+    }
+  ]
 
-const defaultModels: { modelname: string; element: ('text' | 'image' | 'img' | 'audio' | 'video' | 'file')[] }[] = [
-  {
-    modelname: "koishi",
-    element: ["text", "image", "img", "audio", "video", "file"]
-  },
-  {
-    modelname: "koishi-text",
-    element: ["text"]
-  },
-  {
-    modelname: "koishi-image",
-    element: ["text", "image", "img"]
-  }
-]
+const defaultModels: { modelname: string; element: ('text' | 'image' | 'img' | 'audio' | 'video' | 'file')[] }[] =
+  [
+    {
+      "modelname": "koishi-pro-image-preview",
+      "element": [
+        "text",
+        "image",
+        "img",
+        "audio",
+        "video",
+        "file"
+      ]
+    },
+    {
+      "modelname": "koishi",
+      "element": [
+        "text"
+      ]
+    },
+    {
+      "modelname": "koishi-image-preview",
+      "element": [
+        "text",
+        "image",
+        "img"
+      ]
+    }
+  ]
 
 export const ConfigSchema: Schema<Config> = Schema.intersect([
   Schema.object({
