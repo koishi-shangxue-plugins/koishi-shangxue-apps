@@ -20,7 +20,6 @@ export class NextChatBot extends Bot<Context, Config> {
     this.online()
     const globalBot = this.ctx.bots.find(b => b.platform === 'nextchat' && b.selfId === this.selfId)
     if (globalBot) {
-      logInfo(`[${this.selfId}] Bot已成功注册`)
     } else {
       loggerError(`[${this.selfId}] Bot未能注册！`)
     }
@@ -47,7 +46,7 @@ export class NextChatBot extends Bot<Context, Config> {
     const userMessage = lastUserMessage.content.trim();
     const channelId = `private:${userId}`;
 
-    logInfo(`[${this.selfId}] 处理用户消息: "${userMessage}"`, { userId, channelId });
+    logInfo(`[${this.selfId}] 处理用户 ${userId} 消息: `, userMessage);
 
     // 检查是否是 NextChat 的新对话提示词
     if (userMessage.includes('使用四到五个字直接返回这句话的简要主题') && userMessage.includes('不要解释、不要标点、不要语气词、不要多余文本')
@@ -67,7 +66,6 @@ export class NextChatBot extends Bot<Context, Config> {
 
       // 创建并分发 session，同时传递权限等级
       const session = this.createSession(userMessage, userId, username, channelId, authority);
-      logInfo(`[${this.selfId}] 分发 session:`, session);
 
       // 通过 dispatch 分发会话，让 Koishi 中间件系统处理
       this.dispatch(session);
@@ -79,7 +77,7 @@ export class NextChatBot extends Bot<Context, Config> {
 
       const responseContent = await Promise.race([responsePromise, timeoutPromise]);
 
-      logInfo(`[${this.selfId}] 完整响应内容:`, responseContent);
+      logInfo(`[${this.selfId}] 完整响应内容:\n`, responseContent);
       return this.createResponse(responseContent || ' ', model, stream);
 
     } catch (error) {
@@ -89,7 +87,7 @@ export class NextChatBot extends Bot<Context, Config> {
       // 清理待处理的响应和定时器
       const pending = this.pendingResponses.get(channelId);
       if (pending?.timer) {
-        pending.timer();
+        clearTimeout(pending.timer);
       }
       this.pendingResponses.delete(channelId);
     }
@@ -165,26 +163,19 @@ export class NextChatBot extends Bot<Context, Config> {
   }
 
   async sendMessage(channelId: string, content: Fragment): Promise<string[]> {
-    logInfo(`[${this.selfId}] sendMessage 被调用`, { channelId })
-    logInfo(`[${this.selfId}] Fragment 类型:`, typeof content, Array.isArray(content))
-
     const pending = this.pendingResponses.get(channelId);
     if (pending) {
       const contentStr = await fragmentToString(this, content, pending.allowedElements);
-      logInfo(`[${this.selfId}] 转换后的内容长度:`, contentStr.length)
-      logInfo(`[${this.selfId}] 转换后的内容前100字符:`, contentStr.substring(0, 100))
       pending.messages.push(contentStr);
 
       // 如果已经有定时器，先清除它
       if (pending.timer) {
-        pending.timer();
+        clearTimeout(pending.timer);
       }
 
       // 设置新的定时器，50ms 后 resolve
-      pending.timer = this.ctx.setTimeout(() => {
+      pending.timer = setTimeout(() => {
         const fullResponse = pending.messages.join('\n');
-        logInfo(`[${this.selfId}] 最终响应内容长度:`, fullResponse.length)
-        logInfo(`[${this.selfId}] 最终响应内容前200字符:`, fullResponse.substring(0, 200))
         pending.resolve(fullResponse);
       }, 50);
 

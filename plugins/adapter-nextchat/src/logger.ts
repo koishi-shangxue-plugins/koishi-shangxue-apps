@@ -24,7 +24,7 @@ export function initLogger(ctx: any, config: Config) {
   };
   logDebug = (message: any, ...args: any[]) => {
     if (config.loggerDebug) {
-      logger.debug(message, ...args);
+      logger.info(message, ...args);
     }
   };
 }

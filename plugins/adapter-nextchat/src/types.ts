@@ -29,6 +29,6 @@ export interface Config {
 export interface PendingResponse {
   resolve: (content: string) => void;
   messages: string[];
-  timer?: () => void;
+  timer?: NodeJS.Timeout;
   allowedElements: string[];
 }

@@ -15,28 +15,21 @@ export async function fragmentToString(
   fragment: Fragment,
   allowedElements: string[] = ['text', 'image', 'img', 'audio', 'video', 'file']
 ): Promise<string> {
-  logInfo(`[${bot.selfId}] fragmentToString 输入类型:`, typeof fragment, Array.isArray(fragment))
-
   if (typeof fragment === 'string') {
-    logInfo(`[${bot.selfId}] 是字符串:`, fragment.substring(0, 100))
     return fragment
   }
 
   if (Array.isArray(fragment)) {
-    logInfo(`[${bot.selfId}] 是数组，长度:`, fragment.length)
     // 递归处理数组中的每个元素
     const results = await Promise.all(fragment.map((item, index) => {
-      logInfo(`[${bot.selfId}] 处理数组元素 ${index}:`, typeof item)
       return fragmentToString(bot, item, allowedElements)
     }));
     const result = results.join('');
-    logInfo(`[${bot.selfId}] 数组处理结果长度:`, result.length)
     return result
   }
 
   if (fragment && typeof fragment === 'object' && 'type' in fragment) {
     const element = fragment as h
-    logInfo(`[${bot.selfId}] 处理元素类型:`, element.type, `attrs:`, element.attrs)
 
     let result = ''
 
@@ -48,16 +41,11 @@ export async function fragmentToString(
       case 'i18n':
         // 处理国际化文本
         const path = element.attrs?.path
-        logInfo(`[${bot.selfId}] 处理 i18n 元素，path:`, path)
-        logInfo(`[${bot.selfId}] i18n 是否可用:`, !!bot.ctx['i18n'])
-
         if (path && bot.ctx['i18n']) {
           const i18n = bot.ctx['i18n'] as any
           try {
             const locales = i18n.fallback([])
-            logInfo(`[${bot.selfId}] i18n locales:`, locales)
             const rendered = i18n.render(locales, [path], element.attrs || {})
-            logInfo(`[${bot.selfId}] i18n 渲染结果:`, rendered, `类型:`, typeof rendered)
 
             // i18n.render 返回的是 Element 数组，需要递归处理
             if (rendered) {
@@ -69,10 +57,8 @@ export async function fragmentToString(
               } else {
                 result = await fragmentToString(bot, rendered, allowedElements)
               }
-              logInfo(`[${bot.selfId}] i18n 成功渲染为:`, result)
             } else {
               result = `[${path}]`
-              logInfo(`[${bot.selfId}] i18n 渲染结果为空，使用 fallback`)
             }
           } catch (e) {
             // i18n解析失败，使用fallback
@@ -148,7 +134,6 @@ export async function fragmentToString(
 
       case 'p':
         // p 元素：手动递归处理子元素
-        logInfo(`[${bot.selfId}] 处理 p 元素，子元素数量:`, element.children?.length || 0)
         if (element.children && element.children.length > 0) {
           result = (await Promise.all(element.children.map(child => fragmentToString(bot, child, allowedElements)))).join('') + '\n'
         }
@@ -156,18 +141,15 @@ export async function fragmentToString(
 
       default:
         // 默认处理：手动递归处理子元素
-        logInfo(`[${bot.selfId}] 使用 default 处理，类型:`, element.type, `子元素数量:`, element.children?.length || 0)
         if (element.children && element.children.length > 0) {
           result = (await Promise.all(element.children.map(child => fragmentToString(bot, child, allowedElements)))).join('')
         }
         break
     }
 
-    logInfo(`[${bot.selfId}] h元素处理结果长度:`, result.length)
     return result
   }
 
-  logInfo(`[${bot.selfId}] 其他类型，转为字符串:`, fragment)
   return String(fragment)
 }
 

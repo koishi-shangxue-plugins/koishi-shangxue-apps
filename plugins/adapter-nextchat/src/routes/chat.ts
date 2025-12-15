@@ -45,10 +45,7 @@ export function registerChatRoute(ctx: Context, config: Config) {
 
     try {
       // 记录请求信息
-      logInfo(`[${config.selfId}] 收到POST请求: ${koaCtx.method} ${koaCtx.path}`)
-      logInfo(`[${config.selfId}] 请求头:`, JSON.stringify(koaCtx.headers, null, 2))
-      logDebug(`[${config.selfId}] 详细请求头:`, koaCtx.headers)
-
+      logDebug(`[${config.selfId}] 请求头:`, JSON.stringify(koaCtx.headers, null, 2))
       // 验证 token
       const authHeader = koaCtx.headers.authorization;
       const providedToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -81,10 +78,8 @@ export function registerChatRoute(ctx: Context, config: Config) {
         return;
       }
 
-      logDebug(`[${config.selfId}] Token 验证通过，权限等级: ${validKey.auth}`);
-
       const body = (koaCtx.request as any).body as ChatCompletionRequest
-      logInfo(`[${config.selfId}] 请求体:`, JSON.stringify(body, null, 2))
+      logDebug(`[${config.selfId}] 请求体:`, JSON.stringify(body, null, 2))
 
       // 验证请求格式
       if (!body || !body.messages || !Array.isArray(body.messages)) {
@@ -121,23 +116,14 @@ export function registerChatRoute(ctx: Context, config: Config) {
         koaCtx.body = { error: { message: 'Bot not found', type: 'server_error' } }
         return
       }
-
-      logDebug(`[${config.selfId}] 找到Bot实例: platform=${bot.platform}, selfId=${bot.selfId}`)
-
       // 处理对话请求
       const userId = providedToken;
       const username = providedToken;
 
       const nextChatBot = bot as unknown as NextChatBot
       const response = await nextChatBot.handleChatCompletion(body, validKey.auth, userId, username, modelConfig.element)
-
-      const processingTime = Date.now() - startTime
-
-      logInfo(`[${config.selfId}] 请求处理完成，耗时: ${processingTime}ms`)
-
       if (response.__isStream) {
         // 流式响应
-        logDebug(`[${config.selfId}] 发送流式响应`)
         koaCtx.set('Content-Type', 'text/event-stream')
         koaCtx.set('Cache-Control', 'no-cache')
         koaCtx.set('Connection', 'keep-alive')
