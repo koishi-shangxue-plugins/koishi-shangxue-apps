@@ -28,7 +28,7 @@ const defaultAPIKeys: { token: string; auth: number }[] =
 const defaultModels: { modelname: string; element: ('text' | 'image' | 'img' | 'audio' | 'video' | 'file')[] }[] =
   [
     {
-      "modelname": "koishi-pro-image-preview",
+      "modelname": "gemini-koishi-pro",
       "element": [
         "text",
         "image",
@@ -39,13 +39,13 @@ const defaultModels: { modelname: string; element: ('text' | 'image' | 'img' | '
       ]
     },
     {
-      "modelname": "koishi",
+      "modelname": "gemini-koishi-text",
       "element": [
         "text"
       ]
     },
     {
-      "modelname": "koishi-image-preview",
+      "modelname": "gemini-koishi-image",
       "element": [
         "text",
         "image",

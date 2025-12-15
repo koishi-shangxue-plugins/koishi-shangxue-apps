@@ -31,13 +31,11 @@ export function registerModelRoutes(ctx: Context, config: Config) {
       id: model.modelname,
       object: 'model',
       created: Math.floor(Date.now() / 1000),
-      owned_by: 'koishi',
-    })) || [{
-      id: 'koishi',
-      object: 'model',
-      created: Math.floor(Date.now() / 1000),
-      owned_by: 'koishi',
-    }];
+      owned_by: "custom",
+      supported_endpoint_types: [
+        "openai"
+      ]
+    }));
 
     koaCtx.body = {
       object: 'list',
