@@ -28,7 +28,7 @@ export function apply(ctx: Context, config: Config) {
   logger = createLogger(ctx, 'chatluna-anuneko-api-adapter')
   initializeLogger(logger, config)
 
-  // 添加测试命令
+  // 测试命令
   ctx.command('anuneko <message:text>', '测试 anuneko API')
     .action(async ({ session }, message) => {
       if (!message) {
@@ -165,7 +165,7 @@ export function apply(ctx: Context, config: Config) {
       }
     })
 
-  // 添加清理命令
+  // 清理命令
   ctx.command('anuneko-clean', '清理当前频道的 anuneko 对话记录')
     .action(async ({ session }) => {
       try {

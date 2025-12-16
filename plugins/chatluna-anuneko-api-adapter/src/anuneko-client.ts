@@ -17,6 +17,7 @@ import { AnunekoRequester } from './anuneko-requester'
 import { ChatLunaPlugin } from 'koishi-plugin-chatluna/services/chat'
 import { getModelMaxContextSize } from '@chatluna/v1-shared-adapter'
 import { RunnableConfig } from '@langchain/core/runnables'
+import { logInfo } from './logger'
 
 export class AnunekoClient extends PlatformModelAndEmbeddingsClient {
   platform = 'anuneko'
@@ -58,12 +59,12 @@ export class AnunekoClient extends PlatformModelAndEmbeddingsClient {
   protected _createModel(
     model: string
   ): ChatLunaChatModel | ChatLunaBaseEmbeddings {
-    this.ctx.logger.info('[anuneko] _createModel called for model:', model)
-    this.ctx.logger.info('[anuneko] _modelInfos keys:', Object.keys(this._modelInfos))
+    logInfo('[anuneko] _createModel called for model:', model)
+    logInfo('[anuneko] _modelInfos keys:', Object.keys(this._modelInfos))
 
     const info = this._modelInfos[model]
 
-    this.ctx.logger.info('[anuneko] Model info:', JSON.stringify(info))
+    logInfo('[anuneko] Model info:', JSON.stringify(info))
 
     if (info == null) {
       this.ctx.logger.error('[anuneko] Model info is null!')
@@ -75,11 +76,11 @@ export class AnunekoClient extends PlatformModelAndEmbeddingsClient {
       )
     }
 
-    this.ctx.logger.info('[anuneko] Model type:', info.type, 'Expected:', ModelType.llm)
-    this.ctx.logger.info('[anuneko] Type check:', info.type === ModelType.llm)
+    logInfo('[anuneko] Model type:', info.type, 'Expected:', ModelType.llm)
+    logInfo('[anuneko] Type check:', info.type === ModelType.llm)
 
     if (info.type === ModelType.llm) {
-      this.ctx.logger.info('[anuneko] Creating ChatLunaChatModel...')
+      logInfo('[anuneko] Creating ChatLunaChatModel...')
       const modelMaxContextSize = getModelMaxContextSize(info)
 
       const chatModel = new ChatLunaChatModel({
@@ -94,8 +95,8 @@ export class AnunekoClient extends PlatformModelAndEmbeddingsClient {
         isThinkModel: false
       })
 
-      this.ctx.logger.info('[anuneko] ChatLunaChatModel created successfully')
-      this.ctx.logger.info('[anuneko] Instance check:', chatModel instanceof ChatLunaChatModel)
+      logInfo('[anuneko] ChatLunaChatModel created successfully')
+      logInfo('[anuneko] Instance check:', chatModel instanceof ChatLunaChatModel)
 
       return chatModel
     }

@@ -19,7 +19,10 @@ import {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// 扩展 ModelRequestParams 以包含运行时可用的属性
+interface KoishiHumanMessage extends HumanMessage {
+  channelId?: string
+}
+
 interface InternalModelRequestParams extends ModelRequestParams {
   input: (HumanMessage | SystemMessage)[]
 }
@@ -154,18 +157,22 @@ export class AnunekoRequester extends ModelRequester {
     params: ModelRequestParams
   ): AsyncGenerator<ChatGenerationChunk> {
     const internalParams = params as InternalModelRequestParams
-    const lastMessage = internalParams.input.at(-1)
+    // 过滤掉所有非 HumanMessage 的消息，并只取最后一条
+    const humanMessages = internalParams.input.filter(
+      (message) => message instanceof HumanMessage
+    ) as KoishiHumanMessage[]
+    const lastMessage = humanMessages.at(-1)
 
     logInfo('Receive params from chatluna', JSON.stringify(params, null, 2))
 
-    if (!(lastMessage instanceof HumanMessage)) {
-      this.logger.warn('The last message is not from a human.')
+    if (!lastMessage) {
+      this.logger.warn('No human message found in the input.')
       return
     }
 
     const prompt = lastMessage.content as string
     // 使用 channelId 作为会话标识，如果没有则使用 userId
-    const sessionKey = (lastMessage as any).channelId || lastMessage.id || 'default'
+    const sessionKey = lastMessage.channelId || lastMessage.id || 'default'
 
     logInfo('使用会话标识:', sessionKey)
 
