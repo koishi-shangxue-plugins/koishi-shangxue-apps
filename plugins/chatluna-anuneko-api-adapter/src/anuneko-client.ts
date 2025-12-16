@@ -1,6 +1,7 @@
 import { Context } from 'koishi'
 import { PlatformModelAndEmbeddingsClient } from 'koishi-plugin-chatluna/llm-core/platform/client'
 import {
+  ChatLunaBaseEmbeddings,
   ChatLunaChatModel
 } from 'koishi-plugin-chatluna/llm-core/platform/model'
 import {
@@ -56,7 +57,7 @@ export class AnunekoClient extends PlatformModelAndEmbeddingsClient {
   }
 
   // 创建模型实例
-  protected _createModel(model: string): ChatLunaChatModel {
+  protected _createModel(model: string): ChatLunaChatModel | ChatLunaBaseEmbeddings {
     const info = this._modelInfos[model]
 
     if (info == null) {
@@ -68,18 +69,26 @@ export class AnunekoClient extends PlatformModelAndEmbeddingsClient {
       )
     }
 
-    if (info.type === ModelType.llm) {
-      return new ChatLunaChatModel({
-        modelInfo: info,
-        requester: this._requester,
-        model,
-        maxTokenLimit: info.maxTokens,
-        modelMaxContextSize: getModelMaxContextSize(info),
-        timeout: this._config.timeout,
-        maxRetries: this._config.maxRetries,
-        llmType: 'openai',
-        isThinkModel: false
-      })
+    if (info.type !== ModelType.llm) {
+      throw new ChatLunaError(
+        ChatLunaErrorCode.MODEL_NOT_FOUND,
+        new Error(
+          `The model ${model} is not a chat model`
+        )
+      )
     }
+
+    const modelMaxContextSize = getModelMaxContextSize(info)
+    return new ChatLunaChatModel({
+      modelInfo: info,
+      requester: this._requester,
+      model,
+      maxTokenLimit: info.maxTokens || modelMaxContextSize || 128000,
+      modelMaxContextSize,
+      timeout: this._config.timeout,
+      maxRetries: this._config.maxRetries,
+      llmType: 'openai',
+      isThinkModel: false
+    })
   }
 }

@@ -73,9 +73,11 @@ export const Config: Schema<Config> = Schema.intersect([
     platform: Schema.string().default('anuneko'),
     xToken: Schema.string()
       .required()
-      .description('anuneko API 的 x-token').role('textarea', { rows: [2, 4] }),
+      .role('textarea', { rows: [2, 4] })
+      .description('anuneko API 的 x-token'),
     cookie: Schema.string()
-      .description('anuneko API 的 Cookie（可选）').role('textarea', { rows: [2, 4] }),
+      .role('textarea', { rows: [2, 4] })
+      .description('anuneko API 的 Cookie（可选）'),
     loggerinfo: Schema.boolean()
       .default(false)
       .description('日志调试模式')
