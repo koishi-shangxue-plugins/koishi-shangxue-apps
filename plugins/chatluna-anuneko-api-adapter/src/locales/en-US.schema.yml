@@ -1,0 +1,4 @@
+platform: Platform name
+xToken: x-token for anuneko API
+cookie: Cookie for anuneko API (optional)
+loggerinfo: Logger debug mode
