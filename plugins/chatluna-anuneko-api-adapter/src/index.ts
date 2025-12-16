@@ -6,7 +6,7 @@ import {
 } from 'koishi-plugin-chatluna/utils/error'
 import { createLogger } from 'koishi-plugin-chatluna/utils/logger'
 import { AnunekoClient } from './anuneko-client'
-import { initializeLogger } from './logger'
+import { initializeLogger, logInfo } from './logger'
 
 export let logger: Logger
 export let anunekoClient: any = null
@@ -21,7 +21,9 @@ export const usage = `
 </li>
 </ul>
 <p><strong>请注意：</strong></p>
-<p>该服务需要配置有效的 x-token 才能使用。支持橘猫(Orange Cat)和黑猫(Exotic Shorthair)两种模型。</p>
+<p>该服务需要配置有效的 x-token 才能使用。</p>
+<p>该服务可能需要科学上网。</p>
+<p>支持橘猫(Orange Cat)和黑猫(Exotic Shorthair)两种模型。</p>
 `
 
 export function apply(ctx: Context, config: Config) {
@@ -47,17 +49,19 @@ export function apply(ctx: Context, config: Config) {
           'x-device_id': '7b75a432-6b24-48ad-b9d3-3dc57648e3e3',
           'x-token': config.xToken
         }
+        const signal = AbortSignal.timeout(config.requestTimeout * 1000)
 
         if (config.cookie) {
           headers['Cookie'] = config.cookie
         }
 
         // 创建新会话
-        logger.info('创建新会话...')
+        logInfo('创建新会话...')
         const createResponse = await fetch('https://anuneko.com/api/v1/chat', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ model: 'Orange Cat' })
+          body: JSON.stringify({ model: 'Orange Cat' }),
+          signal
         })
 
         const createData = await createResponse.json()
@@ -66,17 +70,18 @@ export function apply(ctx: Context, config: Config) {
           return '❌ 创建会话失败'
         }
 
-        logger.info('会话创建成功，ID:', chatId)
+        logInfo('会话创建成功，ID:', chatId)
 
         // 发送消息并获取流式响应
         const url = `https://anuneko.com/api/v1/msg/${chatId}/stream`
         const data = { contents: [message] }
 
-        logger.info('发送消息...')
+        logInfo('发送消息...')
         const response = await fetch(url, {
           method: 'POST',
           headers,
-          body: JSON.stringify(data)
+          body: JSON.stringify(data),
+          signal
         })
 
         if (!response.ok) {
@@ -95,7 +100,7 @@ export function apply(ctx: Context, config: Config) {
           if (done) break
 
           const chunkStr = decoder.decode(value, { stream: true })
-          logger.info('收到数据块:', chunkStr.substring(0, 200))
+          logInfo('收到数据块:', chunkStr.substring(0, 200))
 
           const lines = chunkStr.split('\n')
 
@@ -104,10 +109,10 @@ export function apply(ctx: Context, config: Config) {
               continue
             }
 
-            logger.info('处理行:', line.substring(0, 100))
+            logInfo('处理行:', line.substring(0, 100))
 
             if (!line.startsWith('data: ')) {
-              logger.warn('非 data: 格式的行:', line)
+              logInfo('非 data: 格式的行:', line)
               continue
             }
 
@@ -116,28 +121,28 @@ export function apply(ctx: Context, config: Config) {
 
             try {
               const j = JSON.parse(rawJson)
-              logger.info('解析的 JSON:', JSON.stringify(j))
+              logInfo('解析的 JSON:', JSON.stringify(j))
 
               if (j.msg_id) {
                 currentMsgId = j.msg_id
-                logger.info('更新 msg_id:', currentMsgId)
+                logInfo('更新 msg_id:', currentMsgId)
               }
 
               // 处理多分支内容
               if (j.c && Array.isArray(j.c)) {
-                logger.info('处理多分支内容')
+                logInfo('处理多分支内容')
                 for (const choice of j.c) {
                   const idx = choice.c ?? 0
                   if (idx === 0 && choice.v) {
                     result += choice.v
-                    logger.info('添加内容:', choice.v)
+                    logInfo('添加内容:', choice.v)
                   }
                 }
               }
               // 处理常规内容
               else if (j.v && typeof j.v === 'string') {
                 result += j.v
-                logger.info('添加常规内容:', j.v)
+                logInfo('添加常规内容:', j.v)
               }
             } catch (error) {
               logger.error('解析 JSON 失败:', rawJson, error)
@@ -145,19 +150,20 @@ export function apply(ctx: Context, config: Config) {
           }
         }
 
-        logger.info('最终结果长度:', result.length)
-        logger.info('最终结果内容:', result)
+        logInfo('最终结果长度:', result.length)
+        logInfo('最终结果内容:', result)
 
         // 自动选择分支
         if (currentMsgId) {
           await fetch('https://anuneko.com/api/v1/msg/select-choice', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ msg_id: currentMsgId, choice_idx: 0 })
+            body: JSON.stringify({ msg_id: currentMsgId, choice_idx: 0 }),
+            signal
           })
         }
 
-        logger.info('收到完整响应')
+        logInfo('收到完整响应')
         return result || '❌ 未收到响应'
       } catch (error) {
         logger.error('请求失败:', error)
@@ -237,10 +243,10 @@ export interface Config extends ChatLunaPlugin.Config {
   xToken: string
   cookie?: string
   loggerinfo: boolean
+  requestTimeout: number
 }
 
 export const Config: Schema<Config> = Schema.intersect([
-  ChatLunaPlugin.Config,
   Schema.object({
     platform: Schema.string().default('anuneko'),
     xToken: Schema.string()
@@ -253,8 +259,12 @@ export const Config: Schema<Config> = Schema.intersect([
     loggerinfo: Schema.boolean()
       .default(false)
       .description('日志调试模式')
-      .experimental()
-  })
+      .experimental(),
+    requestTimeout: Schema.number()
+      .default(120)
+      .description('请求 API 的超时时间，单位为秒。')
+  }).description('基础设置'),
+  ChatLunaPlugin.Config,
 ]).i18n({
   'zh-CN': require('./locales/zh-CN.schema.yml'),
   'en-US': require('./locales/en-US.schema.yml')

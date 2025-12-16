@@ -86,10 +86,12 @@ export class AnunekoRequester extends ModelRequester {
 
     try {
       logInfo('Creating new session with model:', modelName)
+      const signal = AbortSignal.timeout(this._pluginConfig.requestTimeout * 1000)
       const response = await fetch('https://anuneko.com/api/v1/chat', {
         method: 'POST',
         headers,
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        signal
       })
 
       const responseData = await response.json()
@@ -117,10 +119,12 @@ export class AnunekoRequester extends ModelRequester {
 
     try {
       logInfo('Switching model to:', modelName)
+      const signal = AbortSignal.timeout(this._pluginConfig.requestTimeout * 1000)
       const response = await fetch('https://anuneko.com/api/v1/user/select_model', {
         method: 'POST',
         headers,
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        signal
       })
 
       if (response.ok) {
@@ -141,10 +145,12 @@ export class AnunekoRequester extends ModelRequester {
     const data = { msg_id: msgId, choice_idx: 0 }
 
     try {
+      const signal = AbortSignal.timeout(this._pluginConfig.requestTimeout * 1000)
       await fetch('https://anuneko.com/api/v1/msg/select-choice', {
         method: 'POST',
         headers,
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        signal
       })
       logInfo('Choice sent for msg_id:', msgId)
     } catch (error) {
@@ -212,10 +218,12 @@ export class AnunekoRequester extends ModelRequester {
         let currentMsgId: string | null = null
 
         // 使用流式请求
+        const signal = AbortSignal.timeout(this._pluginConfig.requestTimeout * 1000)
         const response = await fetch(url, {
           method: 'POST',
           headers,
-          body: JSON.stringify(data)
+          body: JSON.stringify(data),
+          signal
         })
 
         if (!response.ok) {
