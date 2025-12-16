@@ -220,9 +220,13 @@ export function apply(ctx: Context, config: Config) {
       ]
     })
 
-    const client = new AnunekoClient(ctx, config, plugin)
-    anunekoClient = client
-    plugin.registerClient(() => client)
+    plugin.registerClient(() => {
+      const client = new AnunekoClient(ctx, config, plugin)
+      if (!anunekoClient) {
+        anunekoClient = client
+      }
+      return client
+    })
 
     await plugin.initClient()
   })

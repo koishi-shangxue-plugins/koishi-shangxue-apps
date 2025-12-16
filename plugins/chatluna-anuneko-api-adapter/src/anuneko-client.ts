@@ -38,7 +38,6 @@ export class AnunekoClient extends PlatformModelAndEmbeddingsClient {
     )
   }
 
-  // 刷新可用模型列表
   async refreshModels(config?: RunnableConfig): Promise<ModelInfo[]> {
     return [
       {
@@ -56,11 +55,18 @@ export class AnunekoClient extends PlatformModelAndEmbeddingsClient {
     ]
   }
 
-  // 创建模型实例
-  protected _createModel(model: string): ChatLunaChatModel | ChatLunaBaseEmbeddings {
+  protected _createModel(
+    model: string
+  ): ChatLunaChatModel | ChatLunaBaseEmbeddings {
+    this.ctx.logger.info('[anuneko] _createModel called for model:', model)
+    this.ctx.logger.info('[anuneko] _modelInfos keys:', Object.keys(this._modelInfos))
+
     const info = this._modelInfos[model]
 
+    this.ctx.logger.info('[anuneko] Model info:', JSON.stringify(info))
+
     if (info == null) {
+      this.ctx.logger.error('[anuneko] Model info is null!')
       throw new ChatLunaError(
         ChatLunaErrorCode.MODEL_NOT_FOUND,
         new Error(
@@ -69,26 +75,37 @@ export class AnunekoClient extends PlatformModelAndEmbeddingsClient {
       )
     }
 
-    if (info.type !== ModelType.llm) {
-      throw new ChatLunaError(
-        ChatLunaErrorCode.MODEL_NOT_FOUND,
-        new Error(
-          `The model ${model} is not a chat model`
-        )
-      )
+    this.ctx.logger.info('[anuneko] Model type:', info.type, 'Expected:', ModelType.llm)
+    this.ctx.logger.info('[anuneko] Type check:', info.type === ModelType.llm)
+
+    if (info.type === ModelType.llm) {
+      this.ctx.logger.info('[anuneko] Creating ChatLunaChatModel...')
+      const modelMaxContextSize = getModelMaxContextSize(info)
+
+      const chatModel = new ChatLunaChatModel({
+        modelInfo: info,
+        requester: this._requester,
+        model,
+        maxTokenLimit: info.maxTokens || modelMaxContextSize || 128_000,
+        modelMaxContextSize,
+        timeout: this._config.timeout,
+        maxRetries: this._config.maxRetries,
+        llmType: 'openai',
+        isThinkModel: false
+      })
+
+      this.ctx.logger.info('[anuneko] ChatLunaChatModel created successfully')
+      this.ctx.logger.info('[anuneko] Instance check:', chatModel instanceof ChatLunaChatModel)
+
+      return chatModel
     }
 
-    const modelMaxContextSize = getModelMaxContextSize(info)
-    return new ChatLunaChatModel({
-      modelInfo: info,
-      requester: this._requester,
-      model,
-      maxTokenLimit: info.maxTokens || modelMaxContextSize || 128000,
-      modelMaxContextSize,
-      timeout: this._config.timeout,
-      maxRetries: this._config.maxRetries,
-      llmType: 'openai',
-      isThinkModel: false
-    })
+    this.ctx.logger.error('[anuneko] Model type is not LLM!')
+    throw new ChatLunaError(
+      ChatLunaErrorCode.MODEL_NOT_FOUND,
+      new Error(
+        `The model ${model} is not a chat model, type is ${info.type}`
+      )
+    )
   }
 }

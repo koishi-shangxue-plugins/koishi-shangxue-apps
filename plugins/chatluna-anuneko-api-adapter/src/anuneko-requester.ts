@@ -83,13 +83,14 @@ export class AnunekoRequester extends ModelRequester {
 
     try {
       logInfo('Creating new session with model:', modelName)
-      const response = await this.ctx.http.post(
-        'https://anuneko.com/api/v1/chat',
-        data,
-        { headers }
-      )
+      const response = await fetch('https://anuneko.com/api/v1/chat', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+      })
 
-      const chatId = response.chat_id || response.id
+      const responseData = await response.json()
+      const chatId = responseData.chat_id || responseData.id
       if (chatId) {
         this.sessionMap.set(userId, chatId)
         this.modelMap.set(userId, modelName)
@@ -113,13 +114,13 @@ export class AnunekoRequester extends ModelRequester {
 
     try {
       logInfo('Switching model to:', modelName)
-      const response = await this.ctx.http.post(
-        'https://anuneko.com/api/v1/user/select_model',
-        data,
-        { headers }
-      )
+      const response = await fetch('https://anuneko.com/api/v1/user/select_model', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+      })
 
-      if (response) {
+      if (response.ok) {
         this.modelMap.set(userId, modelName)
         logInfo('Model switched successfully')
         return true
@@ -137,11 +138,11 @@ export class AnunekoRequester extends ModelRequester {
     const data = { msg_id: msgId, choice_idx: 0 }
 
     try {
-      await this.ctx.http.post(
-        'https://anuneko.com/api/v1/msg/select-choice',
-        data,
-        { headers }
-      )
+      await fetch('https://anuneko.com/api/v1/msg/select-choice', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+      })
       logInfo('Choice sent for msg_id:', msgId)
     } catch (error) {
       this.logger.error('Failed to send choice:', error)
@@ -204,17 +205,26 @@ export class AnunekoRequester extends ModelRequester {
         let currentMsgId: string | null = null
 
         // 使用流式请求
-        const response = await this.ctx.http.axios(url, {
+        const response = await fetch(url, {
           method: 'POST',
           headers,
-          data: JSON.stringify(data),
-          responseType: 'stream',
-          timeout: this._pluginConfig.timeout
+          body: JSON.stringify(data)
         })
 
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`)
+        }
+
         // 处理流式响应
-        for await (const chunk of response.data) {
-          const lines = chunk.toString().split('\n')
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunkStr = decoder.decode(value, { stream: true })
+          const lines = chunkStr.split('\n')
 
           for (const line of lines) {
             if (!line || !line.startsWith('data: ')) {
