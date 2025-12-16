@@ -27,6 +27,143 @@ export function apply(ctx: Context, config: Config) {
   logger = createLogger(ctx, 'chatluna-anuneko-api-adapter')
   initializeLogger(logger, config)
 
+  // 添加测试命令
+  ctx.command('anuneko <message:text>', '测试 anuneko API')
+    .action(async ({ session }, message) => {
+      if (!message) {
+        return '请输入消息内容，例如：/anuneko 你好'
+      }
+
+      try {
+        const headers = {
+          'accept': '*/*',
+          'content-type': 'application/json',
+          'origin': 'https://anuneko.com',
+          'referer': 'https://anuneko.com/',
+          'user-agent': 'Mozilla/5.0',
+          'x-app_id': 'com.anuttacon.neko',
+          'x-client_type': '4',
+          'x-device_id': '7b75a432-6b24-48ad-b9d3-3dc57648e3e3',
+          'x-token': config.xToken
+        }
+
+        if (config.cookie) {
+          headers['Cookie'] = config.cookie
+        }
+
+        // 创建新会话
+        logger.info('创建新会话...')
+        const createResponse = await fetch('https://anuneko.com/api/v1/chat', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ model: 'Orange Cat' })
+        })
+
+        const createData = await createResponse.json()
+        const chatId = createData.chat_id || createData.id
+        if (!chatId) {
+          return '❌ 创建会话失败'
+        }
+
+        logger.info('会话创建成功，ID:', chatId)
+
+        // 发送消息并获取流式响应
+        const url = `https://anuneko.com/api/v1/msg/${chatId}/stream`
+        const data = { contents: [message] }
+
+        logger.info('发送消息...')
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(data)
+        })
+
+        if (!response.ok) {
+          return `❌ 请求失败: ${response.status} ${response.statusText}`
+        }
+
+        let result = ''
+        let currentMsgId: string | null = null
+
+        // 处理流式响应
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunkStr = decoder.decode(value, { stream: true })
+          logger.info('收到数据块:', chunkStr.substring(0, 200))
+
+          const lines = chunkStr.split('\n')
+
+          for (const line of lines) {
+            if (!line.trim()) {
+              continue
+            }
+
+            logger.info('处理行:', line.substring(0, 100))
+
+            if (!line.startsWith('data: ')) {
+              logger.warn('非 data: 格式的行:', line)
+              continue
+            }
+
+            const rawJson = line.substring(6).trim()
+            if (!rawJson) continue
+
+            try {
+              const j = JSON.parse(rawJson)
+              logger.info('解析的 JSON:', JSON.stringify(j))
+
+              if (j.msg_id) {
+                currentMsgId = j.msg_id
+                logger.info('更新 msg_id:', currentMsgId)
+              }
+
+              // 处理多分支内容
+              if (j.c && Array.isArray(j.c)) {
+                logger.info('处理多分支内容')
+                for (const choice of j.c) {
+                  const idx = choice.c ?? 0
+                  if (idx === 0 && choice.v) {
+                    result += choice.v
+                    logger.info('添加内容:', choice.v)
+                  }
+                }
+              }
+              // 处理常规内容
+              else if (j.v && typeof j.v === 'string') {
+                result += j.v
+                logger.info('添加常规内容:', j.v)
+              }
+            } catch (error) {
+              logger.error('解析 JSON 失败:', rawJson, error)
+            }
+          }
+        }
+
+        logger.info('最终结果长度:', result.length)
+        logger.info('最终结果内容:', result)
+
+        // 自动选择分支
+        if (currentMsgId) {
+          await fetch('https://anuneko.com/api/v1/msg/select-choice', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ msg_id: currentMsgId, choice_idx: 0 })
+          })
+        }
+
+        logger.info('收到完整响应')
+        return result || '❌ 未收到响应'
+      } catch (error) {
+        logger.error('请求失败:', error)
+        return `❌ 请求失败: ${error.message}`
+      }
+    })
+
   ctx.on('ready', async () => {
     if (config.platform == null || config.platform.length < 1) {
       throw new ChatLunaError(
