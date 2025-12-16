@@ -9,6 +9,7 @@ import { AnunekoClient } from './anuneko-client'
 import { initializeLogger } from './logger'
 
 export let logger: Logger
+export let anunekoClient: any = null
 export const reusable = true
 export const usage = `
 <p><strong>零成本、快速体验Chatluna</strong>。</p>
@@ -164,6 +165,34 @@ export function apply(ctx: Context, config: Config) {
       }
     })
 
+  // 添加清理命令
+  ctx.command('anuneko-clean', '清理当前频道的 anuneko 对话记录')
+    .action(async ({ session }) => {
+      try {
+        if (!anunekoClient) {
+          return '❌ anuneko 客户端未初始化'
+        }
+
+        // 使用 channelId 作为会话标识
+        const sessionKey = session.channelId || session.userId
+        const requester = anunekoClient._requester
+
+        if (requester && typeof requester.clearSession === 'function') {
+          const cleared = requester.clearSession(sessionKey)
+          if (cleared) {
+            return '✅ 已清理当前频道的对话记录，下次对话将创建新会话'
+          } else {
+            return '✅ 当前频道还没有对话记录'
+          }
+        }
+
+        return '❌ 无法访问会话管理器'
+      } catch (error) {
+        logger.error('清理失败:', error)
+        return `❌ 清理失败: ${error.message}`
+      }
+    })
+
   ctx.on('ready', async () => {
     if (config.platform == null || config.platform.length < 1) {
       throw new ChatLunaError(
@@ -191,7 +220,9 @@ export function apply(ctx: Context, config: Config) {
       ]
     })
 
-    plugin.registerClient(() => new AnunekoClient(ctx, config, plugin))
+    const client = new AnunekoClient(ctx, config, plugin)
+    anunekoClient = client
+    plugin.registerClient(() => client)
 
     await plugin.initClient()
   })

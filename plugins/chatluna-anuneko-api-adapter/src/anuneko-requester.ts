@@ -39,6 +39,22 @@ export class AnunekoRequester extends ModelRequester {
     super(ctx, _configPool, _pluginConfig, _plugin)
   }
 
+  // 清理指定用户的会话
+  public clearSession(userId: string): boolean {
+    const hasSession = this.sessionMap.has(userId)
+    this.sessionMap.delete(userId)
+    this.modelMap.delete(userId)
+    return hasSession
+  }
+
+  // 清理所有会话
+  public clearAllSessions(): number {
+    const count = this.sessionMap.size
+    this.sessionMap.clear()
+    this.modelMap.clear()
+    return count
+  }
+
   // 构建请求头
   public buildHeaders() {
     const headers: Record<string, string> = {
@@ -147,7 +163,10 @@ export class AnunekoRequester extends ModelRequester {
     }
 
     const prompt = lastMessage.content as string
-    const userId = lastMessage.id || 'default'
+    // 使用 channelId 作为会话标识，如果没有则使用 userId
+    const sessionKey = (lastMessage as any).channelId || lastMessage.id || 'default'
+
+    logInfo('使用会话标识:', sessionKey)
 
     // 从模型名称推断使用的模型
     let modelName = 'Orange Cat' // 默认橘猫
@@ -156,12 +175,12 @@ export class AnunekoRequester extends ModelRequester {
     }
 
     // 获取或创建会话
-    let sessionId = this.sessionMap.get(userId)
-    const currentModel = this.modelMap.get(userId)
+    let sessionId = this.sessionMap.get(sessionKey)
+    const currentModel = this.modelMap.get(sessionKey)
 
     // 如果没有会话或模型不匹配，创建新会话
     if (!sessionId || currentModel !== modelName) {
-      sessionId = await this.createNewSession(userId, modelName)
+      sessionId = await this.createNewSession(sessionKey, modelName)
       if (!sessionId) {
         const errorText = '创建会话失败，请稍后再试。'
         yield new ChatGenerationChunk({
