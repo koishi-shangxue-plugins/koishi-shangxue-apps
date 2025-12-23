@@ -4,4 +4,4 @@
 
 anuneko api adapter for chatluna
 
-`x-token` 获取方法见仓库文件 ./data/2025-12-23_19-01-43.png
+`x-token` 获取方法见仓库文件 https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/blob/main/plugins/chatluna-anuneko-api-adapter/data/2025-12-23_19-01-43.png

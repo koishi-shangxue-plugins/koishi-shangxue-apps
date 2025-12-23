@@ -24,6 +24,10 @@ export const usage = `
 <p>该服务需要配置有效的 x-token 才能使用。</p>
 <p>该服务可能需要科学上网。</p>
 <p>支持橘猫(Orange Cat)和黑猫(Exotic Shorthair)两种模型。</p>
+
+---
+
+x-token 获取方法见仓库文件 https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/blob/main/plugins/chatluna-anuneko-api-adapter/data/2025-12-23_19-01-43.png
 `
 
 export function apply(ctx: Context, config: Config) {
