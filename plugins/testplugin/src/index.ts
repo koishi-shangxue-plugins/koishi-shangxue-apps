@@ -1,4 +1,4 @@
-import { Context, h, Schema, sleep, Universal } from 'koishi'
+import { Context, h, Logger, Schema, sleep, Universal } from 'koishi'
 import { } from '@koishijs/assets';
 import { inspect } from 'node:util'
 
@@ -7,7 +7,7 @@ export const inject = {
   required: ['http', 'logger', 'i18n', 'database'],
   optional: ['assets', 'cache']
 };
-
+const logger = new Logger(name);
 export interface Config { }
 
 export const Config: Schema<Config> = Schema.object({
@@ -74,6 +74,13 @@ export function apply(ctx: Context) {
   //     }
   //   });
 
+  command
+    .subcommand('.logger')
+    .action(async ({ session }, id) => {
+      logger.info("123123")
+      ctx.logger.info("123123")
+      return
+    })
 
   ctx.command('trans')
     .action(async ({ session }) => {
