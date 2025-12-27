@@ -19,20 +19,11 @@ import {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-interface KoishiHumanMessage extends HumanMessage {
-  channelId?: string
-}
-
 interface InternalModelRequestParams extends ModelRequestParams {
   input: (HumanMessage | SystemMessage)[]
 }
 
 export class AnunekoRequester extends ModelRequester {
-  // 存储每个用户的会话ID
-  private sessionMap = new Map<string, string>()
-  // 存储每个用户的当前模型
-  private modelMap = new Map<string, string>()
-
   constructor(
     ctx: Context,
     _configPool: ClientConfigPool<ClientConfig>,
@@ -40,22 +31,6 @@ export class AnunekoRequester extends ModelRequester {
     _plugin: ChatLunaPlugin
   ) {
     super(ctx, _configPool, _pluginConfig, _plugin)
-  }
-
-  // 清理指定用户的会话
-  public clearSession(userId: string): boolean {
-    const hasSession = this.sessionMap.has(userId)
-    this.sessionMap.delete(userId)
-    this.modelMap.delete(userId)
-    return hasSession
-  }
-
-  // 清理所有会话
-  public clearAllSessions(): number {
-    const count = this.sessionMap.size
-    this.sessionMap.clear()
-    this.modelMap.clear()
-    return count
   }
 
   // 构建请求头
@@ -80,7 +55,7 @@ export class AnunekoRequester extends ModelRequester {
   }
 
   // 创建新会话
-  private async createNewSession(userId: string, modelName: string): Promise<string | null> {
+  private async createNewSession(modelName: string): Promise<string | null> {
     const headers = this.buildHeaders()
     const data = { model: modelName }
 
@@ -97,12 +72,7 @@ export class AnunekoRequester extends ModelRequester {
       const responseData = await response.json()
       const chatId = responseData.chat_id || responseData.id
       if (chatId) {
-        this.sessionMap.set(userId, chatId)
-        this.modelMap.set(userId, modelName)
         logInfo('New session created with ID:', chatId)
-
-        // 切换模型以确保一致性
-        await this.switchModel(userId, chatId, modelName)
         return chatId
       }
     } catch (error) {
@@ -110,33 +80,6 @@ export class AnunekoRequester extends ModelRequester {
     }
 
     return null
-  }
-
-  // 切换模型
-  private async switchModel(userId: string, chatId: string, modelName: string): Promise<boolean> {
-    const headers = this.buildHeaders()
-    const data = { chat_id: chatId, model: modelName }
-
-    try {
-      logInfo('Switching model to:', modelName)
-      const signal = AbortSignal.timeout(this._pluginConfig.requestTimeout * 1000)
-      const response = await fetch('https://anuneko.com/api/v1/user/select_model', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(data),
-        signal
-      })
-
-      if (response.ok) {
-        this.modelMap.set(userId, modelName)
-        logInfo('Model switched successfully')
-        return true
-      }
-    } catch (error) {
-      this.logger.error('Failed to switch model:', error)
-    }
-
-    return false
   }
 
   // 自动选择分支
@@ -166,7 +109,7 @@ export class AnunekoRequester extends ModelRequester {
     // 过滤掉所有非 HumanMessage 的消息，并只取最后一条
     const humanMessages = internalParams.input.filter(
       (message) => message instanceof HumanMessage
-    ) as KoishiHumanMessage[]
+    )
     const lastMessage = humanMessages.at(-1)
 
     logInfo('Receive params from chatluna', JSON.stringify(params, null, 2))
@@ -177,10 +120,6 @@ export class AnunekoRequester extends ModelRequester {
     }
 
     const prompt = lastMessage.content as string
-    // 使用 channelId 作为会话标识，如果没有则使用 userId
-    const sessionKey = lastMessage.channelId || lastMessage.id || 'default'
-
-    logInfo('使用会话标识:', sessionKey)
 
     // 从模型名称推断使用的模型
     let modelName = 'Orange Cat' // 默认橘猫
@@ -188,21 +127,15 @@ export class AnunekoRequester extends ModelRequester {
       modelName = 'Exotic Shorthair'
     }
 
-    // 获取或创建会话
-    let sessionId = this.sessionMap.get(sessionKey)
-    const currentModel = this.modelMap.get(sessionKey)
-
-    // 如果没有会话或模型不匹配，创建新会话
-    if (!sessionId || currentModel !== modelName) {
-      sessionId = await this.createNewSession(sessionKey, modelName)
-      if (!sessionId) {
-        const errorText = '创建会话失败，请稍后再试。'
-        yield new ChatGenerationChunk({
-          text: errorText,
-          message: new AIMessageChunk({ content: errorText })
-        })
-        return
-      }
+    // 每次请求都创建新会话
+    const sessionId = await this.createNewSession(modelName)
+    if (!sessionId) {
+      const errorText = '创建会话失败，请稍后再试。'
+      yield new ChatGenerationChunk({
+        text: errorText,
+        message: new AIMessageChunk({ content: errorText })
+      })
+      return
     }
 
     const headers = this.buildHeaders()
