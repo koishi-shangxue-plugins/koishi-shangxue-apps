@@ -163,6 +163,14 @@ export function useChatLogic() {
       }
     })
     if (typeof d2 === 'function') dispose.push(d2)
+
+    const d3 = receive('chat-bot-message-event', (ev: any) => {
+      addMessage(ev)
+      if (ev.selfId === selectedBot.value && ev.channelId === selectedChannel.value) {
+        nextTick(scrollToBottom)
+      }
+    })
+    if (typeof d3 === 'function') dispose.push(d3)
   })
 
   onUnmounted(() => {

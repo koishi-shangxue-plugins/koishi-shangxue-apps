@@ -269,8 +269,8 @@ export class ApiHandlers {
             messageId: messageId,
             content: messageContent,
             userId: data.selfId,
-            botUsername: bot?.user?.name || `Bot-${data.selfId}`,
-            botAvatar: bot?.user?.avatar,
+            username: bot?.user?.name || `Bot-${data.selfId}`,
+            avatar: bot?.user?.avatar,
             timestamp: Date.now(),
             guildName: '', // 这个信息在前端会补充
             channelType: 0, // 这个信息在前端会补充

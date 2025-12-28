@@ -226,9 +226,10 @@ export class MessageHandler {
 
       const timestamp = Date.now()
 
-      let content = ''
+      // 优先使用 session.content，它包含了完整的消息内容（含标签）
+      let content = session.content || ''
 
-      if (session.event?.message?.elements) {
+      if (!content && session.event?.message?.elements) {
         content = this.utils.extractTextContent(session.event.message.elements).trim()
       }
 

@@ -73,17 +73,18 @@
                   </el-icon>
                 </div>
                 <div v-for="msg in currentMessages" :key="msg.id"
-                  :class="['flex mb-6 gap-3 group', msg.isBot ? 'flex-row-reverse' : 'flex-row']">
+                  :class="['flex mb-6 gap-3 group', (msg.isBot || msg.userId === selectedBot) ? 'flex-row-reverse' : 'flex-row']">
                   <el-avatar :size="40" :src="msg.avatar" class="flex-shrink-0 shadow-sm">
                     {{ msg.username[0] }}
                   </el-avatar>
-                  <div :class="['max-w-[85%] md:max-w-[75%] flex flex-col', msg.isBot ? 'items-end' : 'items-start']">
+                  <div
+                    :class="['max-w-[85%] md:max-w-[75%] flex flex-col', (msg.isBot || msg.userId === selectedBot) ? 'items-end' : 'items-start']">
                     <div class="flex items-center gap-2 mb-1.5 text-xs text-[var(--k-text-color-secondary)]">
                       <span class="font-bold">{{ msg.username }}</span>
                       <span class="opacity-60">{{ formatTime(msg.timestamp) }}</span>
                     </div>
                     <div
-                      :class="['p-3.5 rounded-2xl shadow-sm text-[15px] leading-relaxed break-all relative', msg.isBot ? 'bg-[#95ec69] text-black rounded-tr-none' : 'bg-[var(--k-card-bg)] text-[var(--k-text-color)] rounded-tl-none border border-[var(--k-border-color)]']">
+                      :class="['p-3.5 rounded-2xl shadow-sm text-[15px] leading-relaxed break-all relative', (msg.isBot || msg.userId === selectedBot) ? 'bg-[#95ec69] text-black rounded-tr-none' : 'bg-[var(--k-card-bg)] text-[var(--k-text-color)] rounded-tl-none border border-[var(--k-border-color)]']">
                       <!-- 引用消息渲染 -->
                       <div v-if="msg.quote"
                         class="mb-2.5 p-2.5 text-sm bg-black/5 dark:bg-white/5 rounded-lg border-l-4 border-gray-400/50 text-left">
@@ -297,7 +298,7 @@ const RenderElement = defineComponent({
       if (type === 'text') return h('span', attrs.content)
       if (type === 'img' || type === 'image' || type === 'mface') {
         const isMface = type === 'mface'
-        return h('div', { class: 'inline-block my-1.5' }, [
+        return h('div', { class: 'block my-1.5' }, [
           h('img', {
             src: imgUrl.value,
             class: ['rounded-lg shadow-sm border border-black/5 block cursor-pointer hover:opacity-90 transition-opacity', isMface ? 'max-w-[100px] max-h-[100px]' : 'max-w-full max-h-[400px]'],
