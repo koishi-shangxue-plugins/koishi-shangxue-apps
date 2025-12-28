@@ -8,7 +8,7 @@ import { ElMessage } from 'element-plus'
 export function useChatLogic() {
   const {
     bots, pinnedBots, pinnedChannels, getChannels, getMessages,
-    loadInitialData, loadConfig, addMessage
+    loadInitialData, loadConfig, addMessage, loadHistory, getPagination
   } = useChatData()
 
   const {
@@ -26,6 +26,7 @@ export function useChatLogic() {
   const scrollRef = ref<any>(null)
   const isMobile = ref(false)
   const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward' | 'image'>('bots')
+  const isLoadingHistory = ref(false)
 
   // 合并转发详情状态
   const forwardData = reactive({
@@ -55,6 +56,12 @@ export function useChatLogic() {
   const selectChannel = async (id: string) => {
     selectedChannel.value = id
     if (isMobile.value) mobileView.value = 'messages'
+
+    // 如果没有消息，加载第一页
+    if (currentMessages.value.length === 0) {
+      await loadHistory(selectedBot.value, id)
+    }
+
     await nextTick()
     scrollToBottom()
   }
@@ -90,6 +97,26 @@ export function useChatLogic() {
     }
   }
 
+  const handleScroll = async ({ scrollTop }: { scrollTop: number }) => {
+    if (scrollTop <= 10 && !isLoadingHistory.value && selectedBot.value && selectedChannel.value) {
+      const pagination = getPagination(selectedBot.value, selectedChannel.value)
+      if (pagination.hasMore) {
+        isLoadingHistory.value = true
+        const wrap = scrollRef.value?.wrapRef
+        const oldHeight = wrap?.scrollHeight || 0
+
+        await loadHistory(selectedBot.value, selectedChannel.value)
+
+        await nextTick()
+        // 保持滚动位置
+        if (wrap) {
+          wrap.scrollTop = wrap.scrollHeight - oldHeight
+        }
+        isLoadingHistory.value = false
+      }
+    }
+  }
+
   const handleSend = async () => {
     if (!selectedBot.value || !selectedChannel.value) return
     if (!inputText.value.trim() && !uploadedImages.value.length) return
@@ -120,7 +147,11 @@ export function useChatLogic() {
     const d1 = receive('chat-message-event', (ev: any) => {
       addMessage(ev)
       if (ev.selfId === selectedBot.value && ev.channelId === selectedChannel.value) {
-        nextTick(scrollToBottom)
+        // 只有在底部附近才自动滚动
+        const wrap = scrollRef.value?.wrapRef
+        if (wrap && wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 100) {
+          nextTick(scrollToBottom)
+        }
       }
     })
     if (typeof d1 === 'function') dispose.push(d1)
@@ -157,6 +188,7 @@ export function useChatLogic() {
     mobileView,
     forwardData,
     imageViewer,
+    isLoadingHistory,
 
     // 方法
     selectBot,
@@ -172,6 +204,7 @@ export function useChatLogic() {
     goBack,
     showForward,
     openImageViewer,
-    downloadImage
+    downloadImage,
+    handleScroll
   }
 }

@@ -506,7 +506,6 @@ export class ApiHandlers {
             keepTempImages: this.config.keepTempImages,
             loggerinfo: this.config.loggerinfo,
             blockedPlatforms: this.config.blockedPlatforms || [],
-            chatContainerHeight: this.config.chatContainerHeight,
             clearIndexedDBOnStart: this.config.clearIndexedDBOnStart
           }
         }

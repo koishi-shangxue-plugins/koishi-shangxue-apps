@@ -1,7 +1,12 @@
 import { Config } from './config'
+import { Context } from 'koishi'
+import { writeFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs'
+import { join } from 'node:path'
+import { createHash } from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 
 export class Utils {
-  constructor(private config: Config) { }
+  constructor(private config: Config, private ctx?: Context) { }
 
   // 检查平台是否被屏蔽
   isPlatformBlocked(platform: string): boolean {
@@ -59,7 +64,46 @@ export class Utils {
     return false
   }
 
-  // 清理对象中的base64内容
+  // 持久化 base64 图片并返回本地文件 URL
+  persistBase64Image(base64Data: string): string {
+    if (!this.ctx || !base64Data.startsWith('data:image/')) return base64Data
+
+    try {
+      const dir = join(this.ctx.baseDir, 'data', 'chat-patch', 'persist-images')
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+
+      // 生成文件名：时间戳 + 内容哈希
+      const hash = createHash('md5').update(base64Data).digest('hex')
+      const ext = base64Data.split(';')[0].split('/')[1] || 'png'
+      const filename = `${Date.now()}_${hash}.${ext}`
+      const filePath = join(dir, filename)
+
+      // 写入文件
+      const base64Content = base64Data.split(',')[1]
+      writeFileSync(filePath, Buffer.from(base64Content, 'base64'))
+
+      // 清理旧图片
+      this.cleanupPersistImages(dir)
+
+      return pathToFileURL(filePath).href
+    } catch (e) {
+      return base64Data
+    }
+  }
+
+  private cleanupPersistImages(dir: string) {
+    try {
+      const files = readdirSync(dir)
+        .map(name => ({ name, path: join(dir, name), mtime: statSync(join(dir, name)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime)
+
+      if (files.length > this.config.maxPersistImages) {
+        files.slice(this.config.maxPersistImages).forEach(f => unlinkSync(f.path))
+      }
+    } catch (e) { }
+  }
+
+  // 清理对象中的base64内容，改为持久化存储
   cleanBase64Content(obj: any): any {
     if (obj === null || obj === undefined) {
       return obj
@@ -67,7 +111,7 @@ export class Utils {
 
     if (typeof obj === 'string') {
       if (this.isBase64(obj)) {
-        return '暂不支持记录base64内容'
+        return this.persistBase64Image(obj)
       }
       return obj
     }
@@ -87,7 +131,7 @@ export class Utils {
           key === 'data' ||
           key === 'content'
         ) && this.isBase64(value)) {
-          cleaned[key] = '暂不支持记录base64内容'
+          cleaned[key] = this.persistBase64Image(value)
         } else {
           cleaned[key] = this.cleanBase64Content(value)
         }

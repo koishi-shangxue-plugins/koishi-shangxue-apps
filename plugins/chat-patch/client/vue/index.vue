@@ -3,7 +3,7 @@
     class="chat-patch-wrapper absolute inset-0 flex overflow-hidden bg-[var(--k-page-bg)] text-[var(--k-text-color)] font-sans">
     <el-container class="h-full w-full">
       <!-- 机器人列表 -->
-      <el-aside v-if="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '280px'"
+      <el-aside v-show="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '280px'"
         class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-95 dark:brightness-90">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)]">
@@ -30,7 +30,7 @@
       </el-aside>
 
       <!-- 频道列表 -->
-      <el-aside v-if="(!isMobile && selectedBot) || (isMobile && mobileView === 'channels')"
+      <el-aside v-show="(!isMobile && selectedBot) || (isMobile && mobileView === 'channels')"
         :width="isMobile ? '100%' : '260px'"
         class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-100 dark:brightness-95">
         <div
@@ -55,7 +55,7 @@
       </el-aside>
 
       <!-- 消息主区域 -->
-      <el-main v-if="(!isMobile && selectedBot && selectedChannel) || (isMobile && mobileView === 'messages')"
+      <el-main v-show="(!isMobile && selectedBot && selectedChannel) || (isMobile && mobileView === 'messages')"
         class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100">
         <template v-if="selectedBot && selectedChannel">
           <div
@@ -65,8 +65,13 @@
           </div>
 
           <div class="flex-1 overflow-hidden relative bg-opacity-50 bg-gray-100 dark:bg-black/20">
-            <el-scrollbar ref="scrollRef">
+            <el-scrollbar ref="scrollRef" @scroll="handleScroll">
               <div class="p-6 flex flex-col min-h-full">
+                <div v-if="isLoadingHistory" class="flex justify-center py-4">
+                  <el-icon class="is-loading text-[var(--k-color-primary)]">
+                    <Loading />
+                  </el-icon>
+                </div>
                 <div v-for="msg in currentMessages" :key="msg.id"
                   :class="['flex mb-6 gap-3 group', msg.isBot ? 'flex-row-reverse' : 'flex-row']">
                   <el-avatar :size="40" :src="msg.avatar" class="flex-shrink-0 shadow-sm">
@@ -233,7 +238,7 @@
 
 <script setup lang="ts">
 import { ref, h, defineComponent, onMounted, reactive, watch, computed } from 'vue'
-import { StarFilled, Star, Picture, CircleCloseFilled, ArrowLeft, Delete, Collection, Download } from '@element-plus/icons-vue'
+import { StarFilled, Star, Picture, CircleCloseFilled, ArrowLeft, Delete, Collection, Download, Loading } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { send } from '@koishijs/client'
 import { useChatLogic } from './chat-logic'
@@ -241,9 +246,9 @@ import { useChatLogic } from './chat-logic'
 const {
   bots, selectedBot, selectedChannel, currentChannels, currentMessages, currentChannelName,
   inputText, uploadedImages, isSending, pinnedBots, pinnedChannels, scrollRef,
-  isMobile, mobileView, goBack, forwardData, imageViewer,
+  isMobile, mobileView, goBack, forwardData, imageViewer, isLoadingHistory,
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
-  getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage
+  getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage, handleScroll
 } = useChatLogic()
 
 const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -314,7 +319,7 @@ const RenderElement = defineComponent({
 
       // 处理 p 元素和 i18n
       if (type === 'p') {
-        return h('div', { class: 'my-1 block' }, (element.children || []).map((child: any, i: number) => h(RenderElement, { key: i, element: child, botId, channelId })))
+        return h('div', { class: 'my-1 block min-h-[1em]' }, (element.children || []).map((child: any, i: number) => h(RenderElement, { key: i, element: child, botId, channelId })))
       }
       if (type === 'i18n') {
         return h('span', { class: 'opacity-80 italic' }, `[${attrs.path || 'i18n'}]`)

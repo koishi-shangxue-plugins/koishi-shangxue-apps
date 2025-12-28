@@ -42,7 +42,7 @@ export async function apply(ctx: Context, config: Config) {
   const fileManager = new FileManager(ctx, config)
   const messageHandler = new MessageHandler(ctx, config, fileManager)
   const apiHandlers = new ApiHandlers(ctx, config, fileManager, messageHandler)
-  const utils = new Utils(config)
+  const utils = new Utils(config, ctx)
 
   // 初始化数据
   const initialData = fileManager.readChatDataFromFile()
