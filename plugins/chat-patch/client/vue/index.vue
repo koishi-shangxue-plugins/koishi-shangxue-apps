@@ -114,13 +114,7 @@
           <!-- 输入区域 -->
           <div
             class="p-4 border-t border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-            <div class="mb-3 flex gap-3">
-              <el-upload action="#" :auto-upload="false" :show-file-list="false" :on-change="handleFileChange" multiple>
-                <el-button circle class="!w-14 !h-14 !text-2xl shadow-sm hover:scale-105 transition-transform"><el-icon>
-                    <Picture />
-                  </el-icon></el-button>
-              </el-upload>
-            </div>
+            <!-- 图片预览区域 -->
             <div v-if="uploadedImages.length" class="flex gap-3 mb-3 overflow-x-auto pb-2 scrollbar-hide">
               <div v-for="img in uploadedImages" :key="img.tempId" class="relative w-20 h-20 flex-shrink-0 group">
                 <el-image :src="img.preview" fit="cover"
@@ -132,11 +126,21 @@
                 </el-icon>
               </div>
             </div>
-            <div class="flex gap-4 items-end">
-              <el-input v-model="inputText" type="textarea" :rows="3" placeholder="输入消息..." class="flex-1 !text-base"
-                @keydown.enter.prevent="handleSend" />
+            <div class="flex gap-3 items-end">
+              <!-- 图片上传按钮 -->
+              <el-upload action="#" :auto-upload="false" :show-file-list="false" :on-change="handleFileChange" multiple>
+                <el-button circle class="!w-10 !h-10 !text-xl shadow-sm hover:scale-105 transition-transform">
+                  <el-icon>
+                    <Picture />
+                  </el-icon>
+                </el-button>
+              </el-upload>
+              <!-- 文本输入框，使用 autosize 以适应单行显示 -->
+              <el-input v-model="inputText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" placeholder="输入消息..."
+                class="flex-1 !text-base" @keydown.enter.prevent="handleSend" />
+              <!-- 发送按钮 -->
               <el-button type="primary" :loading="isSending" @click="handleSend"
-                class="px-8 h-12 !text-base font-bold shadow-md">发送</el-button>
+                class="px-6 h-10 !text-base font-bold shadow-md">发送</el-button>
             </div>
           </div>
         </template>
@@ -155,7 +159,7 @@
           <div class="p-4 space-y-6">
             <div v-for="(msg, idx) in forwardData.messages" :key="idx" class="flex gap-3">
               <el-avatar :size="36" :src="msg.attrs?.avatar" class="flex-shrink-0 shadow-sm">{{ msg.attrs?.nickname?.[0]
-                }}</el-avatar>
+              }}</el-avatar>
               <div class="flex-1 overflow-hidden">
                 <div class="text-xs text-[var(--k-text-color-secondary)] mb-1 font-bold">{{ msg.attrs?.nickname }}</div>
                 <div
@@ -191,7 +195,7 @@
         <div class="p-6 space-y-6 bg-gray-50 dark:bg-black/10">
           <div v-for="(msg, idx) in forwardData.messages" :key="idx" class="flex gap-3">
             <el-avatar :size="36" :src="msg.attrs?.avatar" class="flex-shrink-0 shadow-sm">{{ msg.attrs?.nickname?.[0]
-              }}</el-avatar>
+            }}</el-avatar>
             <div class="flex-1 overflow-hidden">
               <div class="text-xs text-[var(--k-text-color-secondary)] mb-1 font-bold">{{ msg.attrs?.nickname }}</div>
               <div
@@ -296,7 +300,7 @@ const RenderElement = defineComponent({
         return h('div', { class: 'inline-block my-1.5' }, [
           h('img', {
             src: imgUrl.value,
-            class: ['rounded-lg shadow-sm border border-black/5 block cursor-pointer hover:opacity-90 transition-opacity', isMface ? 'max-w-[100px] max-h-[100px]' : 'max-w-[280px] max-h-[400px]'],
+            class: ['rounded-lg shadow-sm border border-black/5 block cursor-pointer hover:opacity-90 transition-opacity', isMface ? 'max-w-[100px] max-h-[100px]' : 'max-w-full max-h-[400px]'],
             style: `min-width: ${isMface ? '30px' : '50px'}; min-height: ${isMface ? '30px' : '50px'}; object-fit: contain; background: rgba(0,0,0,0.05)`,
             onClick: (e: Event) => {
               e.stopPropagation()

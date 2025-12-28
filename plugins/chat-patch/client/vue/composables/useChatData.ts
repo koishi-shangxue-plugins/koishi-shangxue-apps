@@ -110,7 +110,7 @@ export function useChatData() {
     const isDuplicate = messages.some(m => {
       if (m.id === msg.messageId || m.id === msg.id) return true
       // 针对机器人发送消息的特殊去重逻辑
-      if (msg.type === 'bot-message' && m.isBot && Math.abs(m.timestamp - msg.timestamp) < 2000 && m.content === msg.content) return true
+      if ((msg.type === 'bot-message' || msg.type === 'bot-message-sent') && m.isBot && Math.abs(m.timestamp - msg.timestamp) < 2000 && m.content === msg.content) return true
       return false
     })
 
