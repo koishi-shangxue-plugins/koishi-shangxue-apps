@@ -5,7 +5,9 @@
       <!-- 机器人列表 -->
       <el-aside v-if="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '280px'"
         class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-card-bg)]">
-        <div class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg">机器人</div>
+        <div
+          class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)]">
+          机器人</div>
         <el-scrollbar class="flex-1">
           <div v-for="bot in bots" :key="bot.selfId"
             :class="['flex items-center p-4 cursor-pointer transition-all hover:bg-[var(--k-button-hover-bg)] border-l-4 border-transparent', { '!border-[var(--k-color-primary)] bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedBot === bot.selfId }]"
@@ -31,7 +33,8 @@
       <el-aside v-if="(!isMobile && selectedBot) || (isMobile && mobileView === 'channels')"
         :width="isMobile ? '100%' : '260px'"
         class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-card-bg)]">
-        <div class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg">
+        <div
+          class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)]">
           <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
           频道
         </div>
@@ -55,7 +58,7 @@
       <el-main v-if="!isMobile || mobileView === 'messages'" class="flex flex-col p-0 bg-[var(--k-page-bg)] relative">
         <template v-if="selectedBot && selectedChannel">
           <div
-            class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm z-10">
+            class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm z-10 text-[var(--k-text-color)]">
             <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
             <span class="truncate">{{ currentChannelName }}</span>
           </div>
@@ -88,7 +91,7 @@
                         </div>
                       </div>
                       <!-- 消息内容渲染 -->
-                      <div class="text-left">
+                      <div class="text-left min-w-[20px]">
                         <template v-if="msg.elements && msg.elements.length">
                           <render-element v-for="(el, i) in msg.elements" :key="i" :element="el" :bot-id="selectedBot"
                             :channel-id="selectedChannel" />
@@ -177,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, defineComponent, onMounted, reactive } from 'vue'
+import { ref, h, defineComponent, onMounted, reactive, watch } from 'vue'
 import { StarFilled, Star, Picture, CircleCloseFilled, ArrowLeft, Delete, Collection } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { send } from '@koishijs/client'
@@ -211,36 +214,50 @@ const RenderElement = defineComponent({
     const imgUrl = ref('')
     const isMedia = ['img', 'image', 'mface', 'audio', 'video'].includes(props.element.type)
 
-    if (isMedia) {
+    const loadMedia = async () => {
       const url = props.element.attrs.src || props.element.attrs.url || props.element.attrs.file
       if (url) {
-        getCachedImageUrl(`${props.botId}:${props.channelId}`, url).then(res => {
-          if (res) imgUrl.value = res
-          else cacheImage(`${props.botId}:${props.channelId}`, url).then(r => imgUrl.value = r || url)
-        })
+        const res = await getCachedImageUrl(`${props.botId}:${props.channelId}`, url)
+        if (res) imgUrl.value = res
+        else {
+          const r = await cacheImage(`${props.botId}:${props.channelId}`, url)
+          imgUrl.value = r || url
+        }
       }
     }
 
+    if (isMedia) loadMedia()
+    watch(() => props.element.attrs.src || props.element.attrs.url || props.element.attrs.file, loadMedia)
+
     return () => {
-      const { element, botId, channelId } = props
+      const { element } = props
       const type = element.type
       const attrs = element.attrs
 
       if (type === 'text') return h('span', attrs.content)
       if (type === 'img' || type === 'image' || type === 'mface') {
-        return h('el-image', {
-          src: imgUrl.value,
-          previewSrcList: [imgUrl.value],
-          class: 'max-w-[280px] max-h-[400px] block rounded-lg my-1.5 shadow-sm border border-black/5',
-          previewTeleported: true,
-          fit: 'contain'
-        })
+        // 关键修复：使用原生 img 标签，因为 el-image 在某些环境下可能因为尺寸计算问题不显示
+        return h('div', { class: 'inline-block my-1.5' }, [
+          h('img', {
+            src: imgUrl.value,
+            class: 'max-w-[280px] max-h-[400px] rounded-lg shadow-sm border border-black/5 block cursor-pointer',
+            style: 'min-width: 50px; min-height: 50px; object-fit: contain; background: rgba(0,0,0,0.05)',
+            onClick: () => {
+              // 模拟预览效果
+              window.open(imgUrl.value, '_blank')
+            },
+            onError: (e: any) => {
+              e.target.src = '' // 防止死循环
+              e.target.alt = '图片加载失败'
+            }
+          })
+        ])
       }
       if (type === 'audio') {
-        return h('audio', { src: imgUrl.value, controls: true, class: 'max-w-full my-1.5' })
+        return h('audio', { src: imgUrl.value, controls: true, class: 'max-w-full my-1.5 block' })
       }
       if (type === 'video') {
-        return h('video', { src: imgUrl.value, controls: true, class: 'max-w-full my-1.5 rounded-lg shadow-sm' })
+        return h('video', { src: imgUrl.value, controls: true, class: 'max-w-full my-1.5 rounded-lg shadow-sm block' })
       }
       if (type === 'at') return h('span', { class: 'text-blue-500 font-bold hover:underline cursor-default mx-0.5' }, `@${attrs.name || attrs.id}`)
 
@@ -251,7 +268,7 @@ const RenderElement = defineComponent({
           onClick: (e: Event) => { e.stopPropagation(); showForwardDetail(element.children || []) }
         }, [
           h('div', { class: 'flex items-center gap-2 mb-2 font-bold text-sm opacity-80' }, [
-            h(elIcon, null, { default: () => h(Collection) }),
+            h('el-icon', null, { default: () => h(Collection) }),
             h('span', '合并转发记录')
           ]),
           h('div', { class: 'space-y-1.5' }, (element.children || []).filter((c: any) => c.type === 'message').slice(0, 4).map((child: any) => {
@@ -269,11 +286,6 @@ const RenderElement = defineComponent({
       return h('span', { class: 'text-gray-400 italic text-xs' }, `[${type}]`)
     }
   }
-})
-
-// 辅助组件
-const elIcon = defineComponent({
-  render() { return h('el-icon', null, this.$slots) }
 })
 
 const handleFileChange = async (file: any) => {

@@ -3,7 +3,9 @@ import { MessageHandler } from './message-handler'
 import { Context, h, Logger } from 'koishi'
 import { Config } from './config'
 import { } from '@koishijs/plugin-console'
-import { URL, pathToFileURL } from 'node:url'
+import { URL, pathToFileURL, fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
+import * as mime from 'mime-types'
 
 export class ApiHandlers {
   private logger: Logger
@@ -553,19 +555,23 @@ export class ApiHandlers {
   // 处理本地文件请求
   private async handleLocalFileRequest(fileUrl: string) {
     try {
-      // 修复 Windows 路径编码问题：解码 URL 中的百分号编码
-      const decodedUrl = decodeURIComponent(fileUrl)
-      const fileresponse = await this.ctx.http.file(decodedUrl)
-      const fileresponsebase64 = Buffer.from(fileresponse.data).toString('base64')
-      let contentType = fileresponse.type
+      // 使用 fileURLToPath 转换 file:// URL 为系统路径
+      const filePath = fileURLToPath(fileUrl)
 
-      this.logInfo('成功读取本地文件:', { fileUrl, decodedUrl, contentType })
+      // 改用 node:fs 直接读取文件，避免 ctx.http.file 可能存在的编码或协议处理问题
+      const buffer = readFileSync(filePath)
+      const base64 = buffer.toString('base64')
+
+      // 使用 mime-types 库精确推断 MIME 类型
+      const contentType = mime.lookup(filePath) || 'application/octet-stream'
+
+      this.logInfo('成功读取本地文件:', { fileUrl, filePath, contentType })
 
       return {
         success: true,
-        base64: fileresponsebase64,
+        base64: base64,
         contentType: contentType,
-        dataUrl: `data:${contentType};base64,${fileresponsebase64}`
+        dataUrl: `data:${contentType};base64,${base64}`
       }
     } catch (error: any) {
       this.logger.error('读取本地文件失败:', { fileUrl, error: error.message })
