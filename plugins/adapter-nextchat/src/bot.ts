@@ -3,15 +3,31 @@ import type { Config, PendingResponse } from './types'
 import { logInfo, loggerError } from './logger'
 import { fragmentToString, estimateTokens, createStreamResponse } from './message'
 import { } from '@koishijs/assets'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 export class NextChatBot extends Bot<Context, Config> {
   static inject = ['server', 'i18n', 'assets']
+  private avatarDataUrl: string;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, config, 'nextchat');
     this.selfId = config.selfId || 'nextchat';
     this.user.name = config.selfname || 'nextchat';
-    this.user.avatar = config.selfavatar || 'https://avatars.githubusercontent.com/u/153288546';
+
+    // 读取本地头像文件并转换为 base64 data URL
+    try {
+      const avatarPath = join(__dirname, '..', 'templates', '153288546.png');
+      const avatarBuffer = readFileSync(avatarPath);
+      this.avatarDataUrl = `data:image/png;base64,${avatarBuffer.toString('base64')}`;
+      this.user.avatar = this.avatarDataUrl;
+    } catch (error) {
+      loggerError(`[${this.selfId}] 读取头像文件失败:`, error);
+      // 使用默认头像作为后备
+      this.avatarDataUrl = 'https://avatars.githubusercontent.com/u/153288546';
+      this.user.avatar = this.avatarDataUrl;
+    }
+
     this.platform = 'nextchat';
   }
 
@@ -361,7 +377,7 @@ export class NextChatBot extends Bot<Context, Config> {
     return {
       id: userId,
       name: userId,
-      avatar: this.config.selfavatar || 'https://avatars.githubusercontent.com/u/153288546',
+      avatar: this.avatarDataUrl,
     }
   }
 

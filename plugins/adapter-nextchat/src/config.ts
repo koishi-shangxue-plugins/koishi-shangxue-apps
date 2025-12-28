@@ -88,7 +88,6 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
   Schema.object({
     selfId: Schema.string().default('nextchat').description('机器人 ID').disabled(),
     selfname: Schema.string().default('nextchat').description('机器人昵称').disabled(),
-    selfavatar: Schema.string().default('https://nextnext.chat/favicon.ico').description('用户和机器人的头像').role('link'),
   }).description('Session设置'),
 
   Schema.object({

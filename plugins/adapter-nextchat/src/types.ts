@@ -25,7 +25,6 @@ export interface Config {
   models?: { modelname: string; element: string[] }[];
   selfId?: string;
   selfname?: string;
-  selfavatar?: string;
   NextChat_host?: string;
   loggerInfo?: boolean;
   loggerDebug?: boolean;
