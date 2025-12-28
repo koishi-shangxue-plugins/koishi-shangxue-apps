@@ -1,362 +1,255 @@
-<style scoped src="./style.css"></style>
-
 <template>
-  <div class="chat-container" :class="mobileViewClass" :style="chatContainerStyle" @touchstart="handleTouchStart"
-    @touchmove="handleTouchMove" @touchend="handleTouchEnd">
-    <!-- 左侧机器人列表 -->
-    <div class="bot-list">
-      <div class="panel-header">
-        <h3>机器人</h3>
-      </div>
-      <div class="bot-items">
-        <div v-for="bot in bots" :key="bot.selfId"
-          :class="['bot-item', { active: selectedBot === bot.selfId, pinned: pinnedBots.has(bot.selfId) }]"
-          @click="selectBot(bot.selfId)" @contextmenu="handleBotRightClick($event, bot.selfId)">
-          <div class="bot-avatar">
-            <AvatarComponent v-if="bot.avatar" :src="bot.avatar" :alt="bot.username" :channel-key="'bot-list'" />
-            <div v-else class="avatar-placeholder">{{ bot.username.charAt(0).toUpperCase() }}</div>
-          </div>
-          <div class="bot-info">
-            <div class="bot-name">{{ bot.username }}</div>
-            <div class="bot-platform">{{ bot.platform }}</div>
-          </div>
-          <div :class="['bot-status', bot.status]"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 中间频道列表 -->
-    <div class="channel-list">
-      <div class="panel-header">
-        <h3>频道</h3>
-      </div>
-      <div v-if="!selectedBot" class="empty-state">
-        请选择一个机器人
-      </div>
-      <div v-else class="channel-items">
-        <div v-for="channel in currentChannels" :key="channel.id"
-          :class="['channel-item', { active: selectedChannel === channel.id, pinned: pinnedChannels.has(`${selectedBot}:${channel.id}`) }]"
-          :data-channel-id="channel.id" @click="selectChannel(channel.id)"
-          @contextmenu="handleChannelRightClick($event, channel.id)">
-          <div class="channel-info">
-            <div class="channel-name">{{ channel.name }}</div>
-            <div class="channel-type">{{ getChannelTypeText(channel.type) }}</div>
-          </div>
-          <div v-if="getChannelMessageCount(channel.id) > 0" class="channel-message-count draggable-bubble" :class="{
-            'dragging': draggingChannel === channel.id,
-            'will-delete': draggingChannel === channel.id && getDragDistance(channel.id) > dragThreshold
-          }" @mousedown="startDrag($event, channel.id)" @touchstart="startDrag($event, channel.id)"
-            :style="getDragStyle(channel.id)"
-            :title="draggingChannel === channel.id ? (getDragDistance(channel.id) > dragThreshold ? '松开清理历史记录' : '拖拽更远以清理历史记录') : '拖拽清理历史记录'">
-            {{ getChannelMessageCount(channel.id) }}
-
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 右侧消息区域 -->
-    <div class="message-area">
-      <div class="panel-header">
-        <h3>{{ currentChannelName || '选择频道' }}</h3>
-      </div>
-      <div v-if="!selectedBot || !selectedChannel" class="empty-state">
-        请选择机器人和频道
-      </div>
-      <div v-else class="message-content">
-        <!-- 消息历史 -->
-        <div class="message-history" ref="messageHistory">
-          <!-- 加载更多指示器 -->
-          <div v-if="isLoadingMore" class="loading-more-indicator">
-            <div class="loading-spinner"></div>
-            <span>加载更多消息中...</span>
-          </div>
-
-          <div v-for="message in currentMessages" :key="message.id"
-            :class="['message-item', { 'bot-message': message.isBot }]"
-            @contextmenu="message.isBot ? null : handleMessageRightClick($event, message)">
-            <div class="message-avatar">
-              <AvatarComponent v-if="message.avatar" :src="message.avatar" :alt="message.username"
-                :channel-key="currentChannelKey" />
-              <div v-else class="avatar-placeholder">{{ message.username.charAt(0).toUpperCase() }}</div>
-            </div>
-            <div class="message-content-wrapper">
-              <div class="message-header">
-                <span class="message-username">{{ message.username }}</span>
-                <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+  <div
+    class="chat-patch-wrapper absolute inset-0 flex overflow-hidden bg-[var(--k-page-bg)] text-[var(--k-text-color)]">
+    <el-container class="h-full w-full">
+      <!-- 机器人列表 -->
+      <el-aside v-if="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '260px'"
+        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-card-bg)]">
+        <div class="flex h-12 items-center px-4 font-bold border-b border-[var(--k-border-color)]">机器人</div>
+        <el-scrollbar class="flex-1">
+          <div v-for="bot in bots" :key="bot.selfId"
+            :class="['flex items-center p-3 cursor-pointer transition-colors hover:bg-[var(--k-button-hover-bg)]', { 'bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedBot === bot.selfId }]"
+            @click="selectBot(bot.selfId)" @contextmenu.prevent="onBotMenu($event, bot)">
+            <el-avatar :size="40" :src="bot.avatar" class="flex-shrink-0">{{ bot.username[0] }}</el-avatar>
+            <div class="ml-3 flex-1 overflow-hidden">
+              <div class="flex items-center gap-1 text-sm font-medium truncate">
+                {{ bot.username }}
+                <el-icon v-if="pinnedBots.has(bot.selfId)" class="text-orange-400">
+                  <StarFilled />
+                </el-icon>
               </div>
+              <div class="text-xs text-[var(--k-text-color-secondary)] truncate">{{ bot.platform }}</div>
+            </div>
+            <div :class="['w-2 h-2 rounded-full ml-2', bot.status === 'online' ? 'bg-green-500' : 'bg-gray-400']"></div>
+          </div>
+        </el-scrollbar>
+      </el-aside>
 
-              <!-- 引用消息显示 -->
-              <div v-if="message.quote || getInlineQuoteMessage(message, currentMessages)" class="message-quote">
-                <div class="quote-header">
-                  <div class="quote-avatar">
-                    <AvatarComponent v-if="getQuoteUser(message, currentMessages).avatar"
-                      :src="getQuoteUser(message, currentMessages).avatar"
-                      :alt="getQuoteUser(message, currentMessages).username" :channel-key="currentChannelKey" />
-                    <div v-else class="avatar-placeholder">{{
-                      getQuoteUser(message, currentMessages).username.charAt(0).toUpperCase() }}
+      <!-- 频道列表 -->
+      <el-aside v-if="(!isMobile && selectedBot) || (isMobile && mobileView === 'channels')"
+        :width="isMobile ? '100%' : '240px'"
+        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-card-bg)]">
+        <div class="flex h-12 items-center px-4 font-bold border-b border-[var(--k-border-color)]">
+          <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-2" @click="goBack" />
+          频道
+        </div>
+        <el-scrollbar class="flex-1">
+          <div v-for="channel in currentChannels" :key="channel.id"
+            :class="['flex items-center p-3 cursor-pointer transition-colors hover:bg-[var(--k-button-hover-bg)]', { 'bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedChannel === channel.id }]"
+            @click="selectChannel(channel.id)" @contextmenu.prevent="onChannelMenu($event, channel)">
+            <div class="flex-1 overflow-hidden">
+              <div class="flex items-center gap-1 text-sm truncate">
+                {{ channel.name }}
+                <el-icon v-if="pinnedChannels.has(`${selectedBot}:${channel.id}`)" class="text-orange-400">
+                  <StarFilled />
+                </el-icon>
+              </div>
+            </div>
+          </div>
+        </el-scrollbar>
+      </el-aside>
+
+      <!-- 消息主区域 -->
+      <el-main v-if="!isMobile || mobileView === 'messages'" class="flex flex-col p-0 bg-[var(--k-page-bg)]">
+        <template v-if="selectedBot && selectedChannel">
+          <div
+            class="flex h-12 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)]">
+            <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-2" @click="goBack" />
+            {{ currentChannelName }}
+          </div>
+
+          <div class="flex-1 overflow-hidden relative">
+            <el-scrollbar ref="scrollRef">
+              <div class="p-5">
+                <div v-for="msg in currentMessages" :key="msg.id"
+                  :class="['flex mb-5 gap-3', msg.isBot ? 'flex-row-reverse' : 'flex-row']">
+                  <el-avatar :size="36" :src="msg.avatar" class="flex-shrink-0">
+                    {{ msg.username[0] }}
+                  </el-avatar>
+                  <div :class="['max-w-[85%] md:max-w-[70%] flex flex-col', msg.isBot ? 'items-end' : 'items-start']">
+                    <div class="flex items-center gap-2 mb-1 text-xs text-[var(--k-text-color-secondary)]">
+                      <span class="font-medium">{{ msg.username }}</span>
+                      <span>{{ formatTime(msg.timestamp) }}</span>
+                    </div>
+                    <div
+                      :class="['p-3 rounded-lg shadow-sm text-sm break-all', msg.isBot ? 'bg-[#95ec69] text-black' : 'bg-[var(--k-card-bg)] text-[var(--k-text-color)]']">
+                      <!-- 引用消息渲染 -->
+                      <div v-if="msg.quote"
+                        class="mb-2 p-2 text-xs bg-black/5 rounded border-l-4 border-gray-300 text-left">
+                        <div class="font-bold opacity-70 mb-1">{{ msg.quote.user.username }}:</div>
+                        <div class="opacity-90">
+                          <template v-if="msg.quote.elements && msg.quote.elements.length">
+                            <render-element v-for="(el, i) in msg.quote.elements" :key="i" :element="el"
+                              :bot-id="selectedBot" :channel-id="selectedChannel" />
+                          </template>
+                          <template v-else>{{ msg.quote.content }}</template>
+                        </div>
+                      </div>
+                      <!-- 消息内容渲染 -->
+                      <div class="text-left">
+                        <template v-if="msg.elements && msg.elements.length">
+                          <render-element v-for="(el, i) in msg.elements" :key="i" :element="el" :bot-id="selectedBot"
+                            :channel-id="selectedChannel" />
+                        </template>
+                        <template v-else>{{ msg.content }}</template>
+                      </div>
                     </div>
                   </div>
-                  <span class="quote-username">{{ getQuoteUser(message, currentMessages).username }}</span>
-                  <span class="quote-time">{{ formatTime(getQuoteTimestamp(message, currentMessages)) }}</span>
-                </div>
-                <div class="quote-content">
-                  <template
-                    v-if="getQuoteElements(message, currentMessages) && getQuoteElements(message, currentMessages).length > 0">
-                    <MessageElement v-for="(element, index) in getQuoteElements(message, currentMessages)"
-                      :key="`quote-${index}`" :element="element" :channel-key="currentChannelKey" />
-                  </template>
-                  <template v-else>
-                    {{ getQuoteContent(message, currentMessages) }}
-                  </template>
                 </div>
               </div>
+            </el-scrollbar>
+          </div>
 
-              <div class="message-text">
-                <template v-if="message.elements && message.elements.length > 0">
-                  <MessageElement v-for="(element, index) in message.elements" :key="index" :element="element"
-                    :channel-key="currentChannelKey" />
-                </template>
-                <template v-else>
-                  {{ getMessageContentWithoutQuote(message, currentMessages) }}
-                </template>
+          <!-- 输入区域 -->
+          <div class="p-4 border-t border-[var(--k-border-color)] bg-[var(--k-card-bg)]">
+            <div class="mb-2 flex gap-2">
+              <el-upload action="#" :auto-upload="false" :show-file-list="false" :on-change="handleFileChange" multiple>
+                <el-button circle class="!w-12 !h-12"><el-icon :size="24">
+                    <Picture />
+                  </el-icon></el-button>
+              </el-upload>
+            </div>
+            <div v-if="uploadedImages.length" class="flex gap-2 mb-2 overflow-x-auto pb-2">
+              <div v-for="img in uploadedImages" :key="img.tempId" class="relative w-16 h-16 flex-shrink-0">
+                <el-image :src="img.preview" fit="cover"
+                  class="w-full h-full rounded border border-[var(--k-border-color)]" />
+                <el-icon class="absolute -top-1 -right-1 cursor-pointer text-red-500 bg-white rounded-full"
+                  @click="removeImage(img.tempId)">
+                  <CircleCloseFilled />
+                </el-icon>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- 悬浮的滚动到底部按钮 -->
-        <div class="floating-scroll-button" v-show="showScrollButton" @click="scrollToBottom">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M7 10l5 5 5-5z" />
-          </svg>
-        </div>
-
-        <!-- 输入框 -->
-        <div class="message-input">
-          <!-- 图片预览区域 -->
-          <div v-if="uploadedImages.length > 0" class="image-preview-container">
-            <div v-for="image in uploadedImages" :key="image.tempId" class="image-preview-item">
-              <img :src="image.preview" :alt="image.filename" class="preview-image" />
-              <button class="remove-image-btn" @click="removeImage(image.tempId)" title="删除图片">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <path
-                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-                </svg>
-              </button>
+            <div class="flex gap-3 items-end">
+              <el-input v-model="inputText" type="textarea" :rows="3" placeholder="输入消息..." class="flex-1"
+                @keydown.enter.prevent="handleSend" />
+              <el-button type="primary" :loading="isSending" @click="handleSend" class="px-6 h-12">发送</el-button>
             </div>
           </div>
-
-          <div class="input-row">
-            <!-- 加号按钮 -->
-            <div class="input-actions">
-              <button class="add-button" @click="toggleActionMenu" :class="{ active: showActionMenu }" title="更多操作">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-              </button>
-
-              <!-- 操作菜单 -->
-              <div v-if="showActionMenu" class="action-menu" @click.stop>
-                <button class="action-menu-item" @click="triggerImageUpload">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <polyline points="21,15 16,10 5,21"></polyline>
-                  </svg>
-                  上传图片
-                </button>
-              </div>
-            </div>
-
-            <input v-model="inputMessage" type="text" :placeholder="inputPlaceholder" @keyup.enter="sendMessage"
-              :disabled="!canInputMessage" ref="messageInput" @paste="handlePaste" @focus="handleInputFocus" />
-            <button @click="sendMessage" :disabled="!canSendMessage" :class="{ 'is-sending': isSending }">
-              {{ isSending ? '发送中...' : '发送' }}
-            </button>
-          </div>
-
-          <!-- 隐藏的文件输入 -->
-          <input type="file" ref="fileInput" @change="handleFileSelect" accept="image/*" multiple
-            style="display: none;" />
-        </div>
-      </div>
-    </div>
+        </template>
+        <el-empty v-else description="请选择频道开始对话" class="h-full flex items-center justify-center" />
+      </el-main>
+    </el-container>
 
     <!-- 右键菜单 -->
-    <div v-if="contextMenu.show" class="context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-      @click.stop>
-      <!-- 机器人右键菜单 -->
-      <template v-if="contextMenu.type === 'bot'">
-        <div class="context-menu-item" @click="toggleBotPin(contextMenu.targetId)">
-          {{ pinnedBots.has(contextMenu.targetId) ? '取消置顶' : '置顶' }}
-        </div>
-        <div class="context-menu-item danger" @click="deleteBotMessages(contextMenu.targetId)">
-          彻底删除此机器人所有数据
-        </div>
-      </template>
-
-      <!-- 频道右键菜单 -->
-      <template v-if="contextMenu.type === 'channel'">
-        <div class="context-menu-item" @click="toggleChannelPin(contextMenu.targetId)">
-          {{ pinnedChannels.has(`${selectedBot}:${contextMenu.targetId}`) ? '取消置顶' : '置顶' }}
-        </div>
-        <div class="context-menu-item danger" @click="deleteChannelMessages(contextMenu.targetId)">
-          彻底删除此频道所有数据
-        </div>
-      </template>
-
-      <!-- 消息右键菜单 -->
-      <template v-if="contextMenu.type === 'message' && contextMenu.message">
-        <div class="context-menu-item" @click="handlePlusOne(contextMenu.message)">
-          +1
-        </div>
-        <div class="context-menu-item" @click="handleCopyMessage(contextMenu.message)">
-          复制
-        </div>
-        <div class="context-menu-item" @click="handleReplyMessage(contextMenu.message)">
-          回复
-        </div>
-      </template>
-    </div>
-
-    <!-- 滑动指示器 -->
-    <div class="swipe-indicator" :class="{ show: swipeIndicator.show }">
-      {{ swipeIndicator.text }}
+    <div v-if="menu.show"
+      class="fixed bg-[var(--k-card-bg)] border border-[var(--k-border-color)] shadow-lg z-[2000] py-1 rounded min-w-[120px]"
+      :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
+      <div class="px-4 py-2 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)]"
+        @click="handleMenuAction('pin')">{{
+          menu.isPinned ? '取消置顶' : '置顶' }}</div>
+      <div class="px-4 py-2 cursor-pointer text-sm text-red-500 hover:bg-[var(--k-button-hover-bg)]"
+        @click="handleMenuAction('delete')">删除数据</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, h, defineComponent, onMounted } from 'vue'
+import { StarFilled, Picture, CircleCloseFilled, ArrowLeft } from '@element-plus/icons-vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import { send } from '@koishijs/client'
 import { useChatLogic } from './chat-logic'
 
-const chatLogic = useChatLogic()
-
-// 解构
 const {
-  // 组件
-  AvatarComponent,
-  ImageComponent,
-  JsonCardComponent,
-  ForwardMessageComponent,
-  MessageElement,
+  bots, selectedBot, selectedChannel, currentChannels, currentMessages, currentChannelName,
+  inputText, uploadedImages, isSending, pinnedBots, pinnedChannels, scrollRef,
+  isMobile, mobileView, goBack,
+  selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
+  getCachedImageUrl, cacheImage
+} = useChatLogic()
 
-  // 响应式数据
-  chatData,
-  channelMessageCounts,
-  pluginConfig,
-  selectedBot,
-  selectedChannel,
-  inputMessage,
-  imageBlobUrls,
-  pinnedBots,
-  pinnedChannels,
-  uploadedImages,
-  showActionMenu,
-  isMobile,
-  mobileView,
-  touchStart,
-  touchCurrent,
-  isSwipeActive,
-  swipeIndicator,
-  messageHistory,
-  messageInput,
-  showScrollButton,
-  isUserScrolling,
-  isSending,
-  isLoadingMore,
-  draggingChannel,
-  dragStartPos,
-  dragCurrentPos,
-  dragElementInitialPos,
-  dragOffset,
-  dragThreshold,
-  isDragReady,
-  draggedBubbleElement,
-  contextMenu,
-  fileInput,
+const formatTime = (ts: number) => new Date(ts).toLocaleTimeString()
 
-  // 计算属性
-  bots,
-  currentChannels,
-  currentMessages,
-  currentChannelName,
-  currentChannelKey,
-  canSendMessage,
-  canInputMessage,
-  mobileViewClass,
-  inputPlaceholder,
-  chatContainerStyle,
+// 消息渲染组件
+const RenderElement = defineComponent({
+  props: ['element', 'botId', 'channelId'],
+  setup(props) {
+    const imgUrl = ref('')
+    const isMedia = ['img', 'image', 'mface', 'audio', 'video'].includes(props.element.type)
 
-  // 方法
-  selectBot,
-  selectChannel,
-  handleBotRightClick,
-  handleChannelRightClick,
-  showContextMenu,
-  hideContextMenu,
-  handleKeyDown,
-  toggleBotPin,
-  toggleChannelPin,
-  deleteBotMessages,
-  deleteChannelMessages,
-  sendMessage,
-  toggleActionMenu,
-  triggerImageUpload,
-  handleFileSelect,
-  handlePaste,
-  uploadImage,
-  removeImage,
-  fileToBase64,
-  handleClickOutside,
-  formatTime,
-  getChannelTypeText,
-  scrollToBottom,
-  checkScrollPosition,
-  isNearBottom,
-  getChannelMessageCount,
-  startDrag,
-  handleDragMove,
-  handleDragEnd,
-  resetDragState,
-  getDragStyle,
-  getDragDistance,
-  clearChannelHistory,
-  showNotification,
-  createThresholdCircle,
-  removeThresholdCircle,
-  handleTouchStart,
-  handleTouchMove,
-  handleTouchEnd,
-  handleInputFocus,
+    if (isMedia) {
+      const url = props.element.attrs.src || props.element.attrs.url || props.element.attrs.file
+      if (url) {
+        getCachedImageUrl(`${props.botId}:${props.channelId}`, url).then(res => {
+          if (res) imgUrl.value = res
+          else cacheImage(`${props.botId}:${props.channelId}`, url).then(r => imgUrl.value = r || url)
+        })
+      }
+    }
 
-  // 消息右键菜单处理函数
-  handleMessageRightClick,
-  handlePlusOne,
-  handleCopyMessage,
-  handleReplyMessage,
+    return () => {
+      const { element } = props
+      const type = element.type
+      const attrs = element.attrs
 
-  // 图片缓存相关
-  getCachedImageUrl,
-  cacheImage,
-  clearChannelImageCache,
-  getMemoryStats,
-  getCacheStats,
+      if (type === 'text') return h('span', attrs.content)
+      if (type === 'img' || type === 'image' || type === 'mface') {
+        return h('el-image', {
+          src: imgUrl.value,
+          previewSrcList: [imgUrl.value],
+          class: 'max-w-[200px] block rounded my-1',
+          previewTeleported: true
+        })
+      }
+      if (type === 'audio') {
+        return h('audio', { src: imgUrl.value, controls: true, class: 'max-w-full my-1' })
+      }
+      if (type === 'video') {
+        return h('video', { src: imgUrl.value, controls: true, class: 'max-w-full my-1 rounded' })
+      }
+      if (type === 'at') return h('span', { class: 'text-blue-500 font-bold' }, `@${attrs.name || attrs.id}`)
+      if (type === 'quote') return null
 
-  // 其他工具函数
-  isFileUrl,
-  loadHistoryMessages,
-  handleMessageEvent,
-  handleBotMessageSentEvent,
-  parseInlineQuote,
-  getInlineQuoteMessage,
-  getQuoteUser,
-  getQuoteTimestamp,
-  getQuoteContent,
-  getQuoteElements,
-  getMessageContentWithoutQuote
-} = chatLogic
+      return h('span', { class: 'text-gray-400 italic' }, `[${type}]`)
+    }
+  }
+})
+
+const handleFileChange = async (file: any) => {
+  const reader = new FileReader()
+  reader.onload = async (e) => {
+    const base64 = e.target?.result as string
+    const res = await (send as any)('upload-image', {
+      file: base64,
+      filename: file.name,
+      mimeType: file.raw.type
+    })
+    if (res.success) {
+      uploadedImages.value.push({
+        tempId: res.tempId,
+        preview: URL.createObjectURL(file.raw),
+        filename: file.name
+      })
+    }
+  }
+  reader.readAsDataURL(file.raw)
+}
+
+const removeImage = (id: string) => {
+  uploadedImages.value = uploadedImages.value.filter(i => i.tempId !== id)
+}
+
+const menu = ref({ show: false, x: 0, y: 0, type: '', id: '', isPinned: false })
+const onBotMenu = (e: MouseEvent, bot: any) => {
+  menu.value = { show: true, x: e.clientX, y: e.clientY, type: 'bot', id: bot.selfId, isPinned: pinnedBots.value.has(bot.selfId) }
+}
+const onChannelMenu = (e: MouseEvent, channel: any) => {
+  menu.value = { show: true, x: e.clientX, y: e.clientY, type: 'channel', id: channel.id, isPinned: pinnedChannels.value.has(`${selectedBot.value}:${channel.id}`) }
+}
+const handleMenuAction = async (action: string) => {
+  menu.value.show = false
+  if (action === 'pin') {
+    if (menu.value.type === 'bot') await togglePinBot(menu.value.id, menu.value.isPinned, pinnedBots.value)
+    else await togglePinChannel(selectedBot.value, menu.value.id, menu.value.isPinned, pinnedChannels.value)
+  } else if (action === 'delete') {
+    await ElMessageBox.confirm('确定删除所有数据吗？', '警告', { type: 'warning' })
+    if (menu.value.type === 'bot') await deleteBotData(menu.value.id)
+    else await deleteChannelData(selectedBot.value, menu.value.id)
+    location.reload()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('click', () => menu.value.show = false)
+})
 </script>

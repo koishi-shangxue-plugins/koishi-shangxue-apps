@@ -1,3 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --chat-bg: var(--k-page-bg);
+  --chat-panel-bg: var(--k-card-bg);
+  --chat-border: var(--k-border-color);
+  --chat-text: var(--k-text-color);
+  --chat-text-sub: var(--k-text-color-secondary);
+}
+
+.chat-patch-wrapper {
+  color: var(--chat-text);
+  background-color: var(--chat-bg);
+  
+  .el-aside, .el-main, .el-header, .el-footer {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+
+  .el-scrollbar {
+    background-color: transparent !important;
+  }
+
+  .el-input__wrapper, .el-textarea__inner {
+    background-color: var(--k-input-bg) !important;
+    color: var(--chat-text) !important;
+    box-shadow: 0 0 0 1px var(--chat-border) inset !important;
+  }
+
+  .el-empty {
+    background-color: transparent !important;
+  }
+}
+
 .layout-iframe {
     width: 100%;
     height: 100%;

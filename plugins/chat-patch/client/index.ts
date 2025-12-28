@@ -2,6 +2,7 @@
 import { defineComponent, h, resolveComponent } from 'vue'
 import { Context } from '@koishijs/client'
 import Chat from './vue/index.vue'
+import 'element-plus/dist/index.css'
 import './index.scss'
 import './icons'
 

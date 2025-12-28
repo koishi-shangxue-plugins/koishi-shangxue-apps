@@ -35,6 +35,13 @@
   },
   "devDependencies": {
     "@koishijs/client": "^5.11.0",
-    "koishi": "^4.16.0"
+    "autoprefixer": "^10.4.23",
+    "koishi": "^4.16.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "element-plus": "^2.7.7"
   }
 }
