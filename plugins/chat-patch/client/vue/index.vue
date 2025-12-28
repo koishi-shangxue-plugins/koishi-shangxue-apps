@@ -55,7 +55,8 @@
       </el-aside>
 
       <!-- 消息主区域 -->
-      <el-main v-if="!isMobile || mobileView === 'messages'" class="flex flex-col p-0 bg-[var(--k-page-bg)] relative">
+      <el-main v-if="(!isMobile && selectedBot && selectedChannel) || (isMobile && mobileView === 'messages')"
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative">
         <template v-if="selectedBot && selectedChannel">
           <div
             class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm z-10 text-[var(--k-text-color)]">
@@ -136,18 +137,46 @@
         </template>
         <el-empty v-else description="请选择频道开始对话" class="h-full flex items-center justify-center opacity-60" />
       </el-main>
+
+      <!-- 合并转发详情页 (手机端全屏) -->
+      <el-main v-if="isMobile && mobileView === 'forward'"
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-50">
+        <div
+          class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
+          <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
+          <span>聊天记录</span>
+        </div>
+        <el-scrollbar class="flex-1 bg-gray-50 dark:bg-black/10">
+          <div class="p-4 space-y-6">
+            <div v-for="(msg, idx) in forwardData.messages" :key="idx" class="flex gap-3">
+              <el-avatar :size="36" :src="msg.attrs?.avatar" class="flex-shrink-0 shadow-sm">{{ msg.attrs?.nickname?.[0]
+                }}</el-avatar>
+              <div class="flex-1 overflow-hidden">
+                <div class="text-xs text-[var(--k-text-color-secondary)] mb-1 font-bold">{{ msg.attrs?.nickname }}</div>
+                <div
+                  class="p-3 bg-[var(--k-card-bg)] rounded-2xl rounded-tl-none shadow-sm text-sm break-all border border-[var(--k-border-color)]">
+                  <render-element v-for="(el, i) in msg.children" :key="i" :element="el" :bot-id="selectedBot"
+                    :channel-id="selectedChannel" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </el-scrollbar>
+      </el-main>
     </el-container>
 
-    <!-- 合并转发详情弹窗 -->
-    <el-dialog v-model="forwardDialog.show" title="聊天记录" width="500px" class="forward-dialog" teleported>
-      <el-scrollbar max-height="60vh">
-        <div class="p-4 space-y-6">
-          <div v-for="(msg, idx) in forwardDialog.messages" :key="idx" class="flex gap-3">
-            <el-avatar :size="32" :src="msg.attrs?.avatar" class="flex-shrink-0">{{ msg.attrs?.nickname?.[0]
+    <!-- 合并转发详情弹窗 (桌面端) -->
+    <el-dialog v-if="!isMobile" v-model="forwardDialogShow" title="聊天记录" width="550px" class="forward-dialog"
+      teleported>
+      <el-scrollbar max-height="70vh">
+        <div class="p-6 space-y-6 bg-gray-50 dark:bg-black/10">
+          <div v-for="(msg, idx) in forwardData.messages" :key="idx" class="flex gap-3">
+            <el-avatar :size="36" :src="msg.attrs?.avatar" class="flex-shrink-0 shadow-sm">{{ msg.attrs?.nickname?.[0]
               }}</el-avatar>
             <div class="flex-1 overflow-hidden">
-              <div class="text-xs text-gray-500 mb-1 font-bold">{{ msg.attrs?.nickname }}</div>
-              <div class="p-2.5 bg-gray-100 dark:bg-white/5 rounded-lg text-sm break-all">
+              <div class="text-xs text-[var(--k-text-color-secondary)] mb-1 font-bold">{{ msg.attrs?.nickname }}</div>
+              <div
+                class="p-3 bg-[var(--k-card-bg)] rounded-2xl rounded-tl-none shadow-sm text-sm break-all border border-[var(--k-border-color)]">
                 <render-element v-for="(el, i) in msg.children" :key="i" :element="el" :bot-id="selectedBot"
                   :channel-id="selectedChannel" />
               </div>
@@ -155,6 +184,15 @@
           </div>
         </div>
       </el-scrollbar>
+    </el-dialog>
+
+    <!-- 图片查看器弹窗 -->
+    <el-dialog v-model="imageViewer.show" title="查看图片" width="fit-content" class="image-viewer-dialog" teleported
+      center>
+      <div class="flex flex-col items-center gap-4">
+        <img :src="imageViewer.url" class="max-w-full max-h-[70vh] rounded shadow-lg" />
+        <el-button type="primary" icon="Download" @click="downloadImage(imageViewer.url)">下载图片</el-button>
+      </div>
     </el-dialog>
 
     <!-- 右键菜单 -->
@@ -180,8 +218,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, defineComponent, onMounted, reactive, watch } from 'vue'
-import { StarFilled, Star, Picture, CircleCloseFilled, ArrowLeft, Delete, Collection } from '@element-plus/icons-vue'
+import { ref, h, defineComponent, onMounted, reactive, watch, computed } from 'vue'
+import { StarFilled, Star, Picture, CircleCloseFilled, ArrowLeft, Delete, Collection, Download } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { send } from '@koishijs/client'
 import { useChatLogic } from './chat-logic'
@@ -189,23 +227,17 @@ import { useChatLogic } from './chat-logic'
 const {
   bots, selectedBot, selectedChannel, currentChannels, currentMessages, currentChannelName,
   inputText, uploadedImages, isSending, pinnedBots, pinnedChannels, scrollRef,
-  isMobile, mobileView, goBack,
+  isMobile, mobileView, goBack, forwardData, imageViewer,
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
-  getCachedImageUrl, cacheImage
+  getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage
 } = useChatLogic()
 
 const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
-// 合并转发弹窗状态
-const forwardDialog = reactive({
-  show: false,
-  messages: [] as any[]
+const forwardDialogShow = computed({
+  get: () => !isMobile.value && mobileView.value === 'forward',
+  set: (val) => { if (!val) goBack() }
 })
-
-const showForwardDetail = (elements: any[]) => {
-  forwardDialog.messages = elements.filter(e => e.type === 'message')
-  forwardDialog.show = true
-}
 
 // 消息渲染组件
 const RenderElement = defineComponent({
@@ -230,24 +262,24 @@ const RenderElement = defineComponent({
     watch(() => props.element.attrs.src || props.element.attrs.url || props.element.attrs.file, loadMedia)
 
     return () => {
-      const { element } = props
+      const { element, botId, channelId } = props
       const type = element.type
       const attrs = element.attrs
 
       if (type === 'text') return h('span', attrs.content)
       if (type === 'img' || type === 'image' || type === 'mface') {
-        // 关键修复：使用原生 img 标签，因为 el-image 在某些环境下可能因为尺寸计算问题不显示
+        const isMface = type === 'mface'
         return h('div', { class: 'inline-block my-1.5' }, [
           h('img', {
             src: imgUrl.value,
-            class: 'max-w-[280px] max-h-[400px] rounded-lg shadow-sm border border-black/5 block cursor-pointer',
-            style: 'min-width: 50px; min-height: 50px; object-fit: contain; background: rgba(0,0,0,0.05)',
-            onClick: () => {
-              // 模拟预览效果
-              window.open(imgUrl.value, '_blank')
+            class: ['rounded-lg shadow-sm border border-black/5 block cursor-pointer hover:opacity-90 transition-opacity', isMface ? 'max-w-[100px] max-h-[100px]' : 'max-w-[280px] max-h-[400px]'],
+            style: `min-width: ${isMface ? '30px' : '50px'}; min-height: ${isMface ? '30px' : '50px'}; object-fit: contain; background: rgba(0,0,0,0.05)`,
+            onClick: (e: Event) => {
+              e.stopPropagation()
+              openImageViewer(imgUrl.value)
             },
             onError: (e: any) => {
-              e.target.src = '' // 防止死循环
+              e.target.src = ''
               e.target.alt = '图片加载失败'
             }
           })
@@ -261,11 +293,20 @@ const RenderElement = defineComponent({
       }
       if (type === 'at') return h('span', { class: 'text-blue-500 font-bold hover:underline cursor-default mx-0.5' }, `@${attrs.name || attrs.id}`)
 
+      // 处理 p 元素和 i18n
+      if (type === 'p') {
+        return h('div', { class: 'my-1' }, (element.children || []).map((child: any, i: number) => h(RenderElement, { key: i, element: child, botId, channelId })))
+      }
+      if (type === 'i18n') {
+        return h('span', { class: 'opacity-80 italic' }, `[${attrs.path || 'i18n'}]`)
+      }
+
       // 合并转发渲染
       if (type === 'figure' || type === 'forward') {
+        // 注释：合并转发详情中的图片可能无法显示，因为后端可能未持久化转发内容的媒体资源
         return h('div', {
           class: 'my-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-black/10 dark:border-white/10 max-w-[300px] cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors',
-          onClick: (e: Event) => { e.stopPropagation(); showForwardDetail(element.children || []) }
+          onClick: (e: Event) => { e.stopPropagation(); showForward(element.children || []) }
         }, [
           h('div', { class: 'flex items-center gap-2 mb-2 font-bold text-sm opacity-80' }, [
             h('el-icon', null, { default: () => h(Collection) }),
@@ -357,5 +398,9 @@ onMounted(() => {
 
 .forward-dialog .el-dialog__body {
   padding: 0;
+}
+
+.image-viewer-dialog .el-dialog__header {
+  padding-bottom: 10px;
 }
 </style>

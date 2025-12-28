@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, computed, onMounted, nextTick, onUnmounted, reactive } from 'vue'
 import { receive } from '@koishijs/client'
 import { useChatData } from './composables/useChatData'
 import { useChatActions } from './composables/useChatActions'
@@ -25,7 +25,18 @@ export function useChatLogic() {
   const uploadedImages = ref<any[]>([])
   const scrollRef = ref<any>(null)
   const isMobile = ref(false)
-  const mobileView = ref<'bots' | 'channels' | 'messages'>('bots')
+  const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward'>('bots')
+
+  // 合并转发详情状态
+  const forwardData = reactive({
+    messages: [] as any[]
+  })
+
+  // 图片查看器状态
+  const imageViewer = reactive({
+    show: false,
+    url: ''
+  })
 
   // 计算属性
   const currentChannels = computed(() => getChannels(selectedBot.value))
@@ -50,8 +61,26 @@ export function useChatLogic() {
   }
 
   const goBack = () => {
-    if (mobileView.value === 'messages') mobileView.value = 'channels'
+    if (mobileView.value === 'forward') mobileView.value = 'messages'
+    else if (mobileView.value === 'messages') mobileView.value = 'channels'
     else if (mobileView.value === 'channels') mobileView.value = 'bots'
+  }
+
+  const showForward = (elements: any[]) => {
+    forwardData.messages = elements.filter(e => e.type === 'message')
+    mobileView.value = 'forward'
+  }
+
+  const openImageViewer = (url: string) => {
+    imageViewer.url = url
+    imageViewer.show = true
+  }
+
+  const downloadImage = (url: string) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `chat-image-${Date.now()}.png`
+    a.click()
   }
 
   const scrollToBottom = () => {
@@ -126,6 +155,8 @@ export function useChatLogic() {
     scrollRef,
     isMobile,
     mobileView,
+    forwardData,
+    imageViewer,
 
     // 方法
     selectBot,
@@ -138,6 +169,9 @@ export function useChatLogic() {
     getCachedImageUrl,
     cacheImage,
     getMessages,
-    goBack
+    goBack,
+    showForward,
+    openImageViewer,
+    downloadImage
   }
 }
