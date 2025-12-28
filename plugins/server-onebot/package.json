@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-server-onebot",
   "description": "OneBot v11 服务器",
-  "version": "1.4.16",
+  "version": "1.4.17",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

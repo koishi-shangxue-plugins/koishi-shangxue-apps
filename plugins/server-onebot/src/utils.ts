@@ -276,8 +276,32 @@ export async function oneBotMessageToElements(message: string | OneBotMessage[],
         return [h.text(message)]
     }
 
-    const elements: h[] = []
+    // 检查是否包含 node 类型（合并转发消息）
+    const hasForwardNodes = message.some(seg => seg.type === 'node')
+    
+    if (hasForwardNodes) {
+        // 如果包含合并转发节点，创建 figure 元素包装所有 message
+        const messageElements: h[] = []
+        
+        for (const segment of message) {
+            if (segment.type === 'node') {
+                const nodeElements = await processForwardNode(segment, ctx)
+                messageElements.push(...nodeElements)
+            } else {
+                // 非 node 类型的消息段也转换后添加
+                const element = await segmentToElement(segment, ctx)
+                if (element) {
+                    messageElements.push(element)
+                }
+            }
+        }
+        
+        // 使用 figure 元素包装所有消息，实现合并转发效果
+        return [h('figure', messageElements)]
+    }
 
+    // 普通消息处理
+    const elements: h[] = []
     for (const segment of message) {
         const element = await segmentToElement(segment, ctx)
         if (element) {
@@ -286,6 +310,53 @@ export async function oneBotMessageToElements(message: string | OneBotMessage[],
     }
 
     return elements
+}
+
+/**
+ * 处理合并转发消息的 node 节点
+ * OneBot v11 合并转发格式：
+ * { type: 'node', data: { name: '发送者', uin: '10001', content: [...] } }
+ * 或者
+ * { type: 'node', data: { id: '消息ID' } }
+ */
+async function processForwardNode(segment: OneBotMessage, ctx: any): Promise<h[]> {
+    const nodeData = segment.data
+
+    if (!nodeData) {
+        return []
+    }
+
+    // 如果有 content，创建 message 元素
+    if (nodeData.content) {
+        // 递归转换消息内容
+        const contentElements = await oneBotMessageToElements(nodeData.content, ctx)
+        
+        // 构建 message 元素的属性
+        const attrs: Record<string, any> = {}
+        
+        // 添加用户ID（如果有）
+        if (nodeData.uin || nodeData.user_id) {
+            const userId = nodeData.uin || nodeData.user_id
+            // 尝试解码用户ID
+            const decodedUserId = await decodeStringId(userId, ctx)
+            attrs.userId = decodedUserId || userId
+        }
+        
+        // 添加昵称（如果有）
+        if (nodeData.name || nodeData.nickname) {
+            attrs.nickname = nodeData.name || nodeData.nickname
+        }
+        
+        // 创建 message 元素
+        return [h('message', attrs, contentElements)]
+    }
+    // 如果只有 id，表示引用已有消息（暂不支持，记录日志）
+    else if (nodeData.id) {
+        logInfo('Forward node with message id is not fully supported: %s', nodeData.id)
+        return [h.text(`[转发消息 ID: ${nodeData.id}]`)]
+    }
+
+    return []
 }
 
 /**
