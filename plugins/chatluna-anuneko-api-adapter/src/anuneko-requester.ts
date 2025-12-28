@@ -7,7 +7,7 @@ import {
   ClientConfig,
   ClientConfigPool
 } from 'koishi-plugin-chatluna/llm-core/platform/config'
-import { Config, logger } from './index'
+import { Config, logger, sessionManager } from './index'
 import { logInfo } from './logger'
 import { ChatLunaPlugin } from 'koishi-plugin-chatluna/services/chat'
 import { Context } from 'koishi'
@@ -82,6 +82,54 @@ export class AnunekoRequester extends ModelRequester {
     return null
   }
 
+  // 根据配置获取或创建会话
+  private async getOrCreateSession(
+    modelName: string,
+    conversationId: string
+  ): Promise<string | null> {
+    if (!sessionManager) {
+      logInfo('Session manager not initialized, creating new session')
+      return await this.createNewSession(modelName)
+    }
+
+    const mode = this._pluginConfig.sessionMode
+
+    // 根据模式确定会话键
+    let sessionKey: string
+    switch (mode) {
+      case 'shared':
+        // 所有用户共享同一个会话
+        sessionKey = `shared-${modelName}`
+        break
+      case 'per-user':
+        // 根据 conversationId 区分会话
+        sessionKey = `user-${conversationId}-${modelName}`
+        break
+      case 'always-new':
+        // 每次都创建新会话
+        logInfo('Mode: always-new, creating new session')
+        return await this.createNewSession(modelName)
+      default:
+        sessionKey = `user-${conversationId}-${modelName}`
+    }
+
+    // 尝试获取已存在的会话
+    const existingSession = sessionManager.getSession(sessionKey)
+    if (existingSession) {
+      logInfo('Using existing session:', existingSession, 'for key:', sessionKey)
+      return existingSession
+    }
+
+    // 创建新会话并保存
+    const newSession = await this.createNewSession(modelName)
+    if (newSession) {
+      sessionManager.setSession(sessionKey, newSession, modelName)
+      logInfo('Created and saved new session:', newSession, 'for key:', sessionKey)
+    }
+
+    return newSession
+  }
+
   // 自动选择分支
   private async sendChoice(msgId: string): Promise<void> {
     const headers = this.buildHeaders()
@@ -127,10 +175,14 @@ export class AnunekoRequester extends ModelRequester {
       modelName = 'Exotic Shorthair'
     }
 
-    // 每次请求都创建新会话
-    const sessionId = await this.createNewSession(modelName)
+    // 从 params.id 获取 conversationId（这是 chatluna 提供的会话 ID）
+    const conversationId = params.id || 'default'
+    logInfo('Conversation ID from chatluna:', conversationId)
+
+    // 根据配置获取或创建会话
+    const sessionId = await this.getOrCreateSession(modelName, conversationId)
     if (!sessionId) {
-      const errorText = '创建会话失败，请稍后再试。'
+      const errorText = '获取会话失败，请稍后再试。'
       yield new ChatGenerationChunk({
         text: errorText,
         message: new AIMessageChunk({ content: errorText })

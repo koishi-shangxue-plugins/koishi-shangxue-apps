@@ -7,9 +7,12 @@ import {
 import { createLogger } from 'koishi-plugin-chatluna/utils/logger'
 import { AnunekoClient } from './anuneko-client'
 import { initializeLogger, logInfo } from './logger'
+import { SessionManager } from './session-manager'
+import { join } from 'node:path'
 
 export let logger: Logger
 export let anunekoClient: any = null
+export let sessionManager: SessionManager | null = null
 export const reusable = false
 export const usage = `
 <p><strong>零成本、快速体验Chatluna</strong>。</p>
@@ -33,6 +36,22 @@ x-token 获取方法见仓库文件 https://github.com/koishi-shangxue-plugins/k
 export function apply(ctx: Context, config: Config) {
   logger = createLogger(ctx, 'chatluna-anuneko-api-adapter')
   initializeLogger(logger, config)
+
+  // 初始化会话管理器
+  const dataDir = join(ctx.baseDir, 'data', 'chatluna-anuneko-api-adapter')
+  sessionManager = new SessionManager(ctx, dataDir)
+  
+  // 定期清理过期会话（每小时执行一次）
+  const cleanupInterval = setInterval(() => {
+    sessionManager?.cleanExpiredSessions()
+  }, 60 * 60 * 1000)
+
+  // 在插件卸载时清理
+  ctx.on('dispose', () => {
+    clearInterval(cleanupInterval)
+    sessionManager?.dispose()
+    sessionManager = null
+  })
 
   // 测试命令
   ctx.command('anuneko <message:text>', '测试 anuneko API')
@@ -184,6 +203,43 @@ export function apply(ctx: Context, config: Config) {
 • chatluna room list - 查看所有房间`
     })
 
+  // 会话管理命令
+  ctx.command('anuneko-session', '管理 Anuneko 会话')
+    .action(async () => {
+      return `Anuneko 会话管理命令：
+• anuneko-session.clear - 清空所有会话
+• anuneko-session.cleanup - 清理过期会话（24小时未使用）
+• anuneko-session.mode - 查看当前会话模式`
+    })
+
+  ctx.command('anuneko-session.clear', '清空所有 Anuneko 会话')
+    .action(async () => {
+      if (!sessionManager) {
+        return '❌ 会话管理器未初始化'
+      }
+      sessionManager.clearAll()
+      return '✅ 已清空所有 Anuneko 会话'
+    })
+
+  ctx.command('anuneko-session.cleanup', '清理过期的 Anuneko 会话')
+    .action(async () => {
+      if (!sessionManager) {
+        return '❌ 会话管理器未初始化'
+      }
+      sessionManager.cleanExpiredSessions()
+      return '✅ 已清理过期会话'
+    })
+
+  ctx.command('anuneko-session.mode', '查看当前会话模式')
+    .action(async () => {
+      const modeText = {
+        'shared': '所有用户共享同一个会话',
+        'per-user': '根据用户 ID 区分会话',
+        'always-new': '每次对话都新建会话'
+      }
+      return `当前会话模式：${modeText[config.sessionMode] || config.sessionMode}`
+    })
+
   ctx.on('ready', async () => {
     if (config.platform == null || config.platform.length < 1) {
       throw new ChatLunaError(
@@ -229,6 +285,7 @@ export interface Config extends ChatLunaPlugin.Config {
   cookie?: string
   loggerinfo: boolean
   requestTimeout: number
+  sessionMode: 'shared' | 'per-user' | 'always-new'
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -241,6 +298,13 @@ export const Config: Schema<Config> = Schema.intersect([
     cookie: Schema.string()
       .role('textarea', { rows: [2, 4] })
       .description('anuneko API 的 Cookie（可选）'),
+    sessionMode: Schema.union([
+      Schema.const('shared').description('所有用户共享同一个会话'),
+      Schema.const('per-user').description('根据用户 ID 区分会话'),
+      Schema.const('always-new').description('每次对话都新建会话')
+    ])
+      .default('per-user')
+      .description('会话管理模式'),
     loggerinfo: Schema.boolean()
       .default(false)
       .description('日志调试模式')

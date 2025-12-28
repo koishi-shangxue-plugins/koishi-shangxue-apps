@@ -1,4 +1,6 @@
 platform: Platform name
 xToken: x-token for anuneko API
 cookie: Cookie for anuneko API (optional)
+sessionMode: Session management mode
 loggerinfo: Logger debug mode
+requestTimeout: Request timeout

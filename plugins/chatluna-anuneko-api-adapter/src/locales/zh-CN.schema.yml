@@ -1,4 +1,6 @@
 platform: 平台名称
 xToken: anuneko API 的 x-token
 cookie: anuneko API 的 Cookie（可选）
+sessionMode: 会话管理模式
 loggerinfo: 日志调试模式
+requestTimeout: 请求超时时间
