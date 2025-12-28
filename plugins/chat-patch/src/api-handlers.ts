@@ -553,11 +553,13 @@ export class ApiHandlers {
   // 处理本地文件请求
   private async handleLocalFileRequest(fileUrl: string) {
     try {
-      const fileresponse = await this.ctx.http.file(fileUrl)
+      // 修复 Windows 路径编码问题：解码 URL 中的百分号编码
+      const decodedUrl = decodeURIComponent(fileUrl)
+      const fileresponse = await this.ctx.http.file(decodedUrl)
       const fileresponsebase64 = Buffer.from(fileresponse.data).toString('base64')
       let contentType = fileresponse.type
 
-      this.logInfo('成功读取本地文件:', { fileUrl, contentType })
+      this.logInfo('成功读取本地文件:', { fileUrl, decodedUrl, contentType })
 
       return {
         success: true,
