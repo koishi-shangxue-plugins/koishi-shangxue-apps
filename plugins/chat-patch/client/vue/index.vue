@@ -4,7 +4,7 @@
     <el-container class="h-full w-full">
       <!-- 机器人列表 -->
       <el-aside v-if="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '280px'"
-        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-card-bg)]">
+        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-95 dark:brightness-90">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)]">
           机器人</div>
@@ -32,7 +32,7 @@
       <!-- 频道列表 -->
       <el-aside v-if="(!isMobile && selectedBot) || (isMobile && mobileView === 'channels')"
         :width="isMobile ? '100%' : '260px'"
-        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-card-bg)]">
+        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-100 dark:brightness-95">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)]">
           <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
@@ -56,7 +56,7 @@
 
       <!-- 消息主区域 -->
       <el-main v-if="(!isMobile && selectedBot && selectedChannel) || (isMobile && mobileView === 'messages')"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100">
         <template v-if="selectedBot && selectedChannel">
           <div
             class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm z-10 text-[var(--k-text-color)]">
@@ -163,6 +163,20 @@
           </div>
         </el-scrollbar>
       </el-main>
+
+      <!-- 图片查看器 (手机端全屏) -->
+      <el-main v-if="isMobile && mobileView === 'image'" class="flex flex-col p-0 bg-black absolute inset-0 z-[60]">
+        <div class="flex h-14 items-center px-4 font-bold border-b border-white/10 bg-black text-white shadow-sm">
+          <el-button icon="ArrowLeft" circle size="small" class="mr-3 !bg-white/10 !border-none !text-white"
+            @click="goBack" />
+          <span>查看图片</span>
+          <div class="flex-1"></div>
+          <el-button type="primary" icon="Download" size="small" @click="downloadImage(imageViewer.url)">下载</el-button>
+        </div>
+        <div class="flex-1 flex items-center justify-center p-4">
+          <img :src="imageViewer.url" class="max-w-full max-h-full object-contain shadow-2xl" />
+        </div>
+      </el-main>
     </el-container>
 
     <!-- 合并转发详情弹窗 (桌面端) -->
@@ -186,9 +200,9 @@
       </el-scrollbar>
     </el-dialog>
 
-    <!-- 图片查看器弹窗 -->
-    <el-dialog v-model="imageViewer.show" title="查看图片" width="fit-content" class="image-viewer-dialog" teleported
-      center>
+    <!-- 图片查看器弹窗 (桌面端) -->
+    <el-dialog v-if="!isMobile" v-model="imageViewerShow" title="查看图片" width="fit-content" class="image-viewer-dialog"
+      teleported center>
       <div class="flex flex-col items-center gap-4">
         <img :src="imageViewer.url" class="max-w-full max-h-[70vh] rounded shadow-lg" />
         <el-button type="primary" icon="Download" @click="downloadImage(imageViewer.url)">下载图片</el-button>
@@ -236,6 +250,11 @@ const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '
 
 const forwardDialogShow = computed({
   get: () => !isMobile.value && mobileView.value === 'forward',
+  set: (val) => { if (!val) goBack() }
+})
+
+const imageViewerShow = computed({
+  get: () => !isMobile.value && mobileView.value === 'image',
   set: (val) => { if (!val) goBack() }
 })
 
@@ -295,7 +314,7 @@ const RenderElement = defineComponent({
 
       // 处理 p 元素和 i18n
       if (type === 'p') {
-        return h('div', { class: 'my-1' }, (element.children || []).map((child: any, i: number) => h(RenderElement, { key: i, element: child, botId, channelId })))
+        return h('div', { class: 'my-1 block' }, (element.children || []).map((child: any, i: number) => h(RenderElement, { key: i, element: child, botId, channelId })))
       }
       if (type === 'i18n') {
         return h('span', { class: 'opacity-80 italic' }, `[${attrs.path || 'i18n'}]`)
@@ -303,7 +322,6 @@ const RenderElement = defineComponent({
 
       // 合并转发渲染
       if (type === 'figure' || type === 'forward') {
-        // 注释：合并转发详情中的图片可能无法显示，因为后端可能未持久化转发内容的媒体资源
         return h('div', {
           class: 'my-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-black/10 dark:border-white/10 max-w-[300px] cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors',
           onClick: (e: Event) => { e.stopPropagation(); showForward(element.children || []) }

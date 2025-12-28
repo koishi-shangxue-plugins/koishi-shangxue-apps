@@ -25,7 +25,7 @@ export function useChatLogic() {
   const uploadedImages = ref<any[]>([])
   const scrollRef = ref<any>(null)
   const isMobile = ref(false)
-  const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward'>('bots')
+  const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward' | 'image'>('bots')
 
   // 合并转发详情状态
   const forwardData = reactive({
@@ -34,7 +34,6 @@ export function useChatLogic() {
 
   // 图片查看器状态
   const imageViewer = reactive({
-    show: false,
     url: ''
   })
 
@@ -61,7 +60,8 @@ export function useChatLogic() {
   }
 
   const goBack = () => {
-    if (mobileView.value === 'forward') mobileView.value = 'messages'
+    if (mobileView.value === 'image') mobileView.value = 'messages'
+    else if (mobileView.value === 'forward') mobileView.value = 'messages'
     else if (mobileView.value === 'messages') mobileView.value = 'channels'
     else if (mobileView.value === 'channels') mobileView.value = 'bots'
   }
@@ -73,7 +73,7 @@ export function useChatLogic() {
 
   const openImageViewer = (url: string) => {
     imageViewer.url = url
-    imageViewer.show = true
+    mobileView.value = 'image'
   }
 
   const downloadImage = (url: string) => {
