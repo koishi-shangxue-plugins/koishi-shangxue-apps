@@ -219,15 +219,37 @@ export function useChatLogic() {
   const repeatMessage = async (msg: any) => {
     if (!selectedBot.value || !selectedChannel.value) return
 
-    // 复读消息，包含引用
+    // 复读消息内容
     let content = msg.content
+
+    // 处理引用逻辑
     if (msg.quote) {
-      content = `<quote id="${msg.quote.id}"/>${content}`
+      // 如果原消息有引用，保留引用
+      const quoteId = msg.quote.id
+      // 检查引用ID是否为临时ID
+      if (quoteId && !quoteId.startsWith('bot-msg-')) {
+        content = `<quote id="${quoteId}"/>${content}`
+      } else {
+        // 引用ID是临时ID，不添加引用，只发送内容
+        content = msg.content
+      }
     } else if (msg.isBot || msg.userId === selectedBot.value) {
-      // 如果是复读机器人自己的消息，且该消息没有引用，则尝试引用该消息本身
-      const quoteId = msg.realId || msg.id
-      content = `<quote id="${quoteId}"/>${content}`
+      // 如果是复读机器人自己的消息
+      const messageId = msg.realId || msg.id
+
+      // 检查消息ID是否为临时ID（以bot-msg-开头）
+      if (messageId && messageId.startsWith('bot-msg-')) {
+        // 临时ID，不使用引用，直接发送内容
+        content = msg.content
+      } else if (messageId) {
+        // 真实ID，可以使用引用
+        content = `<quote id="${messageId}"/>${content}`
+      } else {
+        // 没有ID，只发送内容
+        content = msg.content
+      }
     }
+
     const res = await sendMessage(selectedBot.value, selectedChannel.value, content, [])
     if (res?.success) {
       scrollToBottom()
@@ -480,7 +502,12 @@ export function useChatLogic() {
     if (window.visualViewport) {
       const viewportHeight = window.visualViewport.height
       const windowHeight = window.innerHeight
-      keyboardHeight.value = Math.max(0, windowHeight - viewportHeight)
+      const calculatedHeight = Math.max(0, windowHeight - viewportHeight)
+
+      // 只有当键盘高度变化超过50px时才更新（避免小幅抖动）
+      if (Math.abs(calculatedHeight - keyboardHeight.value) > 50) {
+        keyboardHeight.value = calculatedHeight
+      }
     } else {
       keyboardHeight.value = 0
     }
@@ -501,6 +528,31 @@ export function useChatLogic() {
       window.visualViewport.addEventListener('scroll', updateKeyboardHeight)
     }
     window.addEventListener('resize', updateKeyboardHeight)
+
+    // 监听输入框聚焦和失焦
+    const handleFocus = () => {
+      // 延迟更新，等待键盘完全弹出
+      setTimeout(updateKeyboardHeight, 300)
+    }
+    const handleBlur = () => {
+      // 延迟更新，等待键盘完全收起
+      setTimeout(() => {
+        keyboardHeight.value = 0
+      }, 100)
+    }
+
+    // 为输入框添加事件监听
+    nextTick(() => {
+      const textarea = inputRef.value?.$el?.querySelector('textarea')
+      if (textarea) {
+        textarea.addEventListener('focus', handleFocus)
+        textarea.addEventListener('blur', handleBlur)
+        dispose.push(() => {
+          textarea.removeEventListener('focus', handleFocus)
+          textarea.removeEventListener('blur', handleBlur)
+        })
+      }
+    })
 
     // 初始化 history state
     if (isMobile.value) {

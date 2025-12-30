@@ -84,10 +84,24 @@ export class MessageHandler {
       data.channels[session.selfId] = {}
     }
 
-    // 构造频道名称 - 直接使用 session.username
-    const finalName = isDirect
-      ? `私聊（${directUserName}）`
-      : (guildName || session.channelId)
+    // 获取现有频道信息
+    const existingChannel = data.channels[session.selfId][session.channelId]
+
+    // 构造频道名称
+    let finalName: string
+    if (isDirect) {
+      // 私聊频道：优先使用真实用户名
+      if (directUserName && directUserName !== session.userId) {
+        finalName = `私聊（${directUserName}）`
+      } else if (existingChannel?.name && !existingChannel.name.includes('未知')) {
+        // 如果已有名称且不是"未知用户"，保持原名称
+        finalName = existingChannel.name
+      } else {
+        finalName = '私聊（未知用户）'
+      }
+    } else {
+      finalName = guildName || session.channelId
+    }
 
     const channelInfo: ChannelInfo = {
       id: session.channelId,
@@ -96,6 +110,15 @@ export class MessageHandler {
       channelId: session.channelId,
       guildName: guildName,
       isDirect: !!isDirect
+    }
+
+    // 记录名称变化
+    if (existingChannel && existingChannel.name !== finalName) {
+      this.logInfo('更新频道名称:', {
+        channelId: session.channelId,
+        oldName: existingChannel.name,
+        newName: finalName
+      })
     }
 
     data.channels[session.selfId][session.channelId] = channelInfo

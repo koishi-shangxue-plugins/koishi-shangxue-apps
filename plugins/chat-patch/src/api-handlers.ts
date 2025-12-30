@@ -528,17 +528,25 @@ export class ApiHandlers {
           const chatData = this.fileManager.readChatDataFromFile()
           let changed = false
 
-          // 1. 如果是私聊，更新频道名
-          // 兼容多种私聊 ID 格式：纯 ID 或 private:ID
+          // 1. 如果是私聊，更新频道名 - 支持多种私聊ID格式
           const botChannels = chatData.channels[data.selfId] || {}
-          const channelId = Object.keys(botChannels).find(id => id === data.userId || id === `private:${data.userId}`)
-          const channel = channelId ? botChannels[channelId] : null
 
-          if (channel && channel.isDirect) {
-            const newName = `私聊（${user.name}）`
-            if (channel.name !== newName) {
-              channel.name = newName
-              changed = true
+          // 查找所有可能的私聊频道ID格式
+          const possibleChannelIds = [
+            data.userId,
+            `private:${data.userId}`,
+            `direct:${data.userId}`
+          ]
+
+          for (const channelId of possibleChannelIds) {
+            const channel = botChannels[channelId]
+            if (channel && channel.isDirect) {
+              const newName = `私聊（${user.name}）`
+              if (channel.name !== newName) {
+                channel.name = newName
+                changed = true
+                this.logInfo('更新私聊频道名称:', { channelId, oldName: channel.name, newName })
+              }
             }
           }
 

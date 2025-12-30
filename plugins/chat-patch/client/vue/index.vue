@@ -1,15 +1,15 @@
 <template>
   <div
     class="chat-patch-wrapper absolute inset-0 flex overflow-hidden bg-[var(--k-page-bg)] text-[var(--k-text-color)] font-sans"
-    style="height: 100%; width: 100%;">
-    <el-container class="h-full w-full">
+    :style="isMobile ? 'height: 100dvh; width: 100vw; position: fixed; top: 0; left: 0;' : 'height: 100%; width: 100%;'">
+    <el-container class="h-full w-full overflow-hidden">
       <!-- 机器人列表 -->
       <el-aside v-show="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '280px'"
-        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-95 dark:brightness-90">
+        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-95 dark:brightness-90 h-full overflow-hidden">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)] flex-shrink-0">
           机器人</div>
-        <el-scrollbar class="flex-1 mobile-scrollbar-fix" :style="{ maxHeight: 'calc(100vh - 56px)' }">
+        <el-scrollbar class="flex-1 overflow-auto">
           <div v-if="bots.length === 0" class="p-10 text-center opacity-40 text-sm">暂无机器人数据</div>
           <div v-for="bot in bots" :key="bot.selfId"
             :class="['flex items-center p-4 cursor-pointer transition-all hover:bg-[var(--k-button-hover-bg)] border-l-4 border-transparent', { '!border-[var(--k-color-primary)] bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedBot === bot.selfId }]"
@@ -34,13 +34,13 @@
       <!-- 频道列表 -->
       <el-aside v-show="(!isMobile && selectedBot) || (isMobile && mobileView === 'channels')"
         :width="isMobile ? '100%' : '260px'"
-        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-100 dark:brightness-95">
+        class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-100 dark:brightness-95 h-full overflow-hidden">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)] flex-shrink-0">
           <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
           频道
         </div>
-        <el-scrollbar class="flex-1 mobile-scrollbar-fix" :style="{ maxHeight: 'calc(100vh - 56px)' }">
+        <el-scrollbar class="flex-1 overflow-auto">
           <div v-if="currentChannels.length === 0" class="p-10 text-center opacity-40 text-sm">暂无频道数据</div>
           <div v-for="channel in currentChannels" :key="channel.id"
             :class="['flex items-center p-4 cursor-pointer transition-all hover:bg-[var(--k-button-hover-bg)] border-l-4 border-transparent', { '!border-[var(--k-color-primary)] bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedChannel === channel.id }]"
@@ -70,8 +70,9 @@
           </div>
 
           <div class="flex-1 overflow-hidden relative bg-opacity-50 bg-gray-100 dark:bg-black/20">
-            <el-scrollbar ref="scrollRef" @scroll="handleScroll">
-              <div class="p-6 flex flex-col min-h-full" :style="isMobile ? { paddingBottom: '200px' } : {}">
+            <el-scrollbar ref="scrollRef" @scroll="handleScroll" class="h-full">
+              <div class="p-6 flex flex-col"
+                :style="isMobile ? { paddingBottom: 'calc(180px + env(safe-area-inset-bottom))' } : { minHeight: '100%' }">
                 <div v-if="isLoadingHistory" class="flex justify-center py-4">
                   <el-icon class="is-loading text-[var(--k-color-primary)]">
                     <Loading />
@@ -146,10 +147,10 @@
 
           <!-- 输入区域 -->
           <div
-            :class="['p-4 border-t border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]', isMobile ? 'fixed left-0 right-0 z-50' : '']"
+            :class="['p-4 border-t border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]', isMobile ? 'fixed left-0 right-0 z-50 transition-all duration-200' : '']"
             :style="isMobile ? {
-              bottom: keyboardHeight > 0 ? keyboardHeight + 'px' : '0',
-              paddingBottom: keyboardHeight > 0 ? '20px' : 'max(env(safe-area-inset-bottom), 20px)'
+              bottom: keyboardHeight > 0 ? `${keyboardHeight}px` : '0',
+              paddingBottom: 'max(env(safe-area-inset-bottom), 16px)'
             } : {}">
             <!-- 图片预览区域 -->
             <div v-if="uploadedImages.length" class="flex gap-3 mb-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -202,7 +203,7 @@
 
       <!-- 合并转发详情页 (手机端全屏) -->
       <el-main v-if="isMobile && mobileView === 'forward'"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-50" style="height: 100dvh;">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-50 overflow-hidden" style="height: 100dvh;">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
@@ -227,8 +228,8 @@
       </el-main>
 
       <!-- 图片查看器 (手机端全屏) -->
-      <el-main v-if="isMobile && mobileView === 'image'" class="flex flex-col p-0 bg-black absolute inset-0 z-[60]"
-        style="height: 100dvh;">
+      <el-main v-if="isMobile && mobileView === 'image'"
+        class="flex flex-col p-0 bg-black absolute inset-0 z-[60] overflow-hidden" style="height: 100dvh;">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-white/10 bg-black text-white shadow-sm flex-shrink-0">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3 !bg-white/10 !border-none !text-white"
@@ -246,7 +247,7 @@
 
       <!-- 原始消息查看页 (手机端全屏) -->
       <el-main v-if="isMobile && mobileView === 'raw'"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[80]" style="height: 100dvh;">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[80] overflow-hidden" style="height: 100dvh;">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
@@ -264,7 +265,7 @@
 
       <!-- 用户资料页 (手机端全屏) -->
       <el-main v-if="isMobile && mobileView === 'profile'"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[70]" style="height: 100dvh;">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[70] overflow-hidden" style="height: 100dvh;">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
