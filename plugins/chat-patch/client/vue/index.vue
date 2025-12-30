@@ -120,9 +120,9 @@
                             </template>
                             <template v-else>{{ msg.quote.content }}</template>
                           </div>
-                          <!-- 定位消息按钮 -->
+                          <!-- 定位消息按钮 - 常态显示 -->
                           <div
-                            class="absolute top-1 right-1 opacity-0 group-hover/quote:opacity-100 transition-opacity cursor-pointer text-[var(--k-color-primary)] hover:scale-110"
+                            class="absolute top-1 right-1 cursor-pointer text-[var(--k-color-primary)] hover:scale-110 transition-transform"
                             title="定位到原消息" @click.stop="scrollToMessage(msg.quote.id)">
                             <el-icon>
                               <Top />

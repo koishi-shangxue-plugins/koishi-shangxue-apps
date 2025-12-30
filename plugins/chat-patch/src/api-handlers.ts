@@ -1,6 +1,6 @@
 import { FileManager } from './file-manager'
 import { MessageHandler } from './message-handler'
-import { Context, h, Logger } from 'koishi'
+import { Context, h, Logger, Universal } from 'koishi'
 import { Config } from './config'
 import { } from '@koishijs/plugin-console'
 import { URL, pathToFileURL, fileURLToPath } from 'node:url'
@@ -219,10 +219,17 @@ export class ApiHandlers {
       try {
         this.logInfo('收到发送消息请求:', data)
 
-        const bot = this.ctx.bots.find((bot: any) => bot.selfId === data.selfId)
+        // 优化机器人查找逻辑
+        const bot = this.ctx.bots.find((bot: any) => bot.selfId === data.selfId || bot.user?.id === data.selfId)
         if (!bot) {
-          this.logger.error('未找到机器人:', data.selfId)
-          return { success: false, error: '未找到指定的机器人' }
+          this.logger.error('未找到机器人:', data.selfId, '当前可用机器人:', this.ctx.bots.map((b: any) => b.selfId))
+          return { success: false, error: `未找到机器人 ${data.selfId}，请检查机器人是否在线` }
+        }
+
+        // 检查机器人状态
+        if (bot.status !== Universal.Status.ONLINE) {
+          this.logger.error('机器人离线:', data.selfId, '状态:', bot.status)
+          return { success: false, error: `机器人 ${data.selfId} 当前离线` }
         }
 
         let messageContent = data.content
@@ -499,7 +506,7 @@ export class ApiHandlers {
           config: {
             maxMessagesPerChannel: this.config.maxMessagesPerChannel,
             keepMessagesOnClear: this.config.keepMessagesOnClear,
-            keepTempImages: this.config.keepTempImages,
+            maxPersistImages: this.config.maxPersistImages,
             loggerinfo: this.config.loggerinfo,
             blockedPlatforms: this.config.blockedPlatforms || [],
             clearIndexedDBOnStart: this.config.clearIndexedDBOnStart
@@ -516,6 +523,11 @@ export class ApiHandlers {
       try {
         const bot = this.ctx.bots.find(b => b.selfId === data.selfId)
         if (!bot) return { success: false, error: '机器人不存在' }
+
+        // 检查平台是否支持 getUser 方法
+        if (!bot.getUser || typeof bot.getUser !== 'function') {
+          return { success: false, error: '此平台不支持查看用户信息' }
+        }
 
         const user = await bot.getUser(data.userId, data.guildId)
 

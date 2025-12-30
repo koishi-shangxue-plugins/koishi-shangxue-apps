@@ -96,6 +96,9 @@ export class MessageHandler {
       } else if (existingChannel?.name && !existingChannel.name.includes('未知')) {
         // 如果已有名称且不是"未知用户"，保持原名称
         finalName = existingChannel.name
+      } else if (session.platform && session.platform.toLowerCase().includes('sandbox')) {
+        // sandbox 平台直接使用 userId 作为频道名称
+        finalName = `私聊（${session.userId}）`
       } else {
         finalName = '私聊（未知用户）'
       }
