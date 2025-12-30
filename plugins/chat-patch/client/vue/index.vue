@@ -9,6 +9,7 @@
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)]">
           机器人</div>
         <el-scrollbar class="flex-1">
+          <div v-if="bots.length === 0" class="p-10 text-center opacity-40 text-sm">暂无机器人数据</div>
           <div v-for="bot in bots" :key="bot.selfId"
             :class="['flex items-center p-4 cursor-pointer transition-all hover:bg-[var(--k-button-hover-bg)] border-l-4 border-transparent', { '!border-[var(--k-color-primary)] bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedBot === bot.selfId }]"
             @click="selectBot(bot.selfId)" @contextmenu.prevent="onBotMenu($event, bot)">
@@ -39,6 +40,7 @@
           频道
         </div>
         <el-scrollbar class="flex-1">
+          <div v-if="currentChannels.length === 0" class="p-10 text-center opacity-40 text-sm">暂无频道数据</div>
           <div v-for="channel in currentChannels" :key="channel.id"
             :class="['flex items-center p-4 cursor-pointer transition-all hover:bg-[var(--k-button-hover-bg)] border-l-4 border-transparent', { '!border-[var(--k-color-primary)] bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedChannel === channel.id }]"
             @click="selectChannel(channel.id)" @contextmenu.prevent="onChannelMenu($event, channel)">
@@ -74,7 +76,8 @@
                 </div>
                 <div v-for="msg in currentMessages" :key="msg.id"
                   :class="['flex mb-6 gap-3 group', (msg.isBot || msg.userId === selectedBot) ? 'flex-row-reverse' : 'flex-row']">
-                  <el-avatar :size="40" :src="msg.avatar" class="flex-shrink-0 shadow-sm">
+                  <el-avatar :size="40" :src="msg.avatar"
+                    class="flex-shrink-0 shadow-sm cursor-pointer hover:brightness-90" @click="showUserProfile(msg)">
                     {{ msg.username[0] }}
                   </el-avatar>
                   <div
@@ -83,18 +86,20 @@
                       <span class="font-bold">{{ msg.username }}</span>
                       <span class="opacity-60">{{ formatTime(msg.timestamp) }}</span>
                     </div>
-                    <div class="flex items-center gap-2 group/msg">
-                      <!-- +1 按钮 -->
-                      <div v-if="!(msg.isBot || msg.userId === selectedBot)"
+                    <div
+                      :class="['flex items-center gap-2 group/msg', (msg.isBot || msg.userId === selectedBot) ? 'flex-row' : 'flex-row-reverse']">
+                      <!-- +1 按钮：靠近屏幕中心的一侧 -->
+                      <div
                         class="opacity-0 group-hover/msg:opacity-100 transition-opacity cursor-pointer text-blue-500 hover:scale-110 active:scale-95"
-                        title="复读这条消息" @click="repeatMessage(msg)">
+                        title="复读这条消息" @click.stop="repeatMessage(msg)">
                         <div
                           class="w-8 h-8 rounded-full border-2 border-blue-500 flex items-center justify-center font-bold text-xs">
                           +1</div>
                       </div>
 
                       <div
-                        :class="['p-3.5 rounded-2xl shadow-sm text-[15px] leading-relaxed break-all relative', (msg.isBot || msg.userId === selectedBot) ? 'bg-[#95ec69] text-black rounded-tr-none' : 'bg-[var(--k-card-bg)] text-[var(--k-text-color)] rounded-tl-none border border-[var(--k-border-color)]']">
+                        :class="['p-3.5 rounded-2xl shadow-sm text-[15px] leading-relaxed break-all relative cursor-context-menu', (msg.isBot || msg.userId === selectedBot) ? 'bg-[#95ec69] text-black rounded-tr-none' : 'bg-[var(--k-card-bg)] text-[var(--k-text-color)] rounded-tl-none border border-[var(--k-border-color)]']"
+                        @contextmenu.stop="onMessageMenu($event, msg)">
                         <!-- 引用消息渲染 -->
                         <div v-if="msg.quote"
                           class="mb-2.5 p-2.5 text-sm bg-black/5 dark:bg-white/5 rounded-lg border-l-4 border-gray-400/50 text-left">
@@ -113,7 +118,7 @@
                             <render-element v-for="(el, i) in msg.elements" :key="i" :element="el" :bot-id="selectedBot"
                               :channel-id="selectedChannel" />
                           </template>
-                          <template v-else>{{ msg.content }}</template>
+                          <template v-else-if="msg.content">{{ msg.content }}</template>
                         </div>
                       </div>
                     </div>
@@ -137,6 +142,20 @@
                   <CircleCloseFilled />
                 </el-icon>
               </div>
+            </div>
+            <div v-if="replyingTo"
+              class="mb-2 px-3 py-1.5 bg-black/5 dark:bg-white/5 rounded-lg flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2 truncate opacity-70">
+                <el-icon>
+                  <ChatLineRound />
+                </el-icon>
+                <span>回复 {{ replyingTo.username }}: {{ replyingTo.content.slice(0, 20) }}{{ replyingTo.content.length >
+                  20 ? '...'
+                  : '' }}</span>
+              </div>
+              <el-icon class="cursor-pointer hover:text-red-500" @click="replyingTo = null">
+                <Close />
+              </el-icon>
             </div>
             <div class="flex gap-3 items-end">
               <!-- 图片上传按钮 -->
@@ -199,7 +218,44 @@
           <img :src="imageViewer.url" class="max-w-full max-h-full object-contain shadow-2xl" />
         </div>
       </el-main>
+
+      <!-- 用户资料页 (手机端全屏) -->
+      <el-main v-if="isMobile && mobileView === 'profile'"
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[70]">
+        <div
+          class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
+          <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
+          <span>用户资料</span>
+        </div>
+        <div class="p-8 flex flex-col items-center gap-6">
+          <el-avatar :size="120" :src="userProfile.data?.avatar" class="shadow-lg">{{ userProfile.data?.username?.[0]
+          }}</el-avatar>
+          <div class="text-center">
+            <div class="text-2xl font-bold mb-2">{{ userProfile.data?.username || userProfile.data?.name || '未知用户' }}
+            </div>
+            <div class="text-sm opacity-60 font-mono">ID: {{ userProfile.data?.userId || userProfile.data?.id }}</div>
+          </div>
+          <el-descriptions :column="1" border class="w-full mt-4">
+            <el-descriptions-item label="昵称">{{ userProfile.data?.username || userProfile.data?.name
+            }}</el-descriptions-item>
+            <el-descriptions-item label="平台">{{ selectedBotPlatform }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </el-main>
     </el-container>
+
+    <!-- 用户资料弹窗 (桌面端) -->
+    <el-dialog v-if="!isMobile" v-model="userProfileVisible" title="用户资料" width="400px" center teleported>
+      <div class="flex flex-col items-center gap-4 py-4">
+        <el-avatar :size="80" :src="userProfile.data?.avatar" class="shadow">{{ userProfile.data?.username?.[0]
+        }}</el-avatar>
+        <div class="text-center">
+          <div class="text-xl font-bold">{{ userProfile.data?.username || userProfile.data?.name || '未知用户' }}</div>
+          <div class="text-xs opacity-50 mt-1 font-mono">ID: {{ userProfile.data?.userId || userProfile.data?.id }}
+          </div>
+        </div>
+      </div>
+    </el-dialog>
 
     <!-- 合并转发详情弹窗 (桌面端) -->
     <el-dialog v-if="!isMobile" v-model="forwardDialogVisible" title="聊天记录" width="550px" class="forward-dialog"
@@ -235,27 +291,63 @@
     <div v-if="menu.show"
       class="fixed bg-[var(--k-card-bg)] border border-[var(--k-border-color)] shadow-xl z-[2000] py-1.5 rounded-lg min-w-[140px] backdrop-blur-sm bg-opacity-90"
       :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <div
-        class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
-        @click="handleMenuAction('pin')">
-        <el-icon>
-          <Star />
-        </el-icon> {{ menu.isPinned ? '取消置顶' : '置顶' }}
-      </div>
-      <div
-        class="px-4 py-2.5 cursor-pointer text-sm text-red-500 hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
-        @click="handleMenuAction('delete')">
-        <el-icon>
-          <Delete />
-        </el-icon> 删除数据
-      </div>
+
+      <!-- 机器人/频道菜单 -->
+      <template v-if="menu.type === 'bot' || menu.type === 'channel'">
+        <div
+          class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
+          @click="onHandleMenuAction('pin')">
+          <el-icon>
+            <Star />
+          </el-icon> {{ menu.isPinned ? '取消置顶' : '置顶' }}
+        </div>
+        <div
+          class="px-4 py-2.5 cursor-pointer text-sm text-red-500 hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
+          @click="onHandleMenuAction('delete')">
+          <el-icon>
+            <Delete />
+          </el-icon> 删除数据
+        </div>
+      </template>
+
+      <!-- 消息菜单 -->
+      <template v-else-if="menu.type === 'message'">
+        <div
+          class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
+          @click="handleMessageAction('copy')">
+          <el-icon>
+            <DocumentCopy />
+          </el-icon> 复制文本
+        </div>
+        <div
+          class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
+          @click="handleMessageAction('plus1')">
+          <el-icon>
+            <CirclePlus />
+          </el-icon> +1 复读
+        </div>
+        <div
+          class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
+          @click="handleMessageAction('reply')">
+          <el-icon>
+            <ChatLineRound />
+          </el-icon> 回复
+        </div>
+        <div v-if="menu.hasMedia"
+          class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
+          @click="handleMessageAction('download')">
+          <el-icon>
+            <Download />
+          </el-icon> 下载媒体
+        </div>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, h, defineComponent, onMounted, reactive, watch, computed } from 'vue'
-import { StarFilled, Star, Picture, CircleCloseFilled, ArrowLeft, Delete, Collection, Download, Loading } from '@element-plus/icons-vue'
+import { StarFilled, Star, Picture, CircleCloseFilled, ArrowLeft, Delete, Collection, Download, Loading, DocumentCopy, CirclePlus, ChatLineRound, Close } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { send } from '@koishijs/client'
 import { useChatLogic } from './chat-logic'
@@ -264,13 +356,31 @@ const {
   bots, selectedBot, selectedChannel, currentChannels, currentMessages, currentChannelName,
   inputText, uploadedImages, isSending, pinnedBots, pinnedChannels, scrollRef,
   isMobile, mobileView, goBack, forwardData, imageViewer, isLoadingHistory,
-  forwardDialogVisible, imageViewerVisible,
+  forwardDialogVisible, imageViewerVisible, replyingTo, userProfile, userProfileVisible,
+  selectedBotPlatform,
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
   getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage, handleScroll,
-  repeatMessage, handlePaste
+  repeatMessage, handlePaste, onBotMenu, onChannelMenu, onMessageMenu, handleMenuAction, handleMessageAction, showUserProfile,
+  menu
 } = useChatLogic()
 
 const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+const onHandleMenuAction = async (action: string) => {
+  if (action === 'delete') {
+    try {
+      await ElMessageBox.confirm('确定删除所有数据吗？此操作不可恢复。', '警告', {
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      })
+      await handleMenuAction(action)
+    } catch (e) {
+      // 取消删除
+    }
+  } else {
+    await handleMenuAction(action)
+  }
+}
 
 // 消息渲染组件
 const RenderElement = defineComponent({
@@ -384,33 +494,6 @@ const handleFileChange = async (file: any) => {
 const removeImage = (id: string) => {
   uploadedImages.value = uploadedImages.value.filter(i => i.tempId !== id)
 }
-
-const menu = ref({ show: false, x: 0, y: 0, type: '', id: '', isPinned: false })
-const onBotMenu = (e: MouseEvent, bot: any) => {
-  menu.value = { show: true, x: e.clientX, y: e.clientY, type: 'bot', id: bot.selfId, isPinned: pinnedBots.value.has(bot.selfId) }
-}
-const onChannelMenu = (e: MouseEvent, channel: any) => {
-  menu.value = { show: true, x: e.clientX, y: e.clientY, type: 'channel', id: channel.id, isPinned: pinnedChannels.value.has(`${selectedBot.value}:${channel.id}`) }
-}
-const handleMenuAction = async (action: string) => {
-  menu.value.show = false
-  if (action === 'pin') {
-    if (menu.value.type === 'bot') await togglePinBot(menu.value.id, menu.value.isPinned, pinnedBots.value)
-    else await togglePinChannel(selectedBot.value, menu.value.id, menu.value.isPinned, pinnedChannels.value)
-  } else if (action === 'delete') {
-    await ElMessageBox.confirm('确定删除所有数据吗？此操作不可恢复。', '警告', {
-      type: 'warning',
-      confirmButtonClass: 'el-button--danger'
-    })
-    if (menu.value.type === 'bot') await deleteBotData(menu.value.id)
-    else await deleteChannelData(selectedBot.value, menu.value.id)
-    location.reload()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('click', () => menu.value.show = false)
-})
 </script>
 
 <style>

@@ -19,13 +19,14 @@ export function useChatLogic() {
   const { getCachedImageUrl, cacheImage } = useImageCache()
 
   // 状态管理
+  const menu = ref({ show: false, x: 0, y: 0, type: '', id: '', isPinned: false, hasMedia: false })
   const selectedBot = ref('')
   const selectedChannel = ref('')
   const inputText = ref('')
   const uploadedImages = ref<any[]>([])
   const scrollRef = ref<any>(null)
   const isMobile = ref(false)
-  const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward' | 'image'>('bots')
+  const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward' | 'image' | 'profile'>('bots')
   const isLoadingHistory = ref(false)
 
   // 合并转发详情状态
@@ -40,12 +41,25 @@ export function useChatLogic() {
   })
   const imageViewerVisible = ref(false)
 
+  // 引用/回复状态
+  const replyingTo = ref<any>(null)
+
+  // 用户资料状态
+  const userProfile = reactive({
+    data: null as any
+  })
+  const userProfileVisible = ref(false)
+
   // 计算属性
   const currentChannels = computed(() => getChannels(selectedBot.value))
   const currentMessages = computed(() => getMessages(selectedBot.value, selectedChannel.value))
   const currentChannelName = computed(() => {
     const c = currentChannels.value.find(i => i.id === selectedChannel.value)
     return c ? c.name : ''
+  })
+  const selectedBotPlatform = computed(() => {
+    const bot = bots.value.find(b => b.selfId === selectedBot.value)
+    return bot?.platform || 'unknown'
   })
 
   // 方法
@@ -71,6 +85,7 @@ export function useChatLogic() {
   const goBack = () => {
     if (mobileView.value === 'image') mobileView.value = 'messages'
     else if (mobileView.value === 'forward') mobileView.value = 'messages'
+    else if (mobileView.value === 'profile') mobileView.value = 'messages'
     else if (mobileView.value === 'messages') mobileView.value = 'channels'
     else if (mobileView.value === 'channels') mobileView.value = 'bots'
   }
@@ -131,10 +146,16 @@ export function useChatLogic() {
     if (!selectedBot.value || !selectedChannel.value) return
     if (!inputText.value.trim() && !uploadedImages.value.length) return
 
-    const res = await sendMessage(selectedBot.value, selectedChannel.value, inputText.value, uploadedImages.value)
+    let content = inputText.value
+    if (replyingTo.value) {
+      content = `<quote id="${replyingTo.value.id}"/> ${content}`
+    }
+
+    const res = await sendMessage(selectedBot.value, selectedChannel.value, content, uploadedImages.value)
     if (res?.success) {
       inputText.value = ''
       uploadedImages.value = []
+      replyingTo.value = null
       scrollToBottom()
     } else {
       ElMessage.error(res?.error || '发送失败')
@@ -151,6 +172,120 @@ export function useChatLogic() {
       scrollToBottom()
     } else {
       ElMessage.error(res?.error || '复读失败')
+    }
+  }
+
+  // 机器人右键菜单
+  const onBotMenu = (e: MouseEvent, bot: any) => {
+    e.preventDefault()
+    e.stopPropagation()
+    menu.value = {
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      type: 'bot',
+      id: bot.selfId,
+      isPinned: pinnedBots.value.has(bot.selfId),
+      hasMedia: false
+    }
+  }
+
+  // 频道右键菜单
+  const onChannelMenu = (e: MouseEvent, channel: any) => {
+    e.preventDefault()
+    e.stopPropagation()
+    menu.value = {
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      type: 'channel',
+      id: channel.id,
+      isPinned: pinnedChannels.value.has(`${selectedBot.value}:${channel.id}`),
+      hasMedia: false
+    }
+  }
+
+  // 消息右键菜单
+  const onMessageMenu = (e: MouseEvent, msg: any) => {
+    // 如果菜单已经显示，则关闭它并允许原生菜单弹出（第二次右键逻辑）
+    if (menu.value.show && menu.value.type === 'message' && menu.value.id === msg.id) {
+      menu.value.show = false
+      return
+    }
+
+    e.preventDefault()
+    e.stopPropagation()
+
+    const hasMedia = msg.elements?.some((el: any) => ['image', 'img', 'mface', 'audio', 'video'].includes(el.type))
+    menu.value = {
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      type: 'message',
+      id: msg.id,
+      isPinned: false,
+      data: msg,
+      hasMedia
+    } as any
+  }
+
+  // 统一处理菜单动作
+  const handleMenuAction = async (action: string) => {
+    const type = menu.value.type
+    const id = menu.value.id
+    const isPinned = menu.value.isPinned
+    menu.value.show = false
+
+    if (action === 'pin') {
+      if (type === 'bot') await togglePinBot(id, isPinned, pinnedBots.value)
+      else await togglePinChannel(selectedBot.value, id, isPinned, pinnedChannels.value)
+    } else if (action === 'delete') {
+      // 删除逻辑保持在 index.vue 中通过 ElMessageBox 确认，或者这里直接处理
+      if (type === 'bot') await deleteBotData(id)
+      else await deleteChannelData(selectedBot.value, id)
+      location.reload()
+    }
+  }
+
+  const handleMessageAction = async (action: string) => {
+    const msg = (menu.value as any).data
+    menu.value.show = false
+    if (!msg) return
+
+    if (action === 'copy') {
+      const text = msg.content || ''
+      navigator.clipboard.writeText(text)
+      ElMessage.success('已复制到剪贴板')
+    } else if (action === 'plus1') {
+      await repeatMessage(msg)
+    } else if (action === 'reply') {
+      replyingTo.value = msg
+    } else if (action === 'download') {
+      const media = msg.elements?.find((el: any) => ['image', 'img', 'mface', 'audio', 'video'].includes(el.type))
+      const url = media?.attrs?.src || media?.attrs?.url || media?.attrs?.file
+      if (url) downloadImage(url)
+    }
+  }
+
+  // 显示用户资料
+  const showUserProfile = async (msg: any) => {
+    if (!selectedBot.value) return
+
+    const res = await (send as any)('get-user-info', {
+      selfId: selectedBot.value,
+      userId: msg.userId,
+      guildId: msg.guildId
+    })
+
+    if (res.success) {
+      userProfile.data = res.data
+      if (isMobile.value) {
+        mobileView.value = 'profile'
+      } else {
+        userProfileVisible.value = true
+      }
+    } else {
+      ElMessage.error(res.error || '获取用户信息失败')
     }
   }
 
@@ -196,6 +331,7 @@ export function useChatLogic() {
   onMounted(async () => {
     checkMobile()
     window.addEventListener('resize', checkMobile)
+    window.addEventListener('click', () => menu.value.show = false)
     await loadConfig()
     await loadInitialData()
 
@@ -254,6 +390,11 @@ export function useChatLogic() {
     isLoadingHistory,
     forwardDialogVisible,
     imageViewerVisible,
+    replyingTo,
+    userProfile,
+    userProfileVisible,
+    selectedBotPlatform,
+    menu,
 
     // 方法
     selectBot,
@@ -272,6 +413,12 @@ export function useChatLogic() {
     downloadImage,
     handleScroll,
     repeatMessage,
-    handlePaste
+    handlePaste,
+    onBotMenu,
+    onChannelMenu,
+    onMessageMenu,
+    handleMenuAction,
+    handleMessageAction,
+    showUserProfile
   }
 }

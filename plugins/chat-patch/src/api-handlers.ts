@@ -254,30 +254,10 @@ export class ApiHandlers {
         const result = await bot.sendMessage(data.channelId, parsedContent)
         this.logInfo('消息发送成功:', result)
 
-        // 广播机器人消息发送成功事件，包含真实的 messageId
+        // 移除此处的手动广播，统一由 message-handler.ts 中的 before-send 监听器处理
+        // 这样可以避免重复渲染，并确保所有来源的消息都能被记录
+
         const messageId = Array.isArray(result) ? result[0] : result;
-        if (messageId) {
-          const bot = this.ctx.bots.find((b: any) => b.selfId === data.selfId);
-          const botMessageEvent = {
-            type: 'bot-message-sent',
-            selfId: data.selfId,
-            platform: bot?.platform || 'unknown',
-            channelId: data.channelId,
-            messageId: messageId,
-            content: messageContent,
-            userId: data.selfId,
-            username: bot?.user?.name || `Bot-${data.selfId}`,
-            avatar: bot?.user?.avatar,
-            timestamp: Date.now(),
-            guildName: '', // 这个信息在前端会补充
-            channelType: 0, // 这个信息在前端会补充
-            elements: [], // 这个信息在前端会补充
-            isDirect: false // 这个信息在前端会补充
-          };
-
-          this.ctx.console.broadcast('bot-message-sent-event', botMessageEvent);
-        }
-
         return {
           success: true,
           messageId: messageId,
@@ -509,6 +489,19 @@ export class ApiHandlers {
       } catch (error: any) {
         this.logger.error('获取插件配置失败:', error)
         return { success: false, error: error?.message || String(error) }
+      }
+    })
+
+    // 获取用户信息 API
+    this.ctx.console.addListener('get-user-info' as any, async (data: { selfId: string, userId: string, guildId?: string }) => {
+      try {
+        const bot = this.ctx.bots.find(b => b.selfId === data.selfId)
+        if (!bot) return { success: false, error: '机器人不存在' }
+
+        const user = await bot.getUser(data.userId, data.guildId)
+        return { success: true, data: user }
+      } catch (error: any) {
+        return { success: false, error: error?.message || '获取用户信息失败' }
       }
     })
 
