@@ -27,7 +27,7 @@ export function useChatLogic() {
   const scrollRef = ref<any>(null)
   const inputRef = ref<any>(null)
   const isMobile = ref(false)
-  const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward' | 'image' | 'profile'>('bots')
+  const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward' | 'image' | 'profile' | 'raw'>('bots')
   const isLoadingHistory = ref(false)
 
   // 合并转发详情状态
@@ -41,6 +41,12 @@ export function useChatLogic() {
     url: ''
   })
   const imageViewerVisible = ref(false)
+
+  // 原始消息查看状态
+  const rawMessage = reactive({
+    content: ''
+  })
+  const rawMessageVisible = ref(false)
 
   // 引用/回复状态
   const replyingTo = ref<any>(null)
@@ -91,6 +97,7 @@ export function useChatLogic() {
     if (mobileView.value === 'image') mobileView.value = 'messages'
     else if (mobileView.value === 'forward') mobileView.value = 'messages'
     else if (mobileView.value === 'profile') mobileView.value = 'messages'
+    else if (mobileView.value === 'raw') mobileView.value = 'messages'
     else if (mobileView.value === 'messages') mobileView.value = 'channels'
     else if (mobileView.value === 'channels') mobileView.value = 'bots'
   }
@@ -262,43 +269,56 @@ export function useChatLogic() {
     }
   }
 
+  // 兼容手机端的复制函数
+  const copyToClipboard = (text: string) => {
+    if (!text) {
+      ElMessage.warning('未复制任何内容')
+      return Promise.resolve()
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text)
+    } else {
+      // 回退方案
+      const textArea = document.createElement("textarea")
+      textArea.value = text
+      textArea.style.position = "fixed"
+      textArea.style.left = "-999999px"
+      textArea.style.top = "-999999px"
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      return new Promise<void>((res, rej) => {
+        document.execCommand('copy') ? res() : rej()
+        textArea.remove()
+      })
+    }
+  }
+
   const handleMessageAction = async (action: string) => {
     const msg = (menu.value as any).data
     menu.value.show = false
     if (!msg) return
 
-    // 兼容手机端的复制函数
-    const copyToClipboard = (text: string) => {
-      if (navigator.clipboard && window.isSecureContext) {
-        return navigator.clipboard.writeText(text)
-      } else {
-        // 回退方案
-        const textArea = document.createElement("textarea")
-        textArea.value = text
-        textArea.style.position = "fixed"
-        textArea.style.left = "-999999px"
-        textArea.style.top = "-999999px"
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        return new Promise<void>((res, rej) => {
-          document.execCommand('copy') ? res() : rej()
-          textArea.remove()
-        })
-      }
-    }
-
     if (action === 'copy') {
       // 移除 HTML 标签
       const text = (msg.content || '').replace(/<[^>]+>/g, '')
-      copyToClipboard(text).then(() => ElMessage.success('已复制到剪贴板'))
+      if (!text) {
+        ElMessage.warning('未复制任何内容')
+      } else {
+        copyToClipboard(text).then(() => ElMessage.success('已复制到剪贴板'))
+      }
     } else if (action === 'copy-raw') {
-      // 复制原始消息，包含引用标签
+      // 查看原始消息，包含引用标签
       let raw = msg.content || ''
       if (msg.quote) {
         raw = `<quote id="${msg.quote.id}"/>${raw}`
       }
-      copyToClipboard(raw).then(() => ElMessage.success('已复制原始消息'))
+      rawMessage.content = raw
+      if (isMobile.value) {
+        mobileView.value = 'raw'
+      } else {
+        rawMessageVisible.value = true
+      }
     } else if (action === 'plus1') {
       await repeatMessage(msg)
     } else if (action === 'reply') {
@@ -485,9 +505,11 @@ export function useChatLogic() {
     mobileView,
     forwardData,
     imageViewer,
+    rawMessage,
     isLoadingHistory,
     forwardDialogVisible,
     imageViewerVisible,
+    rawMessageVisible,
     replyingTo,
     userProfile,
     userProfileVisible,
@@ -512,6 +534,7 @@ export function useChatLogic() {
     handleScroll,
     repeatMessage,
     handlePaste,
+    copyToClipboard,
     onBotMenu,
     onChannelMenu,
     onMessageMenu,

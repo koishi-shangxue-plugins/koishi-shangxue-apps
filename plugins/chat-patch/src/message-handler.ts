@@ -93,8 +93,8 @@ export class MessageHandler {
     const channelInfo: ChannelInfo = {
       id: session.channelId,
       name: session.isDirect
-        ? `私聊（${session.username || session.userId || directUserName}）`
-        : `${guildName} (${session.channelId})`,
+        ? (session.username || directUserName || session.userId || session.channelId)
+        : (guildName || session.channelId),
       type: session.type || 0,
       channelId: session.channelId,
       guildName: guildName,

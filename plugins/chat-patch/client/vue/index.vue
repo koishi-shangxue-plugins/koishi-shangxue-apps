@@ -64,6 +64,8 @@
             class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm z-10 text-[var(--k-text-color)]">
             <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
             <span class="truncate">{{ currentChannelName }}</span>
+            <span v-if="selectedChannel" class="ml-2 text-xs opacity-40 font-mono hidden md:inline">({{ selectedChannel
+              }})</span>
           </div>
 
           <div class="flex-1 overflow-hidden relative bg-opacity-50 bg-gray-100 dark:bg-black/20">
@@ -233,6 +235,24 @@
         </div>
       </el-main>
 
+      <!-- 原始消息查看页 (手机端全屏) -->
+      <el-main v-if="isMobile && mobileView === 'raw'"
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[80]">
+        <div
+          class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
+          <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
+          <div class="flex-1 text-center pr-8">原始消息</div>
+        </div>
+        <div class="p-4 flex flex-col gap-4 h-full overflow-hidden">
+          <el-input v-model="rawMessage.content" type="textarea" :rows="15" readonly class="flex-1 raw-content-area" />
+          <div class="flex gap-3 pb-8">
+            <el-button type="primary" class="flex-1"
+              @click="copyToClipboard(rawMessage.content).then(() => ElMessage.success('已复制'))">复制内容</el-button>
+            <el-button class="flex-1" @click="goBack">返回</el-button>
+          </div>
+        </div>
+      </el-main>
+
       <!-- 用户资料页 (手机端全屏) -->
       <el-main v-if="isMobile && mobileView === 'profile'"
         class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[70]">
@@ -306,6 +326,18 @@
       </div>
     </el-dialog>
 
+    <!-- 原始消息查看弹窗 (桌面端) -->
+    <el-dialog v-if="!isMobile" v-model="rawMessageVisible" title="原始消息内容" width="600px" center teleported align-center>
+      <div class="flex flex-col gap-4">
+        <el-input v-model="rawMessage.content" type="textarea" :rows="12" readonly class="raw-content-area" />
+        <div class="flex justify-center gap-3">
+          <el-button type="primary"
+            @click="copyToClipboard(rawMessage.content).then(() => ElMessage.success('已复制到剪贴板'))">复制全部内容</el-button>
+          <el-button @click="rawMessageVisible = false">关闭</el-button>
+        </div>
+      </div>
+    </el-dialog>
+
     <!-- 右键菜单 -->
     <div v-if="menu.show"
       class="fixed bg-[var(--k-card-bg)] border border-[var(--k-border-color)] shadow-xl z-[2000] py-1.5 rounded-lg min-w-[140px] backdrop-blur-sm bg-opacity-90"
@@ -342,8 +374,8 @@
           class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
           @click="handleMessageAction('copy-raw')">
           <el-icon>
-            <DocumentCopy />
-          </el-icon> 复制原始消息
+            <Collection />
+          </el-icon> 查看原始消息
         </div>
         <div
           class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
@@ -381,12 +413,12 @@ import { useChatLogic } from './chat-logic'
 const {
   bots, selectedBot, selectedChannel, currentChannels, currentMessages, currentChannelName,
   inputText, uploadedImages, isSending, pinnedBots, pinnedChannels, scrollRef,
-  isMobile, mobileView, goBack, forwardData, imageViewer, isLoadingHistory,
-  forwardDialogVisible, imageViewerVisible, replyingTo, userProfile, userProfileVisible,
+  isMobile, mobileView, goBack, forwardData, imageViewer, rawMessage, isLoadingHistory,
+  forwardDialogVisible, imageViewerVisible, rawMessageVisible, replyingTo, userProfile, userProfileVisible,
   selectedBotPlatform,
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
   getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage, handleScroll,
-  repeatMessage, handlePaste, onBotMenu, onChannelMenu, onMessageMenu, handleMenuAction, handleMessageAction, showUserProfile,
+  repeatMessage, handlePaste, copyToClipboard, onBotMenu, onChannelMenu, onMessageMenu, handleMenuAction, handleMessageAction, showUserProfile,
   menu, inputRef, scrollToMessage
 } = useChatLogic()
 
