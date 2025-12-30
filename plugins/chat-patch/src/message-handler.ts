@@ -52,7 +52,19 @@ export class MessageHandler {
   async updateChannelInfoToFile(session: Session): Promise<string> {
     const isDirect = session.isDirect || session.channelId?.includes('private')
     let guildName = session.channelId
-    let directUserName = session.username || session.event?.user?.name || session.userId || '未知用户'
+    // 优先从 session 或 event 中获取更准确的用户名
+    let directUserName = session.event?.user?.name || session.username || session.event?.member?.name || session.userId || '未知用户'
+
+    // 如果是私聊且名称不理想，尝试从 bot.getUser 获取
+    if (isDirect && (directUserName === '未知用户' || directUserName === session.userId || directUserName.includes('private:'))) {
+      if (session.bot.getUser) {
+        try {
+          const user = await session.bot.getUser(session.userId!)
+          if (user?.name) directUserName = user.name
+          else if (user?.username) directUserName = user.username
+        } catch { }
+      }
+    }
 
     const data = this.fileManager.readChatDataFromFile()
 
@@ -79,11 +91,12 @@ export class MessageHandler {
       }
     } else {
       // 私聊逻辑：如果当前名称还是未知或 ID，则尝试调用 API
-      if (session.userId && (directUserName === '未知用户' || directUserName === session.userId)) {
+      if (session.userId && (directUserName === '未知用户' || directUserName === session.userId || directUserName.includes('private:'))) {
         if (session.bot.getUser && typeof session.bot.getUser === 'function') {
           try {
             const user = await session.bot.getUser(session.userId)
             if (user?.name) directUserName = user.name
+            else if (user?.username) directUserName = user.username
           } catch (userError) {
             this.logInfo('获取用户信息失败:', userError)
           }
@@ -95,11 +108,20 @@ export class MessageHandler {
       data.channels[session.selfId] = {}
     }
 
+    // 构造频道名称
+    let finalName = isDirect
+      ? `私聊（${directUserName}）`
+      : (guildName || session.channelId)
+
+    // 强制纠正：如果当前存储的名称包含“未知用户”，但我们现在有了更好的名字，立即覆盖
+    const existingChannel = data.channels[session.selfId]?.[session.channelId]
+    if (existingChannel && isDirect && existingChannel.name.includes('未知用户') && !finalName.includes('未知用户')) {
+      // 保持 finalName 为新名字
+    }
+
     const channelInfo: ChannelInfo = {
       id: session.channelId,
-      name: isDirect
-        ? `私聊（${directUserName}）`
-        : (guildName || session.channelId),
+      name: finalName,
       type: session.type || 0,
       channelId: session.channelId,
       guildName: guildName,
@@ -236,20 +258,17 @@ export class MessageHandler {
         isDirect: !!isDirect
       }
 
-      // 如果是私聊且频道名还是“未知用户”，利用当前消息的用户名立即修复它
-      if (isDirect && messageInfo.username && messageInfo.username !== 'unknown') {
+      // 强制纠正 JSON 中的频道名称：如果当前消息有明确用户名，而频道名还是“未知用户”
+      if (isDirect && messageInfo.username && messageInfo.username !== 'unknown' && !messageInfo.username.includes('private:')) {
         const data = this.fileManager.readChatDataFromFile()
         const botChannels = data.channels[session.selfId] || {}
-        // 兼容多种 ID 格式查找频道对象
-        const channelId = Object.keys(botChannels).find(id => id === session.channelId || id === `private:${session.userId}`)
-        const channel = channelId ? botChannels[channelId] : null
+        const channel = botChannels[session.channelId]
 
-        if (channel && (channel.name === '私聊（未知用户）' || channel.name.includes('未知用户') || channel.name === session.channelId || channel.name.includes('private:'))) {
+        if (channel && (channel.name.includes('未知用户') || channel.name === session.channelId || channel.name.includes('private:'))) {
           channel.name = `私聊（${messageInfo.username}）`
-          // 确保后端持久化更新到 JSON 文件
           this.fileManager.writeChatDataToFile(data)
-          // 广播更新，让前端侧边栏刷新
           this.ctx.console.broadcast('chat-data-updated', {})
+          this.logInfo('已纠正并保存私聊频道名称:', channel.name)
         }
       }
 

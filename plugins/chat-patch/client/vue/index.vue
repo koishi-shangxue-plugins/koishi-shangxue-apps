@@ -1,7 +1,7 @@
 <template>
   <div
     class="chat-patch-wrapper absolute inset-0 flex overflow-hidden bg-[var(--k-page-bg)] text-[var(--k-text-color)] font-sans"
-    style="height: 100%; width: 100%;">
+    :style="{ height: isMobile ? viewportHeight : '100%', width: '100%' }">
     <el-container class="h-full w-full">
       <!-- 机器人列表 -->
       <el-aside v-show="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '280px'"
@@ -59,8 +59,7 @@
 
       <!-- 消息主区域 -->
       <el-main v-show="(!isMobile && selectedBot && selectedChannel) || (isMobile && mobileView === 'messages')"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100"
-        :style="isMobile ? { height: '100dvh' } : {}">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100 h-full overflow-hidden">
         <template v-if="selectedBot && selectedChannel">
           <div
             class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm z-10 text-[var(--k-text-color)]">
@@ -147,7 +146,8 @@
 
           <!-- 输入区域 -->
           <div
-            class="p-4 border-t border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+            class="p-4 border-t border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]"
+            :style="isMobile ? { paddingBottom: 'max(env(safe-area-inset-bottom), 20px)' } : {}">
             <!-- 图片预览区域 -->
             <div v-if="uploadedImages.length" class="flex gap-3 mb-3 overflow-x-auto pb-2 scrollbar-hide">
               <div v-for="img in uploadedImages" :key="img.tempId" class="relative w-20 h-20 flex-shrink-0 group">
@@ -199,7 +199,7 @@
 
       <!-- 合并转发详情页 (手机端全屏) -->
       <el-main v-if="isMobile && mobileView === 'forward'"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-50">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-50" style="height: 100dvh;">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
@@ -224,7 +224,8 @@
       </el-main>
 
       <!-- 图片查看器 (手机端全屏) -->
-      <el-main v-if="isMobile && mobileView === 'image'" class="flex flex-col p-0 bg-black absolute inset-0 z-[60]">
+      <el-main v-if="isMobile && mobileView === 'image'" class="flex flex-col p-0 bg-black absolute inset-0 z-[60]"
+        style="height: 100dvh;">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-white/10 bg-black text-white shadow-sm flex-shrink-0">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3 !bg-white/10 !border-none !text-white"
@@ -242,7 +243,7 @@
 
       <!-- 原始消息查看页 (手机端全屏) -->
       <el-main v-if="isMobile && mobileView === 'raw'"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[80]">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[80]" style="height: 100dvh;">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
@@ -260,7 +261,7 @@
 
       <!-- 用户资料页 (手机端全屏) -->
       <el-main v-if="isMobile && mobileView === 'profile'"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[70]">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] absolute inset-0 z-[70]" style="height: 100dvh;">
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
@@ -418,7 +419,7 @@ import { useChatLogic } from './chat-logic'
 const {
   bots, selectedBot, selectedChannel, currentChannels, currentMessages, currentChannelName,
   inputText, uploadedImages, isSending, pinnedBots, pinnedChannels, scrollRef,
-  isMobile, mobileView, goBack, forwardData, imageViewer, imageZoom, rawMessage, isLoadingHistory,
+  isMobile, viewportHeight, mobileView, goBack, forwardData, imageViewer, imageZoom, rawMessage, isLoadingHistory,
   forwardDialogVisible, imageViewerVisible, rawMessageVisible, replyingTo, userProfile, userProfileVisible,
   selectedBotPlatform,
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,

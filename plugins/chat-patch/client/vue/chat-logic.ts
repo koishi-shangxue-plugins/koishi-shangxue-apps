@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, nextTick, onUnmounted, reactive } from 'vue'
+import { ref, computed, onMounted, nextTick, onUnmounted, reactive, watch } from 'vue'
 import { receive, send } from '@koishijs/client'
 import { useChatData } from './composables/useChatData'
 import { useChatActions } from './composables/useChatActions'
@@ -27,6 +27,7 @@ export function useChatLogic() {
   const scrollRef = ref<any>(null)
   const inputRef = ref<any>(null)
   const isMobile = ref(false)
+  const viewportHeight = ref('100%')
   const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward' | 'image' | 'profile' | 'raw'>('bots')
   const isLoadingHistory = ref(false)
 
@@ -95,16 +96,41 @@ export function useChatLogic() {
   }
 
   const goBack = () => {
-    if (mobileView.value === 'image') {
-      mobileView.value = 'messages'
-      imageZoom.value = 1
+    if (isMobile.value && mobileView.value !== 'bots') {
+      // 手机端使用 history.back()，由 popstate 监听器处理视图切换
+      window.history.back()
+    } else {
+      // PC 端或初始页面的逻辑
+      if (mobileView.value === 'image') {
+        mobileView.value = 'messages'
+        imageZoom.value = 1
+      }
+      else if (mobileView.value === 'forward') mobileView.value = 'messages'
+      else if (mobileView.value === 'profile') mobileView.value = 'messages'
+      else if (mobileView.value === 'raw') mobileView.value = 'messages'
+      else if (mobileView.value === 'messages') mobileView.value = 'channels'
+      else if (mobileView.value === 'channels') mobileView.value = 'bots'
     }
-    else if (mobileView.value === 'forward') mobileView.value = 'messages'
-    else if (mobileView.value === 'profile') mobileView.value = 'messages'
-    else if (mobileView.value === 'raw') mobileView.value = 'messages'
-    else if (mobileView.value === 'messages') mobileView.value = 'channels'
-    else if (mobileView.value === 'channels') mobileView.value = 'bots'
   }
+
+  // 处理手机物理返回键
+  const handlePopState = (e: PopStateEvent) => {
+    if (!isMobile.value) return
+    if (e.state && e.state.view) {
+      mobileView.value = e.state.view
+    } else {
+      mobileView.value = 'bots'
+    }
+  }
+
+  // 监听视图变化，同步到 history state
+  watch(mobileView, (newView, oldView) => {
+    if (!isMobile.value) return
+    // 只有在非 popstate 导致的改变时才 pushState (简单判断：如果当前 state 不匹配则 push)
+    if (window.history.state?.view !== newView) {
+      window.history.pushState({ view: newView }, '')
+    }
+  })
 
   const showForward = (elements: any[]) => {
     forwardData.messages = elements.filter(e => e.type === 'message')
@@ -441,6 +467,12 @@ export function useChatLogic() {
 
   const checkMobile = () => {
     isMobile.value = window.innerWidth <= 768
+    // 处理移动端视口高度，防止键盘遮挡
+    if (window.visualViewport) {
+      viewportHeight.value = `${window.visualViewport.height}px`
+    } else {
+      viewportHeight.value = '100%'
+    }
   }
 
   // 生命周期
@@ -449,7 +481,18 @@ export function useChatLogic() {
   onMounted(async () => {
     checkMobile()
     window.addEventListener('resize', checkMobile)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', checkMobile)
+      window.visualViewport.addEventListener('scroll', checkMobile)
+    }
     window.addEventListener('click', () => menu.value.show = false)
+    window.addEventListener('popstate', handlePopState)
+
+    // 初始化 history state
+    if (isMobile.value) {
+      window.history.replaceState({ view: mobileView.value }, '')
+    }
+
     await loadConfig()
     await loadInitialData()
 
@@ -497,6 +540,11 @@ export function useChatLogic() {
 
   onUnmounted(() => {
     window.removeEventListener('resize', checkMobile)
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', checkMobile)
+      window.visualViewport.removeEventListener('scroll', checkMobile)
+    }
+    window.removeEventListener('popstate', handlePopState)
     dispose.forEach(d => d?.())
   })
 
@@ -515,6 +563,7 @@ export function useChatLogic() {
     pinnedChannels,
     scrollRef,
     isMobile,
+    viewportHeight,
     mobileView,
     forwardData,
     imageViewer,
