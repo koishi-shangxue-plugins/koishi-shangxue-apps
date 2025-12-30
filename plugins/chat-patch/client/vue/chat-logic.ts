@@ -27,9 +27,9 @@ export function useChatLogic() {
   const scrollRef = ref<any>(null)
   const inputRef = ref<any>(null)
   const isMobile = ref(false)
-  const viewportHeight = ref('100%')
   const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward' | 'image' | 'profile' | 'raw'>('bots')
   const isLoadingHistory = ref(false)
+  const keyboardHeight = ref(0) // 键盘高度
 
   // 合并转发详情状态
   const forwardData = reactive({
@@ -467,11 +467,22 @@ export function useChatLogic() {
 
   const checkMobile = () => {
     isMobile.value = window.innerWidth <= 768
-    // 处理移动端视口高度，防止键盘遮挡
+  }
+
+  // 监听键盘弹出（通过 visualViewport 或 window resize）
+  const updateKeyboardHeight = () => {
+    if (!isMobile.value) {
+      keyboardHeight.value = 0
+      return
+    }
+
+    // 使用 visualViewport API（现代浏览器）
     if (window.visualViewport) {
-      viewportHeight.value = `${window.visualViewport.height}px`
+      const viewportHeight = window.visualViewport.height
+      const windowHeight = window.innerHeight
+      keyboardHeight.value = Math.max(0, windowHeight - viewportHeight)
     } else {
-      viewportHeight.value = '100%'
+      keyboardHeight.value = 0
     }
   }
 
@@ -481,12 +492,15 @@ export function useChatLogic() {
   onMounted(async () => {
     checkMobile()
     window.addEventListener('resize', checkMobile)
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', checkMobile)
-      window.visualViewport.addEventListener('scroll', checkMobile)
-    }
     window.addEventListener('click', () => menu.value.show = false)
     window.addEventListener('popstate', handlePopState)
+
+    // 监听键盘弹出
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateKeyboardHeight)
+      window.visualViewport.addEventListener('scroll', updateKeyboardHeight)
+    }
+    window.addEventListener('resize', updateKeyboardHeight)
 
     // 初始化 history state
     if (isMobile.value) {
@@ -540,11 +554,12 @@ export function useChatLogic() {
 
   onUnmounted(() => {
     window.removeEventListener('resize', checkMobile)
-    if (window.visualViewport) {
-      window.visualViewport.removeEventListener('resize', checkMobile)
-      window.visualViewport.removeEventListener('scroll', checkMobile)
-    }
     window.removeEventListener('popstate', handlePopState)
+    window.removeEventListener('resize', updateKeyboardHeight)
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', updateKeyboardHeight)
+      window.visualViewport.removeEventListener('scroll', updateKeyboardHeight)
+    }
     dispose.forEach(d => d?.())
   })
 
@@ -563,7 +578,6 @@ export function useChatLogic() {
     pinnedChannels,
     scrollRef,
     isMobile,
-    viewportHeight,
     mobileView,
     forwardData,
     imageViewer,
@@ -578,6 +592,7 @@ export function useChatLogic() {
     userProfileVisible,
     selectedBotPlatform,
     menu,
+    keyboardHeight,
 
     // 方法
     selectBot,

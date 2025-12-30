@@ -1,7 +1,7 @@
 <template>
   <div
     class="chat-patch-wrapper absolute inset-0 flex overflow-hidden bg-[var(--k-page-bg)] text-[var(--k-text-color)] font-sans"
-    :style="{ height: isMobile ? viewportHeight : '100%', width: '100%' }">
+    style="height: 100%; width: 100%;">
     <el-container class="h-full w-full">
       <!-- 机器人列表 -->
       <el-aside v-show="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '280px'"
@@ -9,7 +9,7 @@
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)]">
           机器人</div>
-        <el-scrollbar class="flex-1">
+        <el-scrollbar class="flex-1 mobile-scrollbar-fix">
           <div v-if="bots.length === 0" class="p-10 text-center opacity-40 text-sm">暂无机器人数据</div>
           <div v-for="bot in bots" :key="bot.selfId"
             :class="['flex items-center p-4 cursor-pointer transition-all hover:bg-[var(--k-button-hover-bg)] border-l-4 border-transparent', { '!border-[var(--k-color-primary)] bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedBot === bot.selfId }]"
@@ -40,7 +40,7 @@
           <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
           频道
         </div>
-        <el-scrollbar class="flex-1">
+        <el-scrollbar class="flex-1 mobile-scrollbar-fix">
           <div v-if="currentChannels.length === 0" class="p-10 text-center opacity-40 text-sm">暂无频道数据</div>
           <div v-for="channel in currentChannels" :key="channel.id"
             :class="['flex items-center p-4 cursor-pointer transition-all hover:bg-[var(--k-button-hover-bg)] border-l-4 border-transparent', { '!border-[var(--k-color-primary)] bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedChannel === channel.id }]"
@@ -59,7 +59,8 @@
 
       <!-- 消息主区域 -->
       <el-main v-show="(!isMobile && selectedBot && selectedChannel) || (isMobile && mobileView === 'messages')"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100 h-full overflow-hidden">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100 h-full overflow-hidden"
+        :style="isMobile && keyboardHeight > 0 ? { paddingBottom: keyboardHeight + 'px' } : {}">
         <template v-if="selectedBot && selectedChannel">
           <div
             class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm z-10 text-[var(--k-text-color)]">
@@ -71,7 +72,7 @@
 
           <div class="flex-1 overflow-hidden relative bg-opacity-50 bg-gray-100 dark:bg-black/20">
             <el-scrollbar ref="scrollRef" @scroll="handleScroll">
-              <div class="p-6 flex flex-col min-h-full">
+              <div class="p-6 flex flex-col min-h-full" :style="isMobile ? { paddingBottom: '180px' } : {}">
                 <div v-if="isLoadingHistory" class="flex justify-center py-4">
                   <el-icon class="is-loading text-[var(--k-color-primary)]">
                     <Loading />
@@ -146,8 +147,11 @@
 
           <!-- 输入区域 -->
           <div
-            class="p-4 border-t border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]"
-            :style="isMobile ? { paddingBottom: 'max(env(safe-area-inset-bottom), 20px)' } : {}">
+            :class="['p-4 border-t border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]', isMobile ? 'fixed left-0 right-0 z-50' : '']"
+            :style="isMobile ? {
+              bottom: keyboardHeight > 0 ? keyboardHeight + 'px' : '0',
+              paddingBottom: keyboardHeight > 0 ? '20px' : 'max(env(safe-area-inset-bottom), 20px)'
+            } : {}">
             <!-- 图片预览区域 -->
             <div v-if="uploadedImages.length" class="flex gap-3 mb-3 overflow-x-auto pb-2 scrollbar-hide">
               <div v-for="img in uploadedImages" :key="img.tempId" class="relative w-20 h-20 flex-shrink-0 group">
@@ -419,9 +423,9 @@ import { useChatLogic } from './chat-logic'
 const {
   bots, selectedBot, selectedChannel, currentChannels, currentMessages, currentChannelName,
   inputText, uploadedImages, isSending, pinnedBots, pinnedChannels, scrollRef,
-  isMobile, viewportHeight, mobileView, goBack, forwardData, imageViewer, imageZoom, rawMessage, isLoadingHistory,
+  isMobile, mobileView, goBack, forwardData, imageViewer, imageZoom, rawMessage, isLoadingHistory,
   forwardDialogVisible, imageViewerVisible, rawMessageVisible, replyingTo, userProfile, userProfileVisible,
-  selectedBotPlatform,
+  selectedBotPlatform, keyboardHeight,
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
   getCachedImageUrl, cacheImage, showForward, openImageViewer, handleImageWheel, downloadImage, handleScroll,
   repeatMessage, handlePaste, copyToClipboard, onBotMenu, onChannelMenu, onMessageMenu, handleMenuAction, handleMessageAction, showUserProfile,
