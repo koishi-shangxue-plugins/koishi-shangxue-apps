@@ -25,6 +25,7 @@ export function useChatLogic() {
   const inputText = ref('')
   const uploadedImages = ref<any[]>([])
   const scrollRef = ref<any>(null)
+  const inputRef = ref<any>(null)
   const isMobile = ref(false)
   const mobileView = ref<'bots' | 'channels' | 'messages' | 'forward' | 'image' | 'profile'>('bots')
   const isLoadingHistory = ref(false)
@@ -260,6 +261,16 @@ export function useChatLogic() {
       await repeatMessage(msg)
     } else if (action === 'reply') {
       replyingTo.value = msg
+      // 自动聚焦输入框
+      nextTick(() => {
+        // Element Plus 的 el-input 需要访问其内部的 textarea
+        const inputEl = inputRef.value?.$el?.querySelector('textarea') || inputRef.value?.ref
+        if (inputEl) {
+          inputEl.focus()
+        } else {
+          inputRef.value?.focus?.()
+        }
+      })
     } else if (action === 'download') {
       const media = msg.elements?.find((el: any) => ['image', 'img', 'mface', 'audio', 'video'].includes(el.type))
       const url = media?.attrs?.src || media?.attrs?.url || media?.attrs?.file
@@ -419,6 +430,7 @@ export function useChatLogic() {
     onMessageMenu,
     handleMenuAction,
     handleMessageAction,
-    showUserProfile
+    showUserProfile,
+    inputRef
   }
 }

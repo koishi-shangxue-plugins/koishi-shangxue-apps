@@ -283,6 +283,36 @@ export class MessageHandler {
         content = this.utils.extractTextContent(session.event.message.elements).trim()
       }
 
+      // 尝试从 content 中提取 quote id 并构建 quote 对象
+      let quoteInfo: QuoteInfo | undefined = undefined
+      const quoteMatch = content.match(/<quote id="([^"]+)"\/>/)
+      if (quoteMatch) {
+        const quoteId = quoteMatch[1]
+        const data = this.fileManager.readChatDataFromFile()
+        const channelKey = `${session.selfId}:${finalChannelId}`
+        // 在当前频道的消息历史中查找被引用的消息
+        const quotedMsg = data.messages[channelKey]?.find(m => m.id === quoteId)
+
+        if (quotedMsg) {
+          quoteInfo = {
+            messageId: quotedMsg.id,
+            id: quotedMsg.id,
+            content: quotedMsg.content,
+            elements: quotedMsg.elements,
+            user: {
+              id: quotedMsg.userId,
+              name: quotedMsg.username,
+              userId: quotedMsg.userId,
+              avatar: quotedMsg.avatar,
+              username: quotedMsg.username
+            },
+            timestamp: quotedMsg.timestamp
+          }
+          // 移除 content 中的 quote 标签，避免重复显示
+          content = content.replace(/<quote id="[^"]+"\/>\s*/, '')
+        }
+      }
+
       // 创建机器人消息信息对象
       const messageInfo: MessageInfo = {
         id: `bot-msg-${timestamp}`,
@@ -297,6 +327,7 @@ export class MessageHandler {
         type: 'bot',
         guildName: guildName,
         platform: session.platform || 'unknown',
+        quote: quoteInfo,
         isDirect: session.isDirect
       }
 
@@ -316,6 +347,7 @@ export class MessageHandler {
         guildName: guildName,
         channelType: session.event?.channel?.type || session.type || 0,
         elements: this.utils.cleanBase64Content(session.event?.message?.elements),
+        quote: quoteInfo,
         isDirect: session.isDirect,
         bot: {
           avatar: session.bot.user?.avatar,

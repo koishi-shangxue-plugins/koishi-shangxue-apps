@@ -87,13 +87,13 @@
                       <span class="opacity-60">{{ formatTime(msg.timestamp) }}</span>
                     </div>
                     <div
-                      :class="['flex items-center gap-2 group/msg', (msg.isBot || msg.userId === selectedBot) ? 'flex-row' : 'flex-row-reverse']">
-                      <!-- +1 按钮：靠近屏幕中心的一侧 -->
+                      :class="['flex items-end gap-2 group/msg', (msg.isBot || msg.userId === selectedBot) ? 'flex-row' : 'flex-row-reverse']">
+                      <!-- +1 按钮：靠近屏幕中心的一侧，底部对齐 -->
                       <div
-                        class="opacity-0 group-hover/msg:opacity-100 transition-opacity cursor-pointer text-blue-500 hover:scale-110 active:scale-95"
+                        class="opacity-0 group-hover/msg:opacity-100 transition-opacity cursor-pointer text-blue-500 hover:scale-110 active:scale-95 mb-1"
                         title="复读这条消息" @click.stop="repeatMessage(msg)">
                         <div
-                          class="w-8 h-8 rounded-full border-2 border-blue-500 flex items-center justify-center font-bold text-xs">
+                          class="w-8 h-8 rounded-full border-2 border-blue-500 flex items-center justify-center font-bold text-xs bg-blue-50/10">
                           +1</div>
                       </div>
 
@@ -135,10 +135,11 @@
             <div v-if="uploadedImages.length" class="flex gap-3 mb-3 overflow-x-auto pb-2 scrollbar-hide">
               <div v-for="img in uploadedImages" :key="img.tempId" class="relative w-20 h-20 flex-shrink-0 group">
                 <el-image :src="img.preview" fit="cover"
-                  class="w-full h-full rounded-lg border-2 border-[var(--k-border-color)] shadow-sm" />
+                  class="w-full h-full rounded-lg border-2 border-[var(--k-border-color)] shadow-sm cursor-pointer hover:brightness-90"
+                  @click="openImageViewer(img.preview)" />
                 <el-icon
-                  class="absolute -top-2 -right-2 cursor-pointer text-red-500 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                  @click="removeImage(img.tempId)">
+                  class="absolute -top-1.5 -right-1.5 cursor-pointer text-red-500 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  @click.stop="removeImage(img.tempId)">
                   <CircleCloseFilled />
                 </el-icon>
               </div>
@@ -167,7 +168,7 @@
                 </el-button>
               </el-upload>
               <!-- 文本输入框，使用 autosize 以适应单行显示 -->
-              <el-input v-model="inputText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
+              <el-input ref="inputRef" v-model="inputText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
                 placeholder="输入消息... (支持粘贴图片)" class="flex-1 !text-base" @keydown.enter.prevent="handleSend"
                 @paste="handlePaste" />
               <!-- 发送按钮 -->
@@ -245,7 +246,7 @@
     </el-container>
 
     <!-- 用户资料弹窗 (桌面端) -->
-    <el-dialog v-if="!isMobile" v-model="userProfileVisible" title="用户资料" width="400px" center teleported>
+    <el-dialog v-if="!isMobile" v-model="userProfileVisible" title="用户资料" width="400px" center teleported align-center>
       <div class="flex flex-col items-center gap-4 py-4">
         <el-avatar :size="80" :src="userProfile.data?.avatar" class="shadow">{{ userProfile.data?.username?.[0]
         }}</el-avatar>
@@ -361,7 +362,7 @@ const {
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
   getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage, handleScroll,
   repeatMessage, handlePaste, onBotMenu, onChannelMenu, onMessageMenu, handleMenuAction, handleMessageAction, showUserProfile,
-  menu
+  menu, inputRef
 } = useChatLogic()
 
 const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
