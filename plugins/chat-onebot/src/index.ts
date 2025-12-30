@@ -30,6 +30,7 @@ export const usage = `
 
 export interface Config {
   mode: 'online' | 'local'
+  wsAddress: string
   loggerinfo: boolean
 }
 
@@ -39,6 +40,7 @@ export const Config: Schema<Config> = Schema.intersect([
       Schema.const('online').description('在线模式 (GitHub Pages)'),
       Schema.const('local').description('本地文件模式')
     ]).default('local').description('加载模式'),
+    wsAddress: Schema.string().default('ws://localhost:3001').description('WebSocket 地址'),
   }).description('基础设置'),
 
   Schema.object({
@@ -58,7 +60,8 @@ export function apply(ctx: Context, config: Config) {
   // 注册 API：返回配置信息
   ctx.console.addListener('chat-onebot/get-config' as any, async () => {
     return {
-      mode: config.mode
+      mode: config.mode,
+      wsAddress: config.wsAddress
     }
   })
 

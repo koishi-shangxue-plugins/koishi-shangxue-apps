@@ -8,7 +8,8 @@
     "lib",
     "dist",
     "src",
-    "client"
+    "client",
+    "Stapxs-QQ-Lite"
   ],
   "license": "MIT",
   "keywords": [
