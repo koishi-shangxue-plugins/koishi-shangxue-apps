@@ -5,7 +5,7 @@ import './icons'
 
 export default (ctx: Context) => {
   ctx.page({
-    name: 'QQ聊天',
+    name: 'Stapxs-QQ-Lite',
     path: '/chat-onebot',
     desc: '集成 Stapxs QQ Lite 2.0',
     authority: 4,

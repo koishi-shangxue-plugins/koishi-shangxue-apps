@@ -23,7 +23,11 @@
   },
   "peerDependencies": {
     "@koishijs/plugin-console": "^5.11.0",
+    "@koishijs/plugin-server": "^5.0.0",
     "koishi": "^4.16.0"
+  },
+  "dependencies": {
+    "koa-send": "^5.0.1"
   },
   "devDependencies": {
     "@koishijs/client": "^5.11.0",

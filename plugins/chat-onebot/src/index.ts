@@ -30,7 +30,6 @@ export const usage = `
 
 export interface Config {
   mode: 'online' | 'local'
-  localPath: string
   loggerinfo: boolean
 }
 
@@ -40,10 +39,6 @@ export const Config: Schema<Config> = Schema.intersect([
       Schema.const('online').description('在线模式 (GitHub Pages)'),
       Schema.const('local').description('本地文件模式')
     ]).default('local').description('加载模式'),
-    localPath: Schema.path({
-      filters: ['directory'],
-      allowCreate: true
-    }).default('Stapxs-QQ-Lite/dist').description('本地文件路径（相对于插件目录）'),
   }).description('基础设置'),
 
   Schema.object({
@@ -63,8 +58,7 @@ export function apply(ctx: Context, config: Config) {
   // 注册 API：返回配置信息
   ctx.console.addListener('chat-onebot/get-config' as any, async () => {
     return {
-      mode: config.mode,
-      localPath: config.localPath
+      mode: config.mode
     }
   })
 
@@ -76,10 +70,8 @@ export function apply(ctx: Context, config: Config) {
     })
     logInfo('chat-onebot 已启动（在线模式）')
   } else {
-    // 本地模式：挂载本地文件
-    const localPath = path.isAbsolute(config.localPath)
-      ? config.localPath
-      : path.resolve(__dirname, '..', config.localPath)
+    // 本地模式：挂载本地文件（固定路径）
+    const localPath = path.resolve(__dirname, '..', 'Stapxs-QQ-Lite/dist')
 
     // 检查路径是否存在
     if (!existsSync(localPath)) {
@@ -89,28 +81,31 @@ export function apply(ctx: Context, config: Config) {
       return
     }
 
-    // 使用 server 插件挂载静态文件
-    ctx.server.get('/chat-onebot/(.*)', async (koa) => {
-      const filePath = koa.params[0] || 'index.html'
+    // 使用 server 插件挂载静态文件目录
+    ctx.server.get('/chat-onebot(/.*)?', async (koaCtx) => {
+      const requestPath = koaCtx.params[0] || '/index.html'
+      const filePath = requestPath === '/' ? '/index.html' : requestPath
       const fullPath = path.join(localPath, filePath)
 
-      logInfo('请求文件:', filePath, '完整路径:', fullPath)
+      logInfo('请求路径:', requestPath, '文件路径:', filePath, '完整路径:', fullPath)
 
-      // 如果请求的是根路径，返回 index.html
-      if (!filePath || filePath === '/') {
-        return koa.sendFile('index.html', { root: localPath })
-      }
-
-      // 检查文件是否存在
-      if (existsSync(fullPath)) {
-        return koa.sendFile(filePath, { root: localPath })
-      } else {
-        // 如果文件不存在，返回 index.html（支持 SPA 路由）
-        return koa.sendFile('index.html', { root: localPath })
+      try {
+        // 检查文件是否存在
+        if (existsSync(fullPath) && require('fs').statSync(fullPath).isFile()) {
+          // 文件存在，直接返回
+          await require('koa-send')(koaCtx, filePath, { root: localPath })
+        } else {
+          // 文件不存在，返回 index.html（支持 SPA 路由）
+          await require('koa-send')(koaCtx, '/index.html', { root: localPath })
+        }
+      } catch (error) {
+        logger.error('文件服务错误:', error)
+        koaCtx.status = 500
+        koaCtx.body = 'Internal Server Error'
       }
     })
 
-    // 注册控制台入口（重定向到静态文件服务）
+    // 注册控制台入口
     ctx.console.addEntry({
       dev: path.resolve(__dirname, '../client/index.ts'),
       prod: path.resolve(__dirname, '../dist'),
