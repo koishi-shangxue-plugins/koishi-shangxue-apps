@@ -1,0 +1,26 @@
+# 编译输出
+lib/
+dist/
+
+# 本地下载的 Stapxs QQ Lite 文件
+Stapxs-QQ-Lite/
+
+# 依赖
+node_modules/
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
