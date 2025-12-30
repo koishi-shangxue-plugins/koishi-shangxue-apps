@@ -1,4 +1,4 @@
 import { icons } from '@koishijs/client'
 import ChatOnebot from './icon.vue'
 
-icons.register('chat-onebot', ChatOnebot)
+icons.register('activity:chat-onebot', ChatOnebot)

@@ -2,6 +2,8 @@
 
 集成 [Stapxs QQ Lite 2.0](https://github.com/Stapxs/Stapxs-QQ-Lite-2.0) 到 Koishi 控制台。
 
+- 一个兼容 OneBot 的非官方网页 QQ 客户端
+
 ## 功能特性
 
 - 🌐 **双模式支持**：支持在线模式和本地文件模式
@@ -10,51 +12,26 @@
 
 ## 使用方法
 
-### 在线模式（推荐）
+### 在线模式
 
 1. 在插件配置中选择"在线模式 (GitHub Pages)"
 2. 保存配置
 3. 在 Koishi 控制台中打开 chat-onebot 页面
 4. 自动加载 GitHub Pages 托管的最新版本
 
-### 本地模式
+### 本地模式（推荐）
 
 如果你需要离线使用或自定义版本：
 
-1. 下载 Stapxs QQ Lite 2.0：
-   ```
-   https://github.com/Stapxs/Stapxs-QQ-Lite-2.0/releases/download/v3.3.3/Stapxs.QQ.Lite-3.3.3-web.zip
-   ```
-
-2. 解压到插件目录下的 `Stapxs-QQ-Lite/dist` 文件夹：
-   ```
-   plugins/chat-onebot/
-   └── Stapxs-QQ-Lite/
-       └── dist/
-           ├── index.html
-           ├── assets/
-           └── ...
-   ```
-
-3. 在插件配置中：
+1. 在插件配置中：
    - 选择"本地文件模式"
    - 设置本地文件路径（默认：`Stapxs-QQ-Lite/dist`）
 
-4. 保存配置并重启插件
-
-## 配置项
-
-| 配置项     | 类型                  | 默认值                  | 说明                           |
-| ---------- | --------------------- | ----------------------- | ------------------------------ |
-| mode       | `'online' \| 'local'` | `'local'`               | 加载模式                       |
-| localPath  | `string`              | `'Stapxs-QQ-Lite/dist'` | 本地文件路径（相对于插件目录） |
-| loggerinfo | `boolean`             | `false`                 | 日志调试模式                   |
+2. 保存配置并重启插件
 
 ## 注意事项
 
 - 在线模式需要网络连接
-- 本地模式需要手动下载并解压文件
-- 确保 Koishi 已安装 `@koishijs/plugin-console` 和 `@koishijs/plugin-server` 插件
 
 ## 相关链接
 
