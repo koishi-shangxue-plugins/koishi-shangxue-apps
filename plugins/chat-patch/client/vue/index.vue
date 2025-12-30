@@ -1,6 +1,7 @@
 <template>
   <div
-    class="chat-patch-wrapper absolute inset-0 flex overflow-hidden bg-[var(--k-page-bg)] text-[var(--k-text-color)] font-sans">
+    class="chat-patch-wrapper absolute inset-0 flex overflow-hidden bg-[var(--k-page-bg)] text-[var(--k-text-color)] font-sans"
+    style="height: 100%; width: 100%;">
     <el-container class="h-full w-full">
       <!-- 机器人列表 -->
       <el-aside v-show="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '280px'"
@@ -58,14 +59,15 @@
 
       <!-- 消息主区域 -->
       <el-main v-show="(!isMobile && selectedBot && selectedChannel) || (isMobile && mobileView === 'messages')"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100"
+        :style="isMobile ? { height: '100dvh' } : {}">
         <template v-if="selectedBot && selectedChannel">
           <div
             class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm z-10 text-[var(--k-text-color)]">
             <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
             <span class="truncate">{{ currentChannelName }}</span>
             <span v-if="selectedChannel" class="ml-2 text-xs opacity-40 font-mono hidden md:inline">({{ selectedChannel
-              }})</span>
+            }})</span>
           </div>
 
           <div class="flex-1 overflow-hidden relative bg-opacity-50 bg-gray-100 dark:bg-black/20">
@@ -223,15 +225,18 @@
 
       <!-- 图片查看器 (手机端全屏) -->
       <el-main v-if="isMobile && mobileView === 'image'" class="flex flex-col p-0 bg-black absolute inset-0 z-[60]">
-        <div class="flex h-14 items-center px-4 font-bold border-b border-white/10 bg-black text-white shadow-sm">
+        <div
+          class="flex h-14 items-center px-4 font-bold border-b border-white/10 bg-black text-white shadow-sm flex-shrink-0">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3 !bg-white/10 !border-none !text-white"
             @click="goBack" />
-          <span>查看图片</span>
+          <span class="truncate mr-2">查看图片</span>
           <div class="flex-1"></div>
           <el-button type="primary" icon="Download" size="small" @click="downloadImage(imageViewer.url)">下载</el-button>
         </div>
-        <div class="flex-1 flex items-center justify-center p-4">
-          <img :src="imageViewer.url" class="max-w-full max-h-full object-contain shadow-2xl" />
+        <div class="flex-1 overflow-hidden relative flex items-center justify-center" @wheel="handleImageWheel">
+          <img :src="imageViewer.url"
+            class="max-w-full max-h-full object-contain transition-transform duration-200 ease-out will-change-transform"
+            :style="{ transform: `scale(${imageZoom})` }" />
         </div>
       </el-main>
 
@@ -413,11 +418,11 @@ import { useChatLogic } from './chat-logic'
 const {
   bots, selectedBot, selectedChannel, currentChannels, currentMessages, currentChannelName,
   inputText, uploadedImages, isSending, pinnedBots, pinnedChannels, scrollRef,
-  isMobile, mobileView, goBack, forwardData, imageViewer, rawMessage, isLoadingHistory,
+  isMobile, mobileView, goBack, forwardData, imageViewer, imageZoom, rawMessage, isLoadingHistory,
   forwardDialogVisible, imageViewerVisible, rawMessageVisible, replyingTo, userProfile, userProfileVisible,
   selectedBotPlatform,
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
-  getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage, handleScroll,
+  getCachedImageUrl, cacheImage, showForward, openImageViewer, handleImageWheel, downloadImage, handleScroll,
   repeatMessage, handlePaste, copyToClipboard, onBotMenu, onChannelMenu, onMessageMenu, handleMenuAction, handleMessageAction, showUserProfile,
   menu, inputRef, scrollToMessage
 } = useChatLogic()
@@ -579,6 +584,13 @@ const removeImage = (id: string) => {
   border-radius: 12px;
   padding: 10px 12px;
   resize: none;
+}
+
+.chat-patch-wrapper .raw-content-area .el-textarea__inner {
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--k-card-bg) !important;
 }
 
 .chat-patch-wrapper .el-button--primary {

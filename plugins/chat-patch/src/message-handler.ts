@@ -239,9 +239,14 @@ export class MessageHandler {
       // 如果是私聊且频道名还是“未知用户”，利用当前消息的用户名立即修复它
       if (isDirect && messageInfo.username && messageInfo.username !== 'unknown') {
         const data = this.fileManager.readChatDataFromFile()
-        const channel = data.channels[session.selfId]?.[session.channelId]
-        if (channel && (channel.name === '私聊（未知用户）' || channel.name.includes('未知用户') || channel.name === session.channelId)) {
+        const botChannels = data.channels[session.selfId] || {}
+        // 兼容多种 ID 格式查找频道对象
+        const channelId = Object.keys(botChannels).find(id => id === session.channelId || id === `private:${session.userId}`)
+        const channel = channelId ? botChannels[channelId] : null
+
+        if (channel && (channel.name === '私聊（未知用户）' || channel.name.includes('未知用户') || channel.name === session.channelId || channel.name.includes('private:'))) {
           channel.name = `私聊（${messageInfo.username}）`
+          // 确保后端持久化更新到 JSON 文件
           this.fileManager.writeChatDataToFile(data)
           // 广播更新，让前端侧边栏刷新
           this.ctx.console.broadcast('chat-data-updated', {})

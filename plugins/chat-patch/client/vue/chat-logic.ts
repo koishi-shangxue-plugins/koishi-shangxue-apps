@@ -41,6 +41,7 @@ export function useChatLogic() {
     url: ''
   })
   const imageViewerVisible = ref(false)
+  const imageZoom = ref(1)
 
   // 原始消息查看状态
   const rawMessage = reactive({
@@ -94,7 +95,10 @@ export function useChatLogic() {
   }
 
   const goBack = () => {
-    if (mobileView.value === 'image') mobileView.value = 'messages'
+    if (mobileView.value === 'image') {
+      mobileView.value = 'messages'
+      imageZoom.value = 1
+    }
     else if (mobileView.value === 'forward') mobileView.value = 'messages'
     else if (mobileView.value === 'profile') mobileView.value = 'messages'
     else if (mobileView.value === 'raw') mobileView.value = 'messages'
@@ -113,10 +117,19 @@ export function useChatLogic() {
 
   const openImageViewer = (url: string) => {
     imageViewer.url = url
+    imageZoom.value = 1
     if (isMobile.value) {
       mobileView.value = 'image'
     } else {
       imageViewerVisible.value = true
+    }
+  }
+
+  const handleImageWheel = (e: WheelEvent) => {
+    if (e.deltaY < 0) {
+      imageZoom.value = Math.min(imageZoom.value + 0.1, 3)
+    } else {
+      imageZoom.value = Math.max(imageZoom.value - 0.1, 0.5)
     }
   }
 
@@ -505,6 +518,7 @@ export function useChatLogic() {
     mobileView,
     forwardData,
     imageViewer,
+    imageZoom,
     rawMessage,
     isLoadingHistory,
     forwardDialogVisible,
@@ -530,6 +544,7 @@ export function useChatLogic() {
     goBack,
     showForward,
     openImageViewer,
+    handleImageWheel,
     downloadImage,
     handleScroll,
     repeatMessage,
