@@ -34,23 +34,20 @@ export class ApiHandlers {
     // 获取所有聊天数据的 API
     this.ctx.console.addListener('get-chat-data' as any, async () => {
       try {
+        // 优化性能：只读取基础信息，不读取庞大的消息体
         const data = this.fileManager.readChatDataFromFile()
-        const cleanedData = this.fileManager.cleanExcessMessages(data)
 
-        this.logInfo('获取聊天数据:', {
-          机器人数量: Object.keys(cleanedData.bots).length,
-          频道数量: Object.keys(cleanedData.channels).reduce((total, botId) =>
-            total + Object.keys(cleanedData.channels[botId] || {}).length, 0),
-          消息频道数: Object.keys(cleanedData.messages).length,
-          总消息数: Object.values(cleanedData.messages).reduce((total, msgs) => total + msgs.length, 0)
-        })
+        this.logInfo('获取基础聊天数据')
 
         return {
           success: true,
           data: {
-            ...cleanedData,
-            pinnedBots: cleanedData.pinnedBots,
-            pinnedChannels: cleanedData.pinnedChannels
+            bots: data.bots || {},
+            channels: data.channels || {},
+            pinnedBots: data.pinnedBots || [],
+            pinnedChannels: data.pinnedChannels || [],
+            // 不返回 messages，由前端按需拉取
+            messages: {}
           }
         }
       } catch (error: any) {
@@ -585,75 +582,36 @@ export class ApiHandlers {
   private setupTempFileCleanup() {
     // 每5分钟执行一次基于数量的清理
     setInterval(() => {
-      this.cleanupTempImagesByCount()
-    }, 5 * 60 * 1000) // 5分钟
+      this.cleanupMediaCache()
+    }, 5 * 60 * 1000)
   }
 
-  // 基于数量清理临时图片（保留最新的N张）
-  private async cleanupTempImagesByCount() {
-    try {
-      const tempDir = this.ctx.baseDir + '/data/chat-patch/temp'
-      if (!require('fs').existsSync(tempDir)) {
-        return
-      }
+  // 统一清理媒体缓存
+  private async cleanupMediaCache() {
+    const baseDir = this.ctx.baseDir + '/data/chat-patch/persist-media'
+    if (!require('node:fs').existsSync(baseDir)) return
 
-      const now = Date.now()
-      const protectionTime = 30 * 1000 // 30秒保护期，刚上传的图片不会被删除
+    const cleanupDir = (dirName: string, limit: number) => {
+      const dirPath = require('node:path').join(baseDir, dirName)
+      if (!require('node:fs').existsSync(dirPath)) return
 
-      const files = require('fs').readdirSync(tempDir)
-        .filter((file: string) => file.startsWith('temp_'))
-        .map((file: string) => {
-          const filePath = `${tempDir}/${file}`
-          try {
-            const stats = require('fs').statSync(filePath)
-            const fileAge = now - stats.mtime.getTime()
-            return {
-              name: file,
-              path: filePath,
-              mtime: stats.mtime.getTime(),
-              age: fileAge,
-              protected: fileAge < protectionTime // 是否在保护期内
-            }
-          } catch (error) {
-            return null
-          }
+      const files = require('node:fs').readdirSync(dirPath)
+        .map(file => {
+          const filePath = require('node:path').join(dirPath, file)
+          const stats = require('node:fs').statSync(filePath)
+          return { name: file, path: filePath, mtime: stats.mtimeMs }
         })
-        .filter((file: any) => file !== null)
-        .sort((a: any, b: any) => b.mtime - a.mtime) // 按修改时间降序排列（最新的在前）
+        .sort((a, b) => b.mtime - a.mtime)
 
-      const keepCount = this.config.keepTempImages
-      let cleanedCount = 0
-      let protectedCount = 0
-
-      // 分离受保护的文件和可删除的文件
-      const protectedFiles = files.filter((file: any) => file.protected)
-      const deletableFiles = files.filter((file: any) => !file.protected)
-
-      protectedCount = protectedFiles.length
-
-      // 如果可删除的文件数量超过了保留数量，则删除多余的
-      if (deletableFiles.length > keepCount) {
-        const filesToDelete = deletableFiles.slice(keepCount) // 保留前N个，删除其余的
-
-        for (const file of filesToDelete) {
-          try {
-            if (require('fs').existsSync(file.path)) {
-              require('fs').unlinkSync(file.path)
-              cleanedCount++
-              this.logInfo('清理多余临时图片:', file.path)
-            }
-          } catch (fileError) {
-            this.logger.warn('删除临时文件失败:', { file: file.name, error: fileError })
-          }
-        }
+      if (files.length > limit) {
+        files.slice(limit).forEach(f => {
+          try { require('node:fs').unlinkSync(f.path) } catch { }
+        })
       }
-
-      if (cleanedCount > 0 || protectedCount > 0) {
-        this.logInfo(`基于数量清理完成，保留最新 ${keepCount} 张图片，清理了 ${cleanedCount} 张多余图片，保护了 ${protectedCount} 张新上传图片`)
-      }
-    } catch (error) {
-      this.logger.warn('基于数量清理临时文件失败:', error)
     }
+
+    cleanupDir('images', 100) // 图片缓存100个
+    cleanupDir('media', 20)   // 富媒体缓存20个
   }
 
   private logInfo(...args: any[]) {

@@ -108,12 +108,67 @@ export class MessageHandler {
     return guildName
   }
 
+  // 下载并缓存媒体文件
+  private async downloadAndCacheMedia(url: string, type: 'image' | 'media') {
+    try {
+      if (!url || url.startsWith('data:') || url.startsWith('file:')) return url
+
+      const folder = type === 'image' ? 'images' : 'media'
+      const dir = require('node:path').join(this.ctx.baseDir, 'data', 'chat-patch', 'persist-media', folder)
+      if (!require('node:fs').existsSync(dir)) {
+        require('node:fs').mkdirSync(dir, { recursive: true })
+      }
+
+      // 使用 URL 的 hash 作为文件名，避免重复下载
+      const crypto = require('node:crypto')
+      const hash = crypto.createHash('md5').update(url).digest('hex')
+      const ext = require('node:path').extname(new URL(url).pathname) || (type === 'image' ? '.jpg' : '.mp4')
+      const filename = `${hash}${ext}`
+      const filePath = require('node:path').join(dir, filename)
+
+      if (require('node:fs').existsSync(filePath)) {
+        return require('node:url').pathToFileURL(filePath).href
+      }
+
+      const buffer = await this.ctx.http.get(url, { responseType: 'arraybuffer' })
+      require('node:fs').writeFileSync(filePath, Buffer.from(buffer))
+
+      return require('node:url').pathToFileURL(filePath).href
+    } catch (e) {
+      return url
+    }
+  }
+
+  // 处理消息中的媒体元素并缓存
+  private async processMediaElements(elements: h[]) {
+    if (!elements) return elements
+    for (const el of elements) {
+      if (['image', 'img', 'mface'].includes(el.type)) {
+        const src = el.attrs.src || el.attrs.url || el.attrs.file
+        if (src) el.attrs.src = await this.downloadAndCacheMedia(src, 'image')
+      } else if (['audio', 'video'].includes(el.type)) {
+        const src = el.attrs.src || el.attrs.url || el.attrs.file
+        if (src) el.attrs.src = await this.downloadAndCacheMedia(src, 'media')
+      }
+      if (el.children) await this.processMediaElements(el.children)
+    }
+    return elements
+  }
+
   async broadcastMessageEvent(session: Session) {
     try {
       await this.updateBotInfoToFile(session)
       const guildName = await this.updateChannelInfoToFile(session)
 
       const timestamp = Date.now()
+
+      // 处理媒体缓存
+      if (session.elements) {
+        await this.processMediaElements(session.elements)
+      }
+      if (session.quote?.elements) {
+        await this.processMediaElements(session.quote.elements)
+      }
 
       // 处理 quote 信息
       let quoteInfo: QuoteInfo | undefined = undefined
@@ -208,16 +263,6 @@ export class MessageHandler {
       // 获取正确的 channelId
       const correctChannelId = this.getCorrectChannelId(session.selfId)
 
-      // 调试日志：检查 channelId 的来源
-      this.logInfo('机器人发送消息调试信息:', {
-        'session.channelId': session.channelId,
-        'session.event?.channel?.id': session.event?.channel?.id,
-        'correctChannelId': correctChannelId,
-        'session.guildId': session.guildId,
-        'session.isDirect': session.isDirect,
-        'session.platform': session.platform
-      })
-
       // 使用正确的 channelId，如果没有则使用 session.channelId
       const finalChannelId = correctChannelId || session.channelId
 
@@ -225,6 +270,11 @@ export class MessageHandler {
       const guildName = await this.updateChannelInfoToFile(session)
 
       const timestamp = Date.now()
+
+      // 处理媒体缓存
+      if (session.event?.message?.elements) {
+        await this.processMediaElements(session.event.message.elements)
+      }
 
       // 优先使用 session.content，它包含了完整的消息内容（含标签）
       let content = session.content || ''
@@ -272,25 +322,6 @@ export class MessageHandler {
           name: session.bot.user?.name,
         }
       }
-
-      // 检查是否包含图片元素
-      const imageElements = session.event?.message?.elements?.filter((element: any) =>
-        element.type === 'img' || element.type === 'image' || element.type === 'mface'
-      ) || []
-
-      this.logInfo('机器人发送消息 (before-send):', {
-        selfId: session.selfId,
-        channelId: messageEvent.channelId,
-        originalChannelId: session.channelId,
-        correctedChannelId: finalChannelId,
-        content: content,
-        platform: session.platform,
-        imageCount: imageElements.length,
-        imageUrls: imageElements.map((el: any) => el.attrs?.src || el.attrs?.url || el.attrs?.file)
-      })
-
-      // 清理已使用的 channelId 映射
-      this.correctChannelIds.delete(session.selfId)
 
       this.ctx.console.broadcast('chat-bot-message-event', messageEvent)
     } catch (error) {

@@ -83,27 +83,38 @@
                       <span class="font-bold">{{ msg.username }}</span>
                       <span class="opacity-60">{{ formatTime(msg.timestamp) }}</span>
                     </div>
-                    <div
-                      :class="['p-3.5 rounded-2xl shadow-sm text-[15px] leading-relaxed break-all relative', (msg.isBot || msg.userId === selectedBot) ? 'bg-[#95ec69] text-black rounded-tr-none' : 'bg-[var(--k-card-bg)] text-[var(--k-text-color)] rounded-tl-none border border-[var(--k-border-color)]']">
-                      <!-- 引用消息渲染 -->
-                      <div v-if="msg.quote"
-                        class="mb-2.5 p-2.5 text-sm bg-black/5 dark:bg-white/5 rounded-lg border-l-4 border-gray-400/50 text-left">
-                        <div class="font-bold opacity-70 mb-1 text-xs">{{ msg.quote.user.username }}:</div>
-                        <div class="opacity-90">
-                          <template v-if="msg.quote.elements && msg.quote.elements.length">
-                            <render-element v-for="(el, i) in msg.quote.elements" :key="i" :element="el"
-                              :bot-id="selectedBot" :channel-id="selectedChannel" />
-                          </template>
-                          <template v-else>{{ msg.quote.content }}</template>
-                        </div>
+                    <div class="flex items-center gap-2 group/msg">
+                      <!-- +1 按钮 -->
+                      <div v-if="!(msg.isBot || msg.userId === selectedBot)"
+                        class="opacity-0 group-hover/msg:opacity-100 transition-opacity cursor-pointer text-blue-500 hover:scale-110 active:scale-95"
+                        title="复读这条消息" @click="repeatMessage(msg)">
+                        <div
+                          class="w-8 h-8 rounded-full border-2 border-blue-500 flex items-center justify-center font-bold text-xs">
+                          +1</div>
                       </div>
-                      <!-- 消息内容渲染 -->
-                      <div class="text-left min-w-[20px]">
-                        <template v-if="msg.elements && msg.elements.length">
-                          <render-element v-for="(el, i) in msg.elements" :key="i" :element="el" :bot-id="selectedBot"
-                            :channel-id="selectedChannel" />
-                        </template>
-                        <template v-else>{{ msg.content }}</template>
+
+                      <div
+                        :class="['p-3.5 rounded-2xl shadow-sm text-[15px] leading-relaxed break-all relative', (msg.isBot || msg.userId === selectedBot) ? 'bg-[#95ec69] text-black rounded-tr-none' : 'bg-[var(--k-card-bg)] text-[var(--k-text-color)] rounded-tl-none border border-[var(--k-border-color)]']">
+                        <!-- 引用消息渲染 -->
+                        <div v-if="msg.quote"
+                          class="mb-2.5 p-2.5 text-sm bg-black/5 dark:bg-white/5 rounded-lg border-l-4 border-gray-400/50 text-left">
+                          <div class="font-bold opacity-70 mb-1 text-xs">{{ msg.quote.user.username }}:</div>
+                          <div class="opacity-90">
+                            <template v-if="msg.quote.elements && msg.quote.elements.length">
+                              <render-element v-for="(el, i) in msg.quote.elements" :key="i" :element="el"
+                                :bot-id="selectedBot" :channel-id="selectedChannel" />
+                            </template>
+                            <template v-else>{{ msg.quote.content }}</template>
+                          </div>
+                        </div>
+                        <!-- 消息内容渲染 -->
+                        <div class="text-left min-w-[20px]">
+                          <template v-if="msg.elements && msg.elements.length">
+                            <render-element v-for="(el, i) in msg.elements" :key="i" :element="el" :bot-id="selectedBot"
+                              :channel-id="selectedChannel" />
+                          </template>
+                          <template v-else>{{ msg.content }}</template>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -137,8 +148,9 @@
                 </el-button>
               </el-upload>
               <!-- 文本输入框，使用 autosize 以适应单行显示 -->
-              <el-input v-model="inputText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" placeholder="输入消息..."
-                class="flex-1 !text-base" @keydown.enter.prevent="handleSend" />
+              <el-input v-model="inputText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
+                placeholder="输入消息... (支持粘贴图片)" class="flex-1 !text-base" @keydown.enter.prevent="handleSend"
+                @paste="handlePaste" />
               <!-- 发送按钮 -->
               <el-button type="primary" :loading="isSending" @click="handleSend"
                 class="px-6 h-10 !text-base font-bold shadow-md">发送</el-button>
@@ -190,7 +202,7 @@
     </el-container>
 
     <!-- 合并转发详情弹窗 (桌面端) -->
-    <el-dialog v-if="!isMobile" v-model="forwardDialogShow" title="聊天记录" width="550px" class="forward-dialog"
+    <el-dialog v-if="!isMobile" v-model="forwardDialogVisible" title="聊天记录" width="550px" class="forward-dialog"
       teleported>
       <el-scrollbar max-height="70vh">
         <div class="p-6 space-y-6 bg-gray-50 dark:bg-black/10">
@@ -211,8 +223,8 @@
     </el-dialog>
 
     <!-- 图片查看器弹窗 (桌面端) -->
-    <el-dialog v-if="!isMobile" v-model="imageViewerShow" title="查看图片" width="fit-content" class="image-viewer-dialog"
-      teleported center>
+    <el-dialog v-if="!isMobile" v-model="imageViewerVisible" title="查看图片" width="fit-content"
+      class="image-viewer-dialog" teleported center>
       <div class="flex flex-col items-center gap-4">
         <img :src="imageViewer.url" class="max-w-full max-h-[70vh] rounded shadow-lg" />
         <el-button type="primary" icon="Download" @click="downloadImage(imageViewer.url)">下载图片</el-button>
@@ -252,21 +264,13 @@ const {
   bots, selectedBot, selectedChannel, currentChannels, currentMessages, currentChannelName,
   inputText, uploadedImages, isSending, pinnedBots, pinnedChannels, scrollRef,
   isMobile, mobileView, goBack, forwardData, imageViewer, isLoadingHistory,
+  forwardDialogVisible, imageViewerVisible,
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
-  getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage, handleScroll
+  getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage, handleScroll,
+  repeatMessage, handlePaste
 } = useChatLogic()
 
 const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-
-const forwardDialogShow = computed({
-  get: () => !isMobile.value && mobileView.value === 'forward',
-  set: (val) => { if (!val) goBack() }
-})
-
-const imageViewerShow = computed({
-  get: () => !isMobile.value && mobileView.value === 'image',
-  set: (val) => { if (!val) goBack() }
-})
 
 // 消息渲染组件
 const RenderElement = defineComponent({

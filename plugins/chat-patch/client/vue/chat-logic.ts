@@ -1,5 +1,5 @@
 import { ref, computed, onMounted, nextTick, onUnmounted, reactive } from 'vue'
-import { receive } from '@koishijs/client'
+import { receive, send } from '@koishijs/client'
 import { useChatData } from './composables/useChatData'
 import { useChatActions } from './composables/useChatActions'
 import { useImageCache } from './composables/useImageCache'
@@ -32,11 +32,13 @@ export function useChatLogic() {
   const forwardData = reactive({
     messages: [] as any[]
   })
+  const forwardDialogVisible = ref(false)
 
   // 图片查看器状态
   const imageViewer = reactive({
     url: ''
   })
+  const imageViewerVisible = ref(false)
 
   // 计算属性
   const currentChannels = computed(() => getChannels(selectedBot.value))
@@ -75,12 +77,20 @@ export function useChatLogic() {
 
   const showForward = (elements: any[]) => {
     forwardData.messages = elements.filter(e => e.type === 'message')
-    mobileView.value = 'forward'
+    if (isMobile.value) {
+      mobileView.value = 'forward'
+    } else {
+      forwardDialogVisible.value = true
+    }
   }
 
   const openImageViewer = (url: string) => {
     imageViewer.url = url
-    mobileView.value = 'image'
+    if (isMobile.value) {
+      mobileView.value = 'image'
+    } else {
+      imageViewerVisible.value = true
+    }
   }
 
   const downloadImage = (url: string) => {
@@ -128,6 +138,51 @@ export function useChatLogic() {
       scrollToBottom()
     } else {
       ElMessage.error(res?.error || '发送失败')
+    }
+  }
+
+  // 复读消息 (+1)
+  const repeatMessage = async (msg: any) => {
+    if (!selectedBot.value || !selectedChannel.value) return
+
+    // 提取消息内容，如果是富媒体则需要特殊处理，这里简单复读文本内容
+    const res = await sendMessage(selectedBot.value, selectedChannel.value, msg.content, [])
+    if (res?.success) {
+      scrollToBottom()
+    } else {
+      ElMessage.error(res?.error || '复读失败')
+    }
+  }
+
+  // 处理粘贴图片
+  const handlePaste = async (event: ClipboardEvent) => {
+    const items = event.clipboardData?.items
+    if (!items) return
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile()
+        if (file) {
+          // 模拟文件上传逻辑
+          const reader = new FileReader()
+          reader.onload = async (e) => {
+            const base64 = e.target?.result as string
+            const res = await (send as any)('upload-image', {
+              file: base64,
+              filename: `pasted_image_${Date.now()}.png`,
+              mimeType: file.type
+            })
+            if (res.success) {
+              uploadedImages.value.push({
+                tempId: res.tempId,
+                preview: URL.createObjectURL(file),
+                filename: `pasted_image_${Date.now()}.png`
+              })
+            }
+          }
+          reader.readAsDataURL(file)
+        }
+      }
     }
   }
 
@@ -197,6 +252,8 @@ export function useChatLogic() {
     forwardData,
     imageViewer,
     isLoadingHistory,
+    forwardDialogVisible,
+    imageViewerVisible,
 
     // 方法
     selectBot,
@@ -213,6 +270,8 @@ export function useChatLogic() {
     showForward,
     openImageViewer,
     downloadImage,
-    handleScroll
+    handleScroll,
+    repeatMessage,
+    handlePaste
   }
 }
