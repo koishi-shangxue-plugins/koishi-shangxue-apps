@@ -254,12 +254,31 @@ export class ApiHandlers {
         const result = await bot.sendMessage(data.channelId, parsedContent)
         this.logInfo('消息发送成功:', result)
 
-        // 移除此处的手动广播，统一由 message-handler.ts 中的 before-send 监听器处理
-        // 这样可以避免重复渲染，并确保所有来源的消息都能被记录
-
         const messageId = Array.isArray(result) ? result[0] : result;
+
+        // 发送成功后，更新本地存储中的虚拟消息为真实 ID
+        if (messageId) {
+          const chatData = this.fileManager.readChatDataFromFile()
+          const channelKey = `${data.selfId}:${data.channelId}`
+          const messages = chatData.messages[channelKey] || []
+          // 找到最近的一条正在发送的机器人消息
+          const msg = [...messages].reverse().find(m => m.type === 'bot' && m.sending)
+          if (msg) {
+            msg.realId = messageId;
+            msg.sending = false;
+            this.fileManager.writeChatDataToFile(chatData)
+
+            // 广播更新事件给前端
+            this.ctx.console.broadcast('bot-message-updated', {
+              channelKey,
+              tempId: msg.id,
+              realId: messageId
+            })
+          }
+        }
+
         return {
-          success: true,
+          success: !!messageId,
           messageId: messageId,
           tempImageIds: data.images?.map(img => img.tempId) || []
         }

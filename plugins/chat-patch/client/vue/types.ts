@@ -50,6 +50,8 @@ export interface MessageInfo {
   elements?: MessageElement[]
   isBot?: boolean
   quote?: QuoteInfo
+  sending?: boolean
+  realId?: string
 }
 
 export interface ChatData {

@@ -294,9 +294,12 @@ export class MessageHandler {
         const quotedMsg = data.messages[channelKey]?.find(m => m.id === quoteId)
 
         if (quotedMsg) {
+          // 如果是虚拟 ID，尝试获取其真实的 messageId
+          const realId = quotedMsg.id.startsWith('bot-msg-') ? (quotedMsg as any).realId : quotedMsg.id
+
           quoteInfo = {
-            messageId: quotedMsg.id,
-            id: quotedMsg.id,
+            messageId: realId || quotedMsg.id,
+            id: realId || quotedMsg.id,
             content: quotedMsg.content,
             elements: quotedMsg.elements,
             user: {
@@ -310,6 +313,11 @@ export class MessageHandler {
           }
           // 移除 content 中的 quote 标签，避免重复显示
           content = content.replace(/<quote id="[^"]+"\/>\s*/, '')
+
+          // 修正 content 中的 quote 标签为真实 ID，以便 bot.sendMessage 能够正确识别
+          if (realId) {
+            session.content = session.content.replace(/id="[^"]+"/, `id="${realId}"`)
+          }
         }
       }
 
@@ -328,7 +336,8 @@ export class MessageHandler {
         guildName: guildName,
         platform: session.platform || 'unknown',
         quote: quoteInfo,
-        isDirect: session.isDirect
+        isDirect: session.isDirect,
+        sending: true // 标记为正在发送
       }
 
       await this.fileManager.addMessageToFile(messageInfo)
@@ -349,6 +358,7 @@ export class MessageHandler {
         elements: this.utils.cleanBase64Content(session.event?.message?.elements),
         quote: quoteInfo,
         isDirect: session.isDirect,
+        sending: true,
         bot: {
           avatar: session.bot.user?.avatar,
           name: session.bot.user?.name,

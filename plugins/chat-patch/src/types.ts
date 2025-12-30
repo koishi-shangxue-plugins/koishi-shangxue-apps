@@ -48,6 +48,8 @@ export interface MessageInfo {
   platform: string
   quote?: QuoteInfo
   isDirect?: boolean
+  sending?: boolean
+  realId?: string
 }
 
 export interface ChatData {

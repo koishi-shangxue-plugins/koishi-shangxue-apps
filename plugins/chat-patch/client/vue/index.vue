@@ -74,7 +74,7 @@
                     <Loading />
                   </el-icon>
                 </div>
-                <div v-for="msg in currentMessages" :key="msg.id"
+                <div v-for="msg in currentMessages" :key="msg.id" :data-id="msg.id"
                   :class="['flex mb-6 gap-3 group', (msg.isBot || msg.userId === selectedBot) ? 'flex-row-reverse' : 'flex-row']">
                   <el-avatar :size="40" :src="msg.avatar"
                     class="flex-shrink-0 shadow-sm cursor-pointer hover:brightness-90" @click="showUserProfile(msg)">
@@ -90,9 +90,14 @@
                       :class="['flex items-end gap-2 group/msg', (msg.isBot || msg.userId === selectedBot) ? 'flex-row' : 'flex-row-reverse']">
                       <!-- +1 按钮：靠近屏幕中心的一侧，底部对齐 -->
                       <div
-                        class="opacity-0 group-hover/msg:opacity-100 transition-opacity cursor-pointer text-blue-500 hover:scale-110 active:scale-95 mb-1"
+                        :class="['transition-opacity cursor-pointer text-blue-500 hover:scale-110 active:scale-95 mb-1', isMobile ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100']"
                         title="复读这条消息" @click.stop="repeatMessage(msg)">
-                        <div
+                        <div v-if="msg.sending" class="w-8 h-8 flex items-center justify-center">
+                          <el-icon class="is-loading">
+                            <Loading />
+                          </el-icon>
+                        </div>
+                        <div v-else
                           class="w-8 h-8 rounded-full border-2 border-blue-500 flex items-center justify-center font-bold text-xs bg-blue-50/10">
                           +1</div>
                       </div>
@@ -102,14 +107,22 @@
                         @contextmenu.stop="onMessageMenu($event, msg)">
                         <!-- 引用消息渲染 -->
                         <div v-if="msg.quote"
-                          class="mb-2.5 p-2.5 text-sm bg-black/5 dark:bg-white/5 rounded-lg border-l-4 border-gray-400/50 text-left">
+                          class="mb-2.5 p-2.5 text-sm bg-black/5 dark:bg-white/5 rounded-lg border-l-4 border-gray-400/50 text-left relative group/quote">
                           <div class="font-bold opacity-70 mb-1 text-xs">{{ msg.quote.user.username }}:</div>
                           <div class="opacity-90">
                             <template v-if="msg.quote.elements && msg.quote.elements.length">
                               <render-element v-for="(el, i) in msg.quote.elements" :key="i" :element="el"
-                                :bot-id="selectedBot" :channel-id="selectedChannel" />
+                                :bot-id="selectedBot" :channel-id="selectedChannel" :in-quote="true" />
                             </template>
                             <template v-else>{{ msg.quote.content }}</template>
+                          </div>
+                          <!-- 定位消息按钮 -->
+                          <div
+                            class="absolute top-1 right-1 opacity-0 group-hover/quote:opacity-100 transition-opacity cursor-pointer text-[var(--k-color-primary)] hover:scale-110"
+                            title="定位到原消息" @click.stop="scrollToMessage(msg.quote.id)">
+                            <el-icon>
+                              <Top />
+                            </el-icon>
                           </div>
                         </div>
                         <!-- 消息内容渲染 -->
@@ -169,7 +182,7 @@
               </el-upload>
               <!-- 文本输入框，使用 autosize 以适应单行显示 -->
               <el-input ref="inputRef" v-model="inputText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
-                placeholder="输入消息... (支持粘贴图片)" class="flex-1 !text-base" @keydown.enter.prevent="handleSend"
+                placeholder="输入消息..." class="flex-1 !text-base" @keydown.enter.prevent="handleSend"
                 @paste="handlePaste" />
               <!-- 发送按钮 -->
               <el-button type="primary" :loading="isSending" @click="handleSend"
@@ -226,7 +239,7 @@
         <div
           class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm">
           <el-button icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
-          <span>用户资料</span>
+          <div class="flex-1 text-center pr-8">用户资料</div>
         </div>
         <div class="p-8 flex flex-col items-center gap-6">
           <el-avatar :size="120" :src="userProfile.data?.avatar" class="shadow-lg">{{ userProfile.data?.username?.[0]
@@ -255,6 +268,11 @@
           <div class="text-xs opacity-50 mt-1 font-mono">ID: {{ userProfile.data?.userId || userProfile.data?.id }}
           </div>
         </div>
+        <el-descriptions :column="1" border class="w-full mt-4">
+          <el-descriptions-item label="昵称">{{ userProfile.data?.username || userProfile.data?.name
+          }}</el-descriptions-item>
+          <el-descriptions-item label="平台">{{ selectedBotPlatform }}</el-descriptions-item>
+        </el-descriptions>
       </div>
     </el-dialog>
 
@@ -322,6 +340,13 @@
         </div>
         <div
           class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
+          @click="handleMessageAction('copy-raw')">
+          <el-icon>
+            <DocumentCopy />
+          </el-icon> 复制原始消息
+        </div>
+        <div
+          class="px-4 py-2.5 cursor-pointer text-sm hover:bg-[var(--k-button-hover-bg)] transition-colors flex items-center gap-2"
           @click="handleMessageAction('plus1')">
           <el-icon>
             <CirclePlus />
@@ -347,8 +372,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, defineComponent, onMounted, reactive, watch, computed } from 'vue'
-import { StarFilled, Star, Picture, CircleCloseFilled, ArrowLeft, Delete, Collection, Download, Loading, DocumentCopy, CirclePlus, ChatLineRound, Close } from '@element-plus/icons-vue'
+import { ref, h, defineComponent, onMounted, reactive, watch, computed, nextTick } from 'vue'
+import { StarFilled, Star, Picture, CircleCloseFilled, ArrowLeft, Delete, Collection, Download, Loading, DocumentCopy, CirclePlus, ChatLineRound, Close, Top } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { send } from '@koishijs/client'
 import { useChatLogic } from './chat-logic'
@@ -362,7 +387,7 @@ const {
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
   getCachedImageUrl, cacheImage, showForward, openImageViewer, downloadImage, handleScroll,
   repeatMessage, handlePaste, onBotMenu, onChannelMenu, onMessageMenu, handleMenuAction, handleMessageAction, showUserProfile,
-  menu, inputRef
+  menu, inputRef, scrollToMessage
 } = useChatLogic()
 
 const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -385,7 +410,7 @@ const onHandleMenuAction = async (action: string) => {
 
 // 消息渲染组件
 const RenderElement = defineComponent({
-  props: ['element', 'botId', 'channelId'],
+  props: ['element', 'botId', 'channelId', 'inQuote'],
   setup(props) {
     const imgUrl = ref('')
     const isMedia = ['img', 'image', 'mface', 'audio', 'video'].includes(props.element.type)
@@ -405,6 +430,20 @@ const RenderElement = defineComponent({
     if (isMedia) loadMedia()
     watch(() => props.element.attrs.src || props.element.attrs.url || props.element.attrs.file, loadMedia)
 
+    // 图片加载完成后尝试滚动到底部（如果当前就在底部附近）
+    const onImageLoad = () => {
+      if (props.inQuote) return
+      const wrap = document.querySelector('.el-main .el-scrollbar__wrap')
+      if (wrap) {
+        const isAtBottom = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 150
+        if (isAtBottom) {
+          nextTick(() => {
+            wrap.scrollTop = wrap.scrollHeight
+          })
+        }
+      }
+    }
+
     return () => {
       const { element, botId, channelId } = props
       const type = element.type
@@ -412,6 +451,7 @@ const RenderElement = defineComponent({
 
       if (type === 'text') return h('span', attrs.content)
       if (type === 'img' || type === 'image' || type === 'mface') {
+        if (props.inQuote) return h('span', { class: 'opacity-60 italic mx-1' }, '[图片]')
         const isMface = type === 'mface'
         return h('div', { class: 'block my-1.5' }, [
           h('img', {
@@ -422,6 +462,7 @@ const RenderElement = defineComponent({
               e.stopPropagation()
               openImageViewer(imgUrl.value)
             },
+            onLoad: onImageLoad,
             onError: (e: any) => {
               e.target.src = ''
               e.target.alt = '图片加载失败'

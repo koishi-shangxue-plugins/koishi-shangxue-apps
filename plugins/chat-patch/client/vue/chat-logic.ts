@@ -81,6 +81,10 @@ export function useChatLogic() {
 
     await nextTick()
     scrollToBottom()
+
+    // 针对图片加载导致的滚动偏移，在 300ms 和 800ms 后再次校准底部
+    setTimeout(scrollToBottom, 300)
+    setTimeout(scrollToBottom, 800)
   }
 
   const goBack = () => {
@@ -149,7 +153,9 @@ export function useChatLogic() {
 
     let content = inputText.value
     if (replyingTo.value) {
-      content = `<quote id="${replyingTo.value.id}"/> ${content}`
+      // 优先使用真实 ID 进行引用
+      const quoteId = replyingTo.value.realId || replyingTo.value.id
+      content = `<quote id="${quoteId}"/>${content}`
     }
 
     const res = await sendMessage(selectedBot.value, selectedChannel.value, content, uploadedImages.value)
@@ -167,8 +173,16 @@ export function useChatLogic() {
   const repeatMessage = async (msg: any) => {
     if (!selectedBot.value || !selectedChannel.value) return
 
-    // 提取消息内容，如果是富媒体则需要特殊处理，这里简单复读文本内容
-    const res = await sendMessage(selectedBot.value, selectedChannel.value, msg.content, [])
+    // 复读消息，包含引用
+    let content = msg.content
+    if (msg.quote) {
+      content = `<quote id="${msg.quote.id}"/>${content}`
+    } else if (msg.isBot || msg.userId === selectedBot.value) {
+      // 如果是复读机器人自己的消息，且该消息没有引用，则尝试引用该消息本身
+      const quoteId = msg.realId || msg.id
+      content = `<quote id="${quoteId}"/>${content}`
+    }
+    const res = await sendMessage(selectedBot.value, selectedChannel.value, content, [])
     if (res?.success) {
       scrollToBottom()
     } else {
@@ -253,10 +267,38 @@ export function useChatLogic() {
     menu.value.show = false
     if (!msg) return
 
+    // 兼容手机端的复制函数
+    const copyToClipboard = (text: string) => {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text)
+      } else {
+        // 回退方案
+        const textArea = document.createElement("textarea")
+        textArea.value = text
+        textArea.style.position = "fixed"
+        textArea.style.left = "-999999px"
+        textArea.style.top = "-999999px"
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        return new Promise<void>((res, rej) => {
+          document.execCommand('copy') ? res() : rej()
+          textArea.remove()
+        })
+      }
+    }
+
     if (action === 'copy') {
-      const text = msg.content || ''
-      navigator.clipboard.writeText(text)
-      ElMessage.success('已复制到剪贴板')
+      // 移除 HTML 标签
+      const text = (msg.content || '').replace(/<[^>]+>/g, '')
+      copyToClipboard(text).then(() => ElMessage.success('已复制到剪贴板'))
+    } else if (action === 'copy-raw') {
+      // 复制原始消息，包含引用标签
+      let raw = msg.content || ''
+      if (msg.quote) {
+        raw = `<quote id="${msg.quote.id}"/>${raw}`
+      }
+      copyToClipboard(raw).then(() => ElMessage.success('已复制原始消息'))
     } else if (action === 'plus1') {
       await repeatMessage(msg)
     } else if (action === 'reply') {
@@ -297,6 +339,38 @@ export function useChatLogic() {
       }
     } else {
       ElMessage.error(res.error || '获取用户信息失败')
+    }
+  }
+
+  // 定位消息并高亮
+  const scrollToMessage = async (id: string) => {
+    // 尝试在当前列表中查找，优先匹配 data-id
+    let el = document.querySelector(`[data-id="${id}"]`) || document.getElementById(id)
+
+    if (!el) {
+      // 如果没找到，尝试向上加载历史记录
+      if (isLoadingHistory.value) return
+
+      ElMessage.info('正在向上查找历史消息...')
+
+      // 最多尝试向上查找 3 次
+      for (let i = 0; i < 3; i++) {
+        await loadHistory(selectedBot.value, selectedChannel.value)
+        // 等待 DOM 更新
+        await new Promise(resolve => setTimeout(resolve, 150))
+        el = document.querySelector(`[data-id="${id}"]`) || document.getElementById(id)
+        if (el) break
+      }
+    }
+
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // 找到消息内容容器进行高亮
+      const contentEl = el.querySelector('.cursor-context-menu') || el
+      contentEl.classList.add('message-highlight')
+      setTimeout(() => contentEl.classList.remove('message-highlight'), 1500)
+    } else {
+      ElMessage.warning('消息太久远，已不在当前列表中')
     }
   }
 
@@ -373,6 +447,19 @@ export function useChatLogic() {
       }
     })
     if (typeof d3 === 'function') dispose.push(d3)
+
+    // 监听机器人消息更新（发送成功后从虚拟 ID 转为真实 ID）
+    const d4 = receive('bot-message-updated', (data: any) => {
+      const channelKey = `${selectedBot.value}:${selectedChannel.value}`
+      if (data.channelKey !== channelKey) return
+
+      const msg = currentMessages.value.find(m => m.id === data.tempId)
+      if (msg) {
+        msg.sending = false
+        msg.realId = data.realId
+      }
+    })
+    if (typeof d4 === 'function') dispose.push(d4)
   })
 
   onUnmounted(() => {
@@ -431,6 +518,7 @@ export function useChatLogic() {
     handleMenuAction,
     handleMessageAction,
     showUserProfile,
-    inputRef
+    inputRef,
+    scrollToMessage
   }
 }
