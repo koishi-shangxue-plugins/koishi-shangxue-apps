@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs'
 
 export const name = 'chat-onebot'
 export const reusable = false
+export const filter = false
 
 export const inject = {
   required: ['console', 'server']
@@ -42,7 +43,7 @@ export const Config: Schema<Config> = Schema.intersect([
       Schema.const('local').description('本地文件模式')
     ]).default('local').description('加载模式'),
     wsAddress: Schema.string().default('ws://localhost:3001').description('正向 WebSocket 地址<br>填入你的onebot协议端的ws地址'),
-  }).description('基础设置'),
+  }).description('基础配置'),
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description('日志调试模式').experimental(),
@@ -66,14 +67,6 @@ export function apply(ctx: Context, config: Config) {
         wsAddress: config.wsAddress
       }
     })
-
-    // 注册重定向页面：/chat-onebot -> 根据配置跳转
-    ctx.server.get('/chat-onebot', async (koaCtx) => {
-      const targetUrl = config.mode === 'online' ? '/chat-onebot/web' : '/chat-onebot/local'
-      koaCtx.redirect(targetUrl)
-    })
-
-    // 在线模式不需要后端路由，直接在前端 iframe 中加载 GitHub Pages
 
     // 本地模式：挂载本地文件到 /chat-onebot/local
     const localPath = path.resolve(__dirname, '..', 'Stapxs-QQ-Lite/dist')
