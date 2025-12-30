@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chat-onebot",
   "description": "chat-onebot - 集成 Stapxs QQ Lite 2.0 到 Koishi 控制台。一个兼容 OneBot 的非官方网页 QQ 客户端。",
-  "version": "3.3.3",
+  "version": "4.3.3",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
