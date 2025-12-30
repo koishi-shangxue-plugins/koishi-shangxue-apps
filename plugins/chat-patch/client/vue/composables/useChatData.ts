@@ -95,10 +95,12 @@ export function useChatData() {
       chatData.value.channels[selfId] = {}
     }
     if (!chatData.value.channels[selfId][channelId]) {
+      const isDirect = msg.isDirect || channelId.includes('private')
       chatData.value.channels[selfId][channelId] = {
         id: channelId,
-        name: msg.guildName || msg.username || channelId,
-        type: msg.channelType || 0
+        name: isDirect ? `私聊（${msg.username || channelId}）` : (msg.guildName || channelId),
+        type: msg.channelType || 0,
+        isDirect
       }
     }
 

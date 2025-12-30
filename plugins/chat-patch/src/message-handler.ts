@@ -50,40 +50,45 @@ export class MessageHandler {
 
   // 更新频道信息到JSON文件
   async updateChannelInfoToFile(session: Session): Promise<string> {
+    const isDirect = session.isDirect || session.channelId?.includes('private')
     let guildName = session.channelId
-    let directUserName = session.username || session.userId || '未知用户'
+    let directUserName = session.username || session.event?.user?.name || session.userId || '未知用户'
 
     const data = this.fileManager.readChatDataFromFile()
 
-    try {
-      // 获取群组名称
-      if (session.guildId && session.bot.getGuild && typeof session.bot.getGuild === 'function') {
-        const guild = await session.bot.getGuild(session.guildId)
-        guildName = guild?.name || session.channelId
-      }
+    if (!isDirect) {
+      try {
+        // 获取群组名称
+        if (session.guildId && session.bot.getGuild && typeof session.bot.getGuild === 'function') {
+          const guild = await session.bot.getGuild(session.guildId)
+          guildName = guild?.name || session.channelId
+        }
 
-      // 获取私聊用户昵称
-      if (session.userId && session.isDirect && session.bot.getUser && typeof session.bot.getUser === 'function') {
-        try {
-          const user = await session.bot.getUser(session.userId)
-          directUserName = user?.name || session.username || session.userId || '未知用户'
-        } catch (userError) {
-          this.logInfo('获取用户信息失败，使用备用名称:', userError)
+        // 如果没有getGuild方法，尝试使用getChannel方法
+        if (session.guildId && !session.bot.getGuild && session.bot.getChannel && typeof session.bot.getChannel === 'function') {
+          try {
+            const channel = await session.bot.getChannel(session.guildId)
+            guildName = channel?.name || session.channelId
+          } catch (channelError) {
+            this.logInfo('获取频道信息失败，使用频道ID作为备用:', channelError)
+          }
+        }
+      } catch (error) {
+        this.logInfo('获取频道信息失败，使用频道ID作为备用:', error)
+        guildName = session.channelId
+      }
+    } else {
+      // 私聊逻辑：如果当前名称还是未知或 ID，则尝试调用 API
+      if (session.userId && (directUserName === '未知用户' || directUserName === session.userId)) {
+        if (session.bot.getUser && typeof session.bot.getUser === 'function') {
+          try {
+            const user = await session.bot.getUser(session.userId)
+            if (user?.name) directUserName = user.name
+          } catch (userError) {
+            this.logInfo('获取用户信息失败:', userError)
+          }
         }
       }
-
-      // 如果没有getGuild方法，尝试使用getChannel方法
-      if (session.guildId && !session.bot.getGuild && session.bot.getChannel && typeof session.bot.getChannel === 'function') {
-        try {
-          const channel = await session.bot.getChannel(session.guildId)
-          guildName = channel?.name || session.channelId
-        } catch (channelError) {
-          this.logInfo('获取频道信息失败，使用频道ID作为备用:', channelError)
-        }
-      }
-    } catch (error) {
-      this.logInfo('获取频道信息失败，使用频道ID作为备用:', error)
-      guildName = session.channelId
     }
 
     if (!data.channels[session.selfId]) {
@@ -92,13 +97,13 @@ export class MessageHandler {
 
     const channelInfo: ChannelInfo = {
       id: session.channelId,
-      name: session.isDirect
-        ? (session.username || directUserName || session.userId || session.channelId)
+      name: isDirect
+        ? `私聊（${directUserName}）`
         : (guildName || session.channelId),
       type: session.type || 0,
       channelId: session.channelId,
       guildName: guildName,
-      isDirect: session.isDirect
+      isDirect: !!isDirect
     }
 
     data.channels[session.selfId][session.channelId] = channelInfo
@@ -109,11 +114,14 @@ export class MessageHandler {
   }
 
   // 下载并缓存媒体文件
-  private async downloadAndCacheMedia(url: string, type: 'image' | 'media') {
+  public async downloadAndCacheMedia(url: string, type: 'image' | 'media' | 'avatar') {
     try {
       if (!url || url.startsWith('data:') || url.startsWith('file:')) return url
 
-      const folder = type === 'image' ? 'images' : 'media'
+      let folder = 'media'
+      if (type === 'image') folder = 'images'
+      else if (type === 'avatar') folder = 'avatars'
+
       const dir = require('node:path').join(this.ctx.baseDir, 'data', 'chat-patch', 'persist-media', folder)
       if (!require('node:fs').existsSync(dir)) {
         require('node:fs').mkdirSync(dir, { recursive: true })
@@ -159,6 +167,7 @@ export class MessageHandler {
     try {
       await this.updateBotInfoToFile(session)
       const guildName = await this.updateChannelInfoToFile(session)
+      const isDirect = session.isDirect || session.channelId?.includes('private')
 
       const timestamp = Date.now()
 
@@ -224,7 +233,19 @@ export class MessageHandler {
         guildName: guildName,
         platform: session.platform || 'unknown',
         quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo) : undefined,
-        isDirect: session.isDirect
+        isDirect: !!isDirect
+      }
+
+      // 如果是私聊且频道名还是“未知用户”，利用当前消息的用户名立即修复它
+      if (isDirect && messageInfo.username && messageInfo.username !== 'unknown') {
+        const data = this.fileManager.readChatDataFromFile()
+        const channel = data.channels[session.selfId]?.[session.channelId]
+        if (channel && (channel.name === '私聊（未知用户）' || channel.name.includes('未知用户') || channel.name === session.channelId)) {
+          channel.name = `私聊（${messageInfo.username}）`
+          this.fileManager.writeChatDataToFile(data)
+          // 广播更新，让前端侧边栏刷新
+          this.ctx.console.broadcast('chat-data-updated', {})
+        }
       }
 
       await this.fileManager.addMessageToFile(messageInfo)
@@ -268,6 +289,7 @@ export class MessageHandler {
 
       await this.updateBotInfoToFile(session)
       const guildName = await this.updateChannelInfoToFile(session)
+      const isDirect = session.isDirect || finalChannelId?.includes('private')
 
       const timestamp = Date.now()
 
@@ -336,7 +358,7 @@ export class MessageHandler {
         guildName: guildName,
         platform: session.platform || 'unknown',
         quote: quoteInfo,
-        isDirect: session.isDirect,
+        isDirect: !!isDirect,
         sending: true // 标记为正在发送
       }
 
@@ -357,7 +379,7 @@ export class MessageHandler {
         channelType: session.event?.channel?.type || session.type || 0,
         elements: this.utils.cleanBase64Content(session.event?.message?.elements),
         quote: quoteInfo,
-        isDirect: session.isDirect,
+        isDirect: !!isDirect,
         sending: true,
         bot: {
           avatar: session.bot.user?.avatar,

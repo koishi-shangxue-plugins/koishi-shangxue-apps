@@ -518,6 +518,56 @@ export class ApiHandlers {
         if (!bot) return { success: false, error: '机器人不存在' }
 
         const user = await bot.getUser(data.userId, data.guildId)
+
+        if (user) {
+          // 缓存头像到本地
+          if (user.avatar) {
+            user.avatar = await this.messageHandler.downloadAndCacheMedia(user.avatar, 'avatar')
+          }
+
+          const chatData = this.fileManager.readChatDataFromFile()
+          let changed = false
+
+          // 1. 如果是私聊，更新频道名
+          // 兼容多种私聊 ID 格式：纯 ID 或 private:ID
+          const botChannels = chatData.channels[data.selfId] || {}
+          const channelId = Object.keys(botChannels).find(id => id === data.userId || id === `private:${data.userId}`)
+          const channel = channelId ? botChannels[channelId] : null
+
+          if (channel && channel.isDirect) {
+            const newName = `私聊（${user.name}）`
+            if (channel.name !== newName) {
+              channel.name = newName
+              changed = true
+            }
+          }
+
+          // 2. 更新该用户在所有历史消息中的头像和昵称（持久化缓存）
+          const channelKeyPrefix = `${data.selfId}:`
+          for (const [key, messages] of Object.entries(chatData.messages)) {
+            if (key.startsWith(channelKeyPrefix)) {
+              messages.forEach(msg => {
+                if (msg.userId === data.userId) {
+                  if (user.name && msg.username !== user.name) {
+                    msg.username = user.name
+                    changed = true
+                  }
+                  if (user.avatar && msg.avatar !== user.avatar) {
+                    msg.avatar = user.avatar
+                    changed = true
+                  }
+                }
+              });
+            }
+          }
+
+          if (changed) {
+            this.fileManager.writeChatDataToFile(chatData)
+            // 广播更新事件，让前端实时刷新
+            this.ctx.console.broadcast('chat-data-updated', {})
+          }
+        }
+
         return { success: true, data: user }
       } catch (error: any) {
         return { success: false, error: error?.message || '获取用户信息失败' }
