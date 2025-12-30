@@ -7,9 +7,9 @@
       <el-aside v-show="!isMobile || mobileView === 'bots'" :width="isMobile ? '100%' : '280px'"
         class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-95 dark:brightness-90">
         <div
-          class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)]">
+          class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)] flex-shrink-0">
           机器人</div>
-        <el-scrollbar class="flex-1 mobile-scrollbar-fix">
+        <el-scrollbar class="flex-1 mobile-scrollbar-fix" :style="{ maxHeight: 'calc(100vh - 56px)' }">
           <div v-if="bots.length === 0" class="p-10 text-center opacity-40 text-sm">暂无机器人数据</div>
           <div v-for="bot in bots" :key="bot.selfId"
             :class="['flex items-center p-4 cursor-pointer transition-all hover:bg-[var(--k-button-hover-bg)] border-l-4 border-transparent', { '!border-[var(--k-color-primary)] bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedBot === bot.selfId }]"
@@ -36,11 +36,11 @@
         :width="isMobile ? '100%' : '260px'"
         class="flex flex-col border-r border-[var(--k-border-color)] bg-[var(--k-page-bg)] brightness-100 dark:brightness-95">
         <div
-          class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)]">
+          class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] text-lg text-[var(--k-text-color)] flex-shrink-0">
           <el-button v-if="isMobile" icon="ArrowLeft" circle size="small" class="mr-3" @click="goBack" />
           频道
         </div>
-        <el-scrollbar class="flex-1 mobile-scrollbar-fix">
+        <el-scrollbar class="flex-1 mobile-scrollbar-fix" :style="{ maxHeight: 'calc(100vh - 56px)' }">
           <div v-if="currentChannels.length === 0" class="p-10 text-center opacity-40 text-sm">暂无频道数据</div>
           <div v-for="channel in currentChannels" :key="channel.id"
             :class="['flex items-center p-4 cursor-pointer transition-all hover:bg-[var(--k-button-hover-bg)] border-l-4 border-transparent', { '!border-[var(--k-color-primary)] bg-[var(--k-button-active-bg)] text-[var(--k-color-primary)]': selectedChannel === channel.id }]"
@@ -59,8 +59,7 @@
 
       <!-- 消息主区域 -->
       <el-main v-show="(!isMobile && selectedBot && selectedChannel) || (isMobile && mobileView === 'messages')"
-        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100 h-full overflow-hidden"
-        :style="isMobile && keyboardHeight > 0 ? { paddingBottom: keyboardHeight + 'px' } : {}">
+        class="flex flex-col p-0 bg-[var(--k-page-bg)] relative brightness-105 dark:brightness-100 h-full overflow-hidden">
         <template v-if="selectedBot && selectedChannel">
           <div
             class="flex h-14 items-center px-4 font-bold border-b border-[var(--k-border-color)] bg-[var(--k-card-bg)] shadow-sm z-10 text-[var(--k-text-color)]">
@@ -72,7 +71,7 @@
 
           <div class="flex-1 overflow-hidden relative bg-opacity-50 bg-gray-100 dark:bg-black/20">
             <el-scrollbar ref="scrollRef" @scroll="handleScroll">
-              <div class="p-6 flex flex-col min-h-full" :style="isMobile ? { paddingBottom: '180px' } : {}">
+              <div class="p-6 flex flex-col min-h-full" :style="isMobile ? { paddingBottom: '200px' } : {}">
                 <div v-if="isLoadingHistory" class="flex justify-center py-4">
                   <el-icon class="is-loading text-[var(--k-color-primary)]">
                     <Loading />

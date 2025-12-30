@@ -10,26 +10,40 @@
 }
 
 .chat-patch-wrapper {
-  /* 完全隐藏滚动条 */
+  /* 完全隐藏滚动条 - 增强版 */
   .mobile-scrollbar-fix {
-    .el-scrollbar__bar.is-vertical,
-    .el-scrollbar__bar.is-horizontal {
+    /* 隐藏 Element Plus 滚动条组件 */
+    .el-scrollbar__bar {
       display: none !important;
       opacity: 0 !important;
       width: 0 !important;
+      height: 0 !important;
+    }
+    
+    .el-scrollbar__thumb {
+      display: none !important;
     }
     
     .el-scrollbar__wrap {
       overflow-x: hidden !important;
       
-      /* 隐藏原生滚动条 */
-      scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* IE/Edge */
+      /* 隐藏原生滚动条 - 所有浏览器 */
+      scrollbar-width: none !important; /* Firefox */
+      -ms-overflow-style: none !important; /* IE/Edge */
       
       &::-webkit-scrollbar {
-        display: none; /* Chrome/Safari */
-        width: 0;
-        height: 0;
+        display: none !important; /* Chrome/Safari */
+        width: 0 !important;
+        height: 0 !important;
+        background: transparent !important;
+      }
+      
+      &::-webkit-scrollbar-track {
+        display: none !important;
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        display: none !important;
       }
     }
   }
