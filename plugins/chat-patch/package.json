@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chat-patch",
   "description": "[<ruby>chat-patch<rp>（</rp><rt>点我预览效果</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/openplatform/71074dfc9e5256fc3333d8bd8478bec1af874046.png) 视奸小插件((bushi( (低性能警告)。手机端适配。灵感来自 chat 插件。",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -15,6 +15,9 @@
   "bugs": {
     "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
+  "contributors": [
+    "shangxueink <1919892171@qq.com>"
+  ],
   "keywords": [
     "koishi",
     "plugin",
