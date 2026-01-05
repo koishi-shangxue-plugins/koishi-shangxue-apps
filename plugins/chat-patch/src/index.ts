@@ -38,6 +38,29 @@ export { Config } from './config'
 export async function apply(ctx: Context, config: Config) {
   const logger = ctx.logger('chat-patch')
 
+  // 启动时清空 media 文件夹（为旧版本做清理工作）
+  const mediaDir = path.join(ctx.baseDir, 'data', 'chat-patch', 'persist-media', 'media')
+  if (require('node:fs').existsSync(mediaDir)) {
+    try {
+      const files = require('node:fs').readdirSync(mediaDir)
+      let deletedCount = 0
+      for (const file of files) {
+        const filePath = path.join(mediaDir, file)
+        try {
+          require('node:fs').unlinkSync(filePath)
+          deletedCount++
+        } catch (e) {
+          logger.warn('删除媒体文件失败:', filePath, e)
+        }
+      }
+      if (deletedCount > 0) {
+        logger.info(`启动时清理了 ${deletedCount} 个旧版本的媒体缓存文件`)
+      }
+    } catch (e) {
+      logger.warn('清理媒体文件夹失败:', e)
+    }
+  }
+
   // 初始化各个模块
   const fileManager = new FileManager(ctx, config)
   const messageHandler = new MessageHandler(ctx, config, fileManager)

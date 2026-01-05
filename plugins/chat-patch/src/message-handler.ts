@@ -166,17 +166,25 @@ export class MessageHandler {
   }
 
   // 处理消息中的媒体元素并缓存
-  private async processMediaElements(elements: h[]) {
+  // 只缓存用户的图片和语音，不缓存视频和文件
+  private async processMediaElements(elements: h[], isUserMessage: boolean = true) {
     if (!elements) return elements
     for (const el of elements) {
       if (['image', 'img', 'mface'].includes(el.type)) {
         const src = el.attrs.src || el.attrs.url || el.attrs.file
-        if (src) el.attrs.src = await this.downloadAndCacheMedia(src, 'image')
-      } else if (['audio', 'video'].includes(el.type)) {
+        if (src && isUserMessage) {
+          // 只缓存用户消息的图片
+          el.attrs.src = await this.downloadAndCacheMedia(src, 'image')
+        }
+      } else if (el.type === 'audio') {
         const src = el.attrs.src || el.attrs.url || el.attrs.file
-        if (src) el.attrs.src = await this.downloadAndCacheMedia(src, 'media')
+        if (src && isUserMessage) {
+          // 只缓存用户消息的语音
+          el.attrs.src = await this.downloadAndCacheMedia(src, 'media')
+        }
       }
-      if (el.children) await this.processMediaElements(el.children)
+      // 视频和文件不再缓存，保持原始URL
+      if (el.children) await this.processMediaElements(el.children, isUserMessage)
     }
     return elements
   }
@@ -189,12 +197,12 @@ export class MessageHandler {
 
       const timestamp = Date.now()
 
-      // 处理媒体缓存
+      // 处理媒体缓存 - 用户消息只缓存图片和语音
       if (session.elements) {
-        await this.processMediaElements(session.elements)
+        await this.processMediaElements(session.elements, true)
       }
       if (session.quote?.elements) {
-        await this.processMediaElements(session.quote.elements)
+        await this.processMediaElements(session.quote.elements, true)
       }
 
       // 处理 quote 信息
@@ -299,10 +307,8 @@ export class MessageHandler {
 
       const timestamp = Date.now()
 
-      // 处理媒体缓存
-      if (session.event?.message?.elements) {
-        await this.processMediaElements(session.event.message.elements)
-      }
+      // 机器人消息不缓存任何媒体
+      // 保持原始URL，不进行缓存处理
 
       // 优先使用 session.content，它包含了完整的消息内容（含标签）
       let content = session.content || ''
