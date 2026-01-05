@@ -37,7 +37,7 @@ export const usage = `
 
 比如：搜索 “遠い空へ” 的第二页，并且结果以语音格式返回
 
-示例：\`点播 遠い空へ -a  -p 2\`  
+示例：\`点播 遠い空へ -a  -p 2\`
 
 
 ---
@@ -76,11 +76,13 @@ export interface Config {
   bVideoShowIntroductionTofixed: number;
   isfigure: boolean;
   filebuffer: boolean;
+  maxFileSizeMB: number;
   middleware: boolean;
   userAgent: string;
   pageclose: boolean;
   loggerinfo: boolean;
   loggerinfofulljson: boolean;
+  bufferDelay: number;
 }
 
 export const Config = Schema.intersect([
@@ -162,6 +164,8 @@ export const Config = Schema.intersect([
       bVideoShowIntroductionTofixed: Schema.number().default(50).description("视频的`简介`最大的字符长度<br>超出部分会使用 `...` 代替"),
       isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
       filebuffer: Schema.boolean().default(true).description("是否将视频链接下载后再发送 （以解决部分onebot协议端的问题）<br>否则使用视频直链发送").experimental(),
+      maxFileSizeMB: Schema.number().default(20).description("文件缓冲最大大小（MB）<br>超过此大小的视频将使用直链发送，避免内存溢出<br>设置为0表示不限制").min(0).max(200),
+      bufferDelay: Schema.number().default(5).description("消息接收缓冲延迟（秒）<br>收到链接后等待指定时间，收集同时发送的多个链接后再逐个处理").min(0).max(30),
       middleware: Schema.boolean().default(false).description("前置中间件模式"),
       userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
     }),
@@ -209,13 +213,13 @@ export function apply(ctx: Context, config: Config) {
           sessioncontent += '\n' + bvUrls.join('\n');
         }
       }
-      const links = await bilibiliParser.isProcessLinks(sessioncontent); // 判断是否需要解析
+
+      const links = await bilibiliParser.isProcessLinks(sessioncontent);
       if (links) {
-        const ret = await bilibiliParser.extractLinks(session, links); // 提取链接
-        if (ret && !bilibiliParser.isLinkProcessedRecently(ret, session.channelId)) {
-          await bilibiliParser.processVideoFromLink(session, ret); // 解析视频并返回
-        }
+        // 直接将整个 session 加入队列，在队列中串行处理
+        await bilibiliParser.queueSession(session, sessioncontent);
       }
+
       return next();
     }, config.middleware);
   }
@@ -241,9 +245,9 @@ export function apply(ctx: Context, config: Config) {
 
         await page.addStyleTag({
           content: `
-div.bili-header, 
-div.login-tip, 
-div.v-popover, 
+div.bili-header,
+div.login-tip,
+div.v-popover,
 div.right-entry__outside {
 display: none !important;
 }
@@ -344,9 +348,10 @@ display: none !important;
 
         // 开启自动解析了
         if (config.enable) {
-          const ret = await bilibiliParser.extractLinks(session, [{ type: 'Video', id: chosenVideo.id }]); // 提取链接
+          const link = { type: 'Video', id: chosenVideo.id };
+          const ret = await bilibiliParser.extractLinks(session, [link]); // 提取链接
           if (ret && !bilibiliParser.isLinkProcessedRecently(ret, session.channelId)) {
-            await bilibiliParser.processVideoFromLink(session, ret, options); // 解析视频并返回
+            await bilibiliParser.processVideoFromLink(session, ret, options); // 加入缓冲队列
           }
         }
       })

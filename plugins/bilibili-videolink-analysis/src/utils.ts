@@ -1,8 +1,39 @@
 import { Schema, Logger, h, Context, Session } from "koishi";
 import type { Config } from './index';
 
+// 队列任务接口
+interface QueueTask {
+    session: Session;
+    ret: string;
+    options?: { video?: boolean; audio?: boolean; link?: boolean };
+}
+
+// 缓冲区任务接口
+interface BufferTask {
+    session: Session;
+    ret: string;
+    options?: { video?: boolean; audio?: boolean; link?: boolean };
+    timestamp: number;
+}
+
+// Session 级别的任务接口
+interface SessionTask {
+    session: Session;
+    sessioncontent: string;
+    timestamp: number;
+}
+
 export class BilibiliParser {
     private lastProcessedUrls: Record<string, number> = {};
+    private processingQueue: QueueTask[] = []; // 待处理队列
+    private isProcessing: boolean = false; // 是否正在处理
+    private bufferQueue: BufferTask[] = []; // 缓冲队列
+    private bufferTimer: NodeJS.Timeout | null = null; // 缓冲定时器
+
+    // Session 级别的队列控制
+    private sessionQueue: SessionTask[] = []; // Session 缓冲队列
+    private sessionTimer: NodeJS.Timeout | null = null; // Session 缓冲定时器
+    private isProcessingSession: boolean = false; // 是否正在处理 Session
 
     constructor(private ctx: Context, private config: Config, private logger: Logger) { }
 
@@ -73,8 +104,161 @@ export class BilibiliParser {
         return false; // 没有处理过
     }
 
+    // 添加 session 到缓冲队列（middleware 入口调用）
+    public async queueSession(session: Session, sessioncontent: string) {
+        // 将 session 加入缓冲队列
+        this.sessionQueue.push({ session, sessioncontent, timestamp: Date.now() });
+        this.logInfo(`收到消息，Session缓冲区任务数: ${this.sessionQueue.length}`);
+
+        // 清除之前的定时器
+        if (this.sessionTimer) {
+            clearTimeout(this.sessionTimer);
+        }
+
+        // 设置新的定时器，等待配置的延迟时间后处理
+        this.sessionTimer = setTimeout(() => {
+            this.flushSessionBuffer();
+        }, this.config.bufferDelay * 1000);
+    }
+
+    // 将 session 缓冲区的任务转移到处理队列
+    private flushSessionBuffer() {
+        if (this.sessionQueue.length === 0) {
+            return;
+        }
+
+        this.logInfo(`Session缓冲时间结束，开始处理 ${this.sessionQueue.length} 个消息`);
+
+        // 启动 session 队列处理
+        if (!this.isProcessingSession) {
+            this.processSessionQueue();
+        }
+    }
+
+    // 处理 session 队列中的任务
+    private async processSessionQueue() {
+        if (this.isProcessingSession || this.sessionQueue.length === 0) {
+            return;
+        }
+
+        this.isProcessingSession = true;
+        this.logInfo(`开始处理Session队列，总任务数: ${this.sessionQueue.length}`);
+
+        while (this.sessionQueue.length > 0) {
+            const task = this.sessionQueue.shift();
+            this.logInfo(`处理Session (剩余: ${this.sessionQueue.length})`);
+
+            try {
+                await this.processSessionTask(task.session, task.sessioncontent);
+            } catch (error) {
+                this.logger.error('处理Session任务时发生错误:', error);
+            }
+        }
+
+        this.isProcessingSession = false;
+        this.logInfo('Session队列处理完成');
+    }
+
+    // 实际处理单个 session 任务
+    private async processSessionTask(session: Session, sessioncontent: string) {
+        this.logger.info(`[队列] 开始处理消息: ${sessioncontent.substring(0, 50)}...`);
+
+        const links = await this.isProcessLinks(sessioncontent);
+        if (!links) {
+            this.logger.info(`[队列] 未检测到链接`);
+            return;
+        }
+
+        this.logger.info(`[队列] 检测到 ${links.length} 个链接`);
+
+        // 逐个处理链接
+        for (let i = 0; i < links.length; i++) {
+            const link = links[i];
+            this.logger.info(`[队列] 处理第 ${i + 1}/${links.length} 个链接`);
+
+            const ret = await this.extractLinks(session, [link]);
+            if (ret && !this.isLinkProcessedRecently(ret, session.channelId)) {
+                this.logger.info(`[队列] 开始下载视频`);
+                // 直接处理，不再使用视频级别的缓冲
+                await this.processVideoTask(session, ret, { video: true });
+                this.logger.info(`[队列] 视频处理完成`);
+            } else {
+                this.logger.info(`[队列] 链接已处理过，跳过`);
+            }
+        }
+
+        this.logger.info(`[队列] Session 处理完成`);
+    }
+
+    // 添加任务到缓冲区（已废弃，保留兼容性）
     public async processVideoFromLink(session: Session, ret: string, options: { video?: boolean; audio?: boolean; link?: boolean } = { video: true }) {
+        // 将任务加入缓冲队列
+        this.bufferQueue.push({ session, ret, options, timestamp: Date.now() });
+        this.logInfo(`收到解析请求，缓冲区任务数: ${this.bufferQueue.length}`);
+
+        // 清除之前的定时器
+        if (this.bufferTimer) {
+            clearTimeout(this.bufferTimer);
+        }
+
+        // 设置新的定时器，等待配置的延迟时间后处理
+        this.bufferTimer = setTimeout(() => {
+            this.flushBuffer();
+        }, this.config.bufferDelay * 1000);
+    }
+
+    // 将缓冲区的任务转移到处理队列
+    private flushBuffer() {
+        if (this.bufferQueue.length === 0) {
+            return;
+        }
+
+        this.logInfo(`缓冲时间结束，将 ${this.bufferQueue.length} 个任务加入处理队列`);
+
+        // 将缓冲队列的任务转移到处理队列
+        while (this.bufferQueue.length > 0) {
+            const task = this.bufferQueue.shift();
+            this.processingQueue.push({
+                session: task.session,
+                ret: task.ret,
+                options: task.options
+            });
+        }
+
+        // 启动队列处理
+        if (!this.isProcessing) {
+            this.processQueue();
+        }
+    }
+
+    // 处理队列中的任务
+    private async processQueue() {
+        if (this.isProcessing || this.processingQueue.length === 0) {
+            return;
+        }
+
+        this.isProcessing = true;
+        this.logInfo(`开始处理队列，总任务数: ${this.processingQueue.length}`);
+
+        while (this.processingQueue.length > 0) {
+            const task = this.processingQueue.shift();
+            this.logInfo(`处理任务 (剩余: ${this.processingQueue.length})`);
+
+            try {
+                await this.processVideoTask(task.session, task.ret, task.options);
+            } catch (error) {
+                this.logger.error('处理视频任务时发生错误:', error);
+            }
+        }
+
+        this.isProcessing = false;
+        this.logInfo('队列处理完成');
+    }
+
+    // 实际处理单个视频任务
+    private async processVideoTask(session: Session, ret: string, options: { video?: boolean; audio?: boolean; link?: boolean } = { video: true }) {
         const lastretUrl = this.extractLastUrl(ret);
+        this.logInfo(`处理视频: ${lastretUrl}`);
 
         let waitTipMsgId: string = null;
         // 等待提示语单独发送
@@ -129,8 +313,6 @@ export class BilibiliParser {
                     const { bvid, cid, video } = responseData.data;
                     const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
                     const playData: any = await this.ctx.http.get(bilibiliUrl);
-
-                    this.logInfo(bilibiliUrl);
 
                     if (playData.code === 0 && playData.data && playData.data.dash && playData.data.dash.duration) {
                         const videoDurationSeconds = playData.data.dash.duration;
@@ -189,32 +371,55 @@ export class BilibiliParser {
                             }
                         } else {
                             // 视频时长在允许范围内，处理视频
-                            let videoData = video.url;  // 使用新变量名，避免覆盖原始URL
-                            this.logInfo(videoData);
+                            let videoData = video.url;
 
                             if (this.config.filebuffer) {
                                 try {
-                                    const videoFileBuffer: any = await this.ctx.http.file(video.url);
-                                    this.logInfo(videoFileBuffer);
+                                    // 使用 Node.js 原生 fetch 下载视频
+                                    const response = await fetch(video.url, {
+                                        headers: {
+                                            'User-Agent': this.config.userAgent,
+                                            'Referer': 'https://www.bilibili.com/'
+                                        }
+                                    });
 
-                                    // 检查文件类型
-                                    if (videoFileBuffer && videoFileBuffer.data) {
-                                        // 将ArrayBuffer转换为Buffer
-                                        const buffer = Buffer.from(videoFileBuffer.data);
+                                    if (!response.ok) {
+                                        throw new Error(`HTTP ${response.status}`);
+                                    }
 
-                                        // 获取MIME类型
-                                        const mimeType = videoFileBuffer.type || videoFileBuffer.mime || 'video/mp4';
+                                    // 检查文件大小
+                                    const contentLength = response.headers.get('content-length');
+                                    const fileSizeMB = contentLength ? parseInt(contentLength) / 1024 / 1024 : 0;
+                                    this.logger.info(`[下载] 视频大小: ${fileSizeMB.toFixed(2)}MB`);
 
-                                        // 创建data URI
+                                    // 检查是否超过配置的最大大小
+                                    const maxSize = this.config.maxFileSizeMB;
+                                    this.logger.info(`[下载] 配置的最大大小: ${maxSize}MB`);
+
+                                    if (maxSize > 0 && fileSizeMB > maxSize) {
+                                        this.logger.warn(`[下载] 文件过大 (${fileSizeMB.toFixed(2)}MB > ${maxSize}MB)，使用直链模式`);
+                                        // 不下载，使用原始URL
+                                        videoData = video.url;
+                                    } else {
+                                        this.logger.info(`[下载] 开始下载并转换为Base64...`);
+
+                                        // 获取 MIME 类型
+                                        const contentType = response.headers.get('content-type');
+                                        const mimeType = contentType ? contentType.split(';')[0].trim() : 'video/mp4';
+
+                                        this.logger.info(`[下载] 读取响应体...`);
+                                        // 读取响应体并转换
+                                        const arrayBuffer = await response.arrayBuffer();
+                                        this.logger.info(`[下载] 创建Buffer...`);
+                                        const buffer = Buffer.from(arrayBuffer);
+                                        this.logger.info(`[下载] 转换为Base64...`);
                                         const base64Data = buffer.toString('base64');
                                         videoData = `data:${mimeType};base64,${base64Data}`;
 
-                                        this.logInfo("成功使用 ctx.http.file 将视频URL 转换为data URI格式");
-                                    } else {
-                                        this.logInfo("文件数据无效，使用原始URL");
+                                        this.logger.info(`[下载] 视频下载完成，已转换为Base64`);
                                     }
                                 } catch (error) {
-                                    this.logger.error("获取视频文件失败:", error);
+                                    this.logger.error("下载视频失败:", error);
                                     // 出错时继续使用原始URL
                                 }
                             }
