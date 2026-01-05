@@ -104,25 +104,39 @@ export class Utils {
   }
 
   // 清理对象中的base64内容，改为持久化存储
-  cleanBase64Content(obj: any): any {
+  // isBotMessage: 是否为机器人发送的消息
+  cleanBase64Content(obj: any, isBotMessage: boolean = false): any {
     if (obj === null || obj === undefined) {
       return obj
     }
 
     if (typeof obj === 'string') {
       if (this.isBase64(obj)) {
+        // 如果是机器人消息且是非图片的Base64，直接返回占位符
+        if (isBotMessage && !obj.startsWith('data:image/')) {
+          return '[富媒体内容已省略]'
+        }
         return this.persistBase64Image(obj)
       }
       return obj
     }
 
     if (Array.isArray(obj)) {
-      return obj.map(item => this.cleanBase64Content(item))
+      return obj.map(item => this.cleanBase64Content(item, isBotMessage))
     }
 
     if (typeof obj === 'object') {
       const cleaned: any = {}
       for (const [key, value] of Object.entries(obj)) {
+        // 检查元素类型，如果是机器人消息的非图片元素，跳过Base64处理
+        if (isBotMessage && obj.type && !['text', 'image', 'img'].includes(obj.type)) {
+          // 对于video、audio等元素，如果src是Base64，替换为占位符
+          if (typeof value === 'string' && (key === 'src' || key === 'url' || key === 'file') && this.isBase64(value)) {
+            cleaned[key] = '[富媒体内容已省略]'
+            continue
+          }
+        }
+
         // 特别处理常见的base64字段
         if (typeof value === 'string' && (
           key === 'src' ||
@@ -131,9 +145,14 @@ export class Utils {
           key === 'data' ||
           key === 'content'
         ) && this.isBase64(value)) {
-          cleaned[key] = this.persistBase64Image(value)
+          // 如果是机器人消息且不是图片Base64，跳过
+          if (isBotMessage && !value.startsWith('data:image/')) {
+            cleaned[key] = '[富媒体内容已省略]'
+          } else {
+            cleaned[key] = this.persistBase64Image(value)
+          }
         } else {
-          cleaned[key] = this.cleanBase64Content(value)
+          cleaned[key] = this.cleanBase64Content(value, isBotMessage)
         }
       }
       return cleaned

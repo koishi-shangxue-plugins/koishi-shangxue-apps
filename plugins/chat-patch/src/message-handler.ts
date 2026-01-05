@@ -246,11 +246,11 @@ export class MessageHandler {
         timestamp: timestamp,
         channelId: session.channelId,
         selfId: session.selfId,
-        elements: this.utils.cleanBase64Content(elements),
+        elements: this.utils.cleanBase64Content(elements, false),
         type: 'user',
         guildName: guildName,
         platform: session.platform || 'unknown',
-        quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo) : undefined,
+        quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo, false) : undefined,
         isDirect: !!isDirect
       }
 
@@ -269,8 +269,8 @@ export class MessageHandler {
         timestamp: timestamp,
         guildName: guildName,
         channelType: session.type || 0,
-        elements: this.utils.cleanBase64Content(elements),
-        quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo) : undefined,
+        elements: this.utils.cleanBase64Content(elements, false),
+        quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo, false) : undefined,
         isDirect: session.isDirect,
         bot: {
           avatar: session.bot.user?.avatar,
@@ -359,7 +359,7 @@ export class MessageHandler {
         timestamp: timestamp,
         channelId: finalChannelId,
         selfId: session.selfId,
-        elements: this.utils.cleanBase64Content(session.event?.message?.elements),
+        elements: this.utils.cleanBase64Content(session.event?.message?.elements, true),
         type: 'bot',
         guildName: guildName,
         platform: session.platform || 'unknown',
@@ -383,7 +383,7 @@ export class MessageHandler {
         timestamp: timestamp,
         guildName: guildName,
         channelType: session.event?.channel?.type || session.type || 0,
-        elements: this.utils.cleanBase64Content(session.event?.message?.elements),
+        elements: this.utils.cleanBase64Content(session.event?.message?.elements, true),
         quote: quoteInfo,
         isDirect: !!isDirect,
         sending: true,
