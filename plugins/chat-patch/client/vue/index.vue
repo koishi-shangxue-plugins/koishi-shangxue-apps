@@ -427,7 +427,7 @@ const {
   forwardDialogVisible, imageViewerVisible, rawMessageVisible, replyingTo, userProfile, userProfileVisible,
   selectedBotPlatform, keyboardHeight,
   selectBot, selectChannel, handleSend, togglePinBot, togglePinChannel, deleteBotData, deleteChannelData,
-  getCachedImageUrl, cacheImage, showForward, openImageViewer, handleImageWheel, downloadImage, handleScroll,
+  getCachedImageUrl, cacheImage, loadVideo, isVideoLoading, isVideoLoaded, showForward, openImageViewer, handleImageWheel, downloadImage, handleScroll,
   repeatMessage, handlePaste, copyToClipboard, onBotMenu, onChannelMenu, onMessageMenu, handleMenuAction, handleMessageAction, showUserProfile,
   menu, inputRef, scrollToMessage
 } = useChatLogic()
@@ -455,11 +455,20 @@ const RenderElement = defineComponent({
   props: ['element', 'botId', 'channelId', 'inQuote'],
   setup(props) {
     const imgUrl = ref('')
+    const videoUrl = ref('')
+    const videoLoading = ref(false)
     const isMedia = ['img', 'image', 'mface', 'audio', 'video'].includes(props.element.type)
 
     const loadMedia = async () => {
       const url = props.element.attrs.src || props.element.attrs.url || props.element.attrs.file
       if (url) {
+        // 视频不自动加载，只在用户点击时加载
+        if (props.element.type === 'video') {
+          videoUrl.value = url
+          return
+        }
+
+        // 图片和音频正常加载
         const res = await getCachedImageUrl(`${props.botId}:${props.channelId}`, url)
         if (res) imgUrl.value = res
         else {
@@ -471,6 +480,25 @@ const RenderElement = defineComponent({
 
     if (isMedia) loadMedia()
     watch(() => props.element.attrs.src || props.element.attrs.url || props.element.attrs.file, loadMedia)
+
+    // 按需加载视频
+    const handleVideoClick = async () => {
+      if (!videoUrl.value || videoLoading.value) return
+
+      // 检查是否已加载
+      if (isVideoLoaded(videoUrl.value)) {
+        const loadedUrl = await loadVideo(videoUrl.value)
+        if (loadedUrl) imgUrl.value = loadedUrl
+        return
+      }
+
+      videoLoading.value = true
+      const loadedUrl = await loadVideo(videoUrl.value)
+      if (loadedUrl) {
+        imgUrl.value = loadedUrl
+      }
+      videoLoading.value = false
+    }
 
     // 图片加载完成后尝试滚动到底部（如果当前就在底部附近）
     const onImageLoad = () => {
@@ -516,7 +544,25 @@ const RenderElement = defineComponent({
         return h('audio', { src: imgUrl.value, controls: true, class: 'max-w-full my-1.5 block' })
       }
       if (type === 'video') {
-        return h('video', { src: imgUrl.value, controls: true, class: 'max-w-full my-1.5 rounded-lg shadow-sm block' })
+        // 如果视频已加载，显示视频播放器
+        if (imgUrl.value) {
+          return h('video', {
+            src: imgUrl.value,
+            controls: true,
+            class: 'max-w-full my-1.5 rounded-lg shadow-sm block'
+          })
+        }
+
+        // 否则显示加载按钮
+        return h('div', {
+          class: 'my-1.5 p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-black/10 dark:border-white/10 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center justify-center gap-2',
+          onClick: handleVideoClick
+        }, [
+          videoLoading.value
+            ? h('el-icon', { class: 'is-loading' }, { default: () => h(Loading) })
+            : h('el-icon', null, { default: () => h(Picture) }),
+          h('span', { class: 'text-sm' }, videoLoading.value ? '加载中...' : '点击加载视频')
+        ])
       }
       if (type === 'at') return h('span', { class: 'text-blue-500 font-bold hover:underline cursor-default mx-0.5' }, `@${attrs.name || attrs.id}`)
 

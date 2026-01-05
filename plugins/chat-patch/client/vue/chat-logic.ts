@@ -3,6 +3,7 @@ import { receive, send } from '@koishijs/client'
 import { useChatData } from './composables/useChatData'
 import { useChatActions } from './composables/useChatActions'
 import { useImageCache } from './composables/useImageCache'
+import { useVideoCache } from './composables/useVideoCache'
 import { ElMessage } from 'element-plus'
 
 export function useChatLogic() {
@@ -17,6 +18,7 @@ export function useChatLogic() {
   } = useChatActions()
 
   const { getCachedImageUrl, cacheImage } = useImageCache()
+  const { loadVideo, isVideoLoading, isVideoLoaded } = useVideoCache()
 
   // 状态管理
   const menu = ref({ show: false, x: 0, y: 0, type: '', id: '', isPinned: false, hasMedia: false })
@@ -656,6 +658,9 @@ export function useChatLogic() {
     deleteChannelData,
     getCachedImageUrl,
     cacheImage,
+    loadVideo,
+    isVideoLoading,
+    isVideoLoaded,
     getMessages,
     goBack,
     showForward,

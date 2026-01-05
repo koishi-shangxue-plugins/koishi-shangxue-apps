@@ -610,52 +610,18 @@ export class ApiHandlers {
       }
     })
 
-    // 按需加载视频的临时缓存 API
+    // 按需加载视频的临时缓存 API - 返回 base64 供前端转换为 blob
     this.ctx.console.addListener('fetch-video-temp' as any, async (data: { url: string }) => {
       try {
         this.logInfo('收到视频临时加载请求:', data.url)
 
         // 检查是否是本地文件
         if (this.isFileUrl(data.url)) {
-          return await this.handleLocalFileRequest(data.url)
+          const result = await this.handleLocalFileRequest(data.url)
+          return result
         }
 
-        // 删除上一次的临时视频文件
-        if (this.currentTempVideo && require('node:fs').existsSync(this.currentTempVideo)) {
-          try {
-            require('node:fs').unlinkSync(this.currentTempVideo)
-            this.logInfo('删除上一次的临时视频:', this.currentTempVideo)
-          } catch (e) {
-            this.logger.warn('删除临时视频失败:', e)
-          }
-        }
-
-        // 创建临时目录
-        const tempDir = require('node:path').join(this.ctx.baseDir, 'data', 'chat-patch', 'temp-video')
-        if (!require('node:fs').existsSync(tempDir)) {
-          require('node:fs').mkdirSync(tempDir, { recursive: true })
-        }
-
-        // 下载视频到临时文件
-        const crypto = require('node:crypto')
-        const hash = crypto.createHash('md5').update(data.url).digest('hex')
-        const ext = require('node:path').extname(new URL(data.url).pathname) || '.mp4'
-        const filename = `temp_video_${hash}${ext}`
-        const filePath = require('node:path').join(tempDir, filename)
-
-        // 如果文件已存在，直接返回
-        if (require('node:fs').existsSync(filePath)) {
-          this.currentTempVideo = filePath
-          const fileUrl = require('node:url').pathToFileURL(filePath).href
-          this.logInfo('使用已缓存的临时视频:', fileUrl)
-          return {
-            success: true,
-            fileUrl: fileUrl,
-            cached: true
-          }
-        }
-
-        // 下载视频
+        // 下载视频并返回 base64
         const response = await fetch(data.url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -668,17 +634,18 @@ export class ApiHandlers {
         }
 
         const buffer = await response.arrayBuffer()
-        require('node:fs').writeFileSync(filePath, Buffer.from(buffer))
+        const base64 = Buffer.from(buffer).toString('base64')
 
-        this.currentTempVideo = filePath
-        const fileUrl = require('node:url').pathToFileURL(filePath).href
+        // 尝试从 Content-Type 获取 MIME 类型
+        const contentType = response.headers.get('content-type') || 'video/mp4'
 
-        this.logInfo('视频临时缓存成功:', { fileUrl, size: buffer.byteLength })
+        this.logInfo('视频下载成功:', { size: buffer.byteLength, contentType })
 
         return {
           success: true,
-          fileUrl: fileUrl,
-          cached: false,
+          base64: base64,
+          contentType: contentType,
+          dataUrl: `data:${contentType};base64,${base64}`,
           size: buffer.byteLength
         }
       } catch (error: any) {
