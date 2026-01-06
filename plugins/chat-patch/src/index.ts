@@ -106,6 +106,7 @@ export async function apply(ctx: Context, config: Config) {
       avatar: session.event?.user?.avatar,
       timestamp: timestamp,
       isDirect: session.isDirect,
+      elements: utils.cleanBase64Content(session.elements, false),
       bot: {
         avatar: session.bot.user?.avatar,
         name: session.bot.user?.name,
@@ -132,6 +133,7 @@ export async function apply(ctx: Context, config: Config) {
       avatar: session.bot.user?.avatar,
       timestamp: timestamp,
       sending: true,
+      elements: utils.cleanBase64Content(session.event?.message?.elements, true),
       bot: {
         avatar: session.bot.user?.avatar,
         name: session.bot.user?.name,
