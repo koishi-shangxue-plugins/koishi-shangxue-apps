@@ -19,29 +19,29 @@
       width: 0 !important;
       height: 0 !important;
     }
-    
+
     .el-scrollbar__thumb {
       display: none !important;
     }
-    
+
     .el-scrollbar__wrap {
       overflow-x: hidden !important;
-      
+
       /* 隐藏原生滚动条 - 所有浏览器 */
       scrollbar-width: none !important; /* Firefox */
       -ms-overflow-style: none !important; /* IE/Edge */
-      
+
       &::-webkit-scrollbar {
         display: none !important; /* Chrome/Safari */
         width: 0 !important;
         height: 0 !important;
         background: transparent !important;
       }
-      
+
       &::-webkit-scrollbar-track {
         display: none !important;
       }
-      
+
       &::-webkit-scrollbar-thumb {
         display: none !important;
       }
@@ -50,7 +50,7 @@
 
   color: var(--chat-text);
   background-color: var(--chat-bg);
-  
+
   .el-aside, .el-main, .el-header, .el-footer {
     background-color: transparent !important;
     color: inherit !important;

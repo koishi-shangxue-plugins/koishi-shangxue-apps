@@ -1,6 +1,6 @@
 # koishi-plugin-chat-patch
 
-[![npm](https://img.shields.io/npm/v/koishi-plugin-chat-patch?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-chat-patch)   [![npm downloads](https://img.shields.io/npm/dm/koishi-plugin-chat-patch)](https://www.npmjs.com/package/koishi-plugin-chat-patch)  
+[![npm](https://img.shields.io/npm/v/koishi-plugin-chat-patch?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-chat-patch)   [![npm downloads](https://img.shields.io/npm/dm/koishi-plugin-chat-patch)](https://www.npmjs.com/package/koishi-plugin-chat-patch)
 
 Koishi 控制台聊天插件，允许用户直接在控制台中管理机器人、频道和消息。
 

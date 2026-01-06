@@ -38,7 +38,6 @@ export { Config } from './config'
 export async function apply(ctx: Context, config: Config) {
   const logger = ctx.logger('chat-patch')
 
-  // 启动时清空 media 文件夹（为旧版本做清理工作）
   const mediaDir = path.join(ctx.baseDir, 'data', 'chat-patch', 'persist-media', 'media')
   if (require('node:fs').existsSync(mediaDir)) {
     try {
@@ -61,17 +60,14 @@ export async function apply(ctx: Context, config: Config) {
     }
   }
 
-  // 初始化各个模块
   const fileManager = new FileManager(ctx, config)
   const messageHandler = new MessageHandler(ctx, config, fileManager)
   const apiHandlers = new ApiHandlers(ctx, config, fileManager, messageHandler)
   const utils = new Utils(config, ctx)
 
-  // 初始化数据
   const initialData = fileManager.readChatDataFromFile()
   const cleanedData = fileManager.cleanExcessMessages(initialData)
 
-  // 如果清理了数据，立即写回文件
   const originalCount = Object.values(initialData.messages).reduce((total, msgs) => total + msgs.length, 0)
   const cleanedCount = Object.values(cleanedData.messages).reduce((total, msgs) => total + msgs.length, 0)
 
@@ -79,7 +75,6 @@ export async function apply(ctx: Context, config: Config) {
     fileManager.writeChatDataToFile(cleanedData)
   }
 
-  // 日志调试函数
   function logInfo(...args: any[]) {
     if (config.loggerinfo) {
       (logger.info as (...args: any[]) => void)(...args)
@@ -94,39 +89,65 @@ export async function apply(ctx: Context, config: Config) {
     总消息数: Object.values(cleanedData.messages).reduce((total, msgs) => total + msgs.length, 0)
   })
 
-  // 监听用户消息
-  ctx.on('message', async (session) => {
-    // 检查平台是否被屏蔽
-    if (utils.isPlatformBlocked(session.platform || 'unknown')) {
-      logInfo(`忽略来自被屏蔽平台的消息: ${session.platform}`)
-      return
-    }
-    // logInfo(session)
-    // 广播消息事件给前端处理
-    await messageHandler.broadcastMessageEvent(session)
+  ctx.on('message', (session) => {
+    if (utils.isPlatformBlocked(session.platform || 'unknown')) return
+
+    const timestamp = Date.now()
+
+    ctx.console.broadcast('chat-message-event', {
+      type: 'message',
+      selfId: session.selfId,
+      platform: session.platform || 'unknown',
+      channelId: session.channelId,
+      messageId: session.event?.message?.id || `msg-${timestamp}`,
+      content: session.content || '',
+      userId: session.userId || 'unknown',
+      username: session.username || session.userId || 'unknown',
+      avatar: session.event?.user?.avatar,
+      timestamp: timestamp,
+      isDirect: session.isDirect,
+      bot: {
+        avatar: session.bot.user?.avatar,
+        name: session.bot.user?.name,
+      }
+    })
+
+    messageHandler.recordUserMessage(session, timestamp)
   })
 
-  // 监听机器人发送的消息
-  ctx.on('before-send', async (session) => {
-    // 检查平台是否被屏蔽
-    if (utils.isPlatformBlocked(session.platform || 'unknown')) {
-      logInfo(`忽略来自被屏蔽平台的机器人消息: ${session.platform}`)
-      return
-    }
-    // 广播机器人消息事件给前端处理
-    await messageHandler.broadcastBotMessageEvent(session)
+  ctx.on('before-send', (session) => {
+    if (utils.isPlatformBlocked(session.platform || 'unknown')) return
+
+    const timestamp = Date.now()
+
+    ctx.console.broadcast('chat-bot-message-event', {
+      type: 'bot-message',
+      selfId: session.selfId,
+      platform: session.platform || 'unknown',
+      channelId: session.channelId,
+      messageId: `bot-msg-${timestamp}`,
+      content: session.content || '',
+      userId: session.selfId,
+      username: session.bot.user?.name || `Bot-${session.selfId}`,
+      avatar: session.bot.user?.avatar,
+      timestamp: timestamp,
+      sending: true,
+      bot: {
+        avatar: session.bot.user?.avatar,
+        name: session.bot.user?.name,
+      }
+    })
+
+    messageHandler.recordBotMessage(session, timestamp)
   })
 
-  // 插件启动时设置定期清理过期消息
   ctx.on('ready', async () => {
     logInfo('插件启动完成，开始监听消息')
 
-    // 定期清理超量消息
-    setInterval(() => {
+    ctx.setInterval(() => {
       const data = fileManager.readChatDataFromFile()
       const cleanedData = fileManager.cleanExcessMessages(data)
 
-      // 如果有消息被清理，写回文件
       const originalCount = Object.values(data.messages).reduce((total, msgs) => total + msgs.length, 0)
       const cleanedCount = Object.values(cleanedData.messages).reduce((total, msgs) => total + msgs.length, 0)
 
@@ -134,15 +155,19 @@ export async function apply(ctx: Context, config: Config) {
         fileManager.writeChatDataToFile(cleanedData)
         logInfo('定期清理完成，清理了', originalCount - cleanedCount, '条超量消息')
       }
-    }, 300000) // 每5分钟清理一次
+    }, 300000)
   })
 
-  // 注册所有 API 处理器
   apiHandlers.registerApiHandlers()
 
-  // 注册控制台页面
   ctx.console.addEntry({
     dev: path.resolve(__dirname, '../client/index.ts'),
     prod: path.resolve(__dirname, '../dist'),
+  })
+
+  ctx.on('dispose', () => {
+
+    fileManager.dispose()
+    logInfo('插件已卸载，所有待处理的消息已写入')
   })
 }

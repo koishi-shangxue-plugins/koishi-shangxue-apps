@@ -38,7 +38,6 @@ export const Config: Schema<Config> = Schema.intersect([
     ),
   }).description('基础设置'),
 
-
   Schema.object({
     clearIndexedDBOnStart: Schema.boolean().default(true).description('启动时强制清空IndexedDB缓存（适用于紧急情况，防止浏览器卡死）'),
     loggerinfo: Schema.boolean().default(false).description('日志调试模式').experimental(),

@@ -9,7 +9,7 @@ import * as mime from 'mime-types'
 
 export class ApiHandlers {
   private logger: Logger
-  // 当前临时缓存的视频文件路径
+
   private currentTempVideo: string | null = null
 
   constructor(
@@ -25,7 +25,7 @@ export class ApiHandlers {
     this.ctx.console.addListener('clear-all-indexeddb-data' as any, async () => {
       try {
         this.logInfo('收到清空 IndexedDB 数据请求')
-        // 这个 API 主要用于前端调用，后端不直接操作 IndexedDB
+
         return { success: true, message: '可以清空 IndexedDB' }
       } catch (error: any) {
         this.logger.error('清空 IndexedDB 数据失败:', error)
@@ -33,10 +33,9 @@ export class ApiHandlers {
       }
     })
 
-    // 获取所有聊天数据的 API
     this.ctx.console.addListener('get-chat-data' as any, async () => {
       try {
-        // 优化性能：只读取基础信息，不读取庞大的消息体
+
         const data = this.fileManager.readChatDataFromFile()
 
         this.logInfo('获取基础聊天数据')
@@ -48,7 +47,7 @@ export class ApiHandlers {
             channels: data.channels || {},
             pinnedBots: data.pinnedBots || [],
             pinnedChannels: data.pinnedChannels || [],
-            // 不返回 messages，由前端按需拉取
+
             messages: {}
           }
         }
@@ -58,7 +57,6 @@ export class ApiHandlers {
       }
     })
 
-    // 获取历史消息的 API
     this.ctx.console.addListener('get-history-messages' as any, async (requestData: {
       selfId: string
       channelId: string
@@ -70,18 +68,16 @@ export class ApiHandlers {
         const channelKey = `${requestData.selfId}:${requestData.channelId}`
         let messages = data.messages[channelKey] || []
 
-        // 按时间戳降序排列（最新的消息在前面）
         const sortedMessages = messages.sort((a, b) => b.timestamp - a.timestamp)
 
-        // 如果提供了分页参数，则进行分页处理
         if (requestData.limit !== undefined) {
           const limit = requestData.limit
           const offset = requestData.offset || 0
           messages = sortedMessages.slice(offset, offset + limit)
-          // 重新按时间戳升序排列，以保持消息显示顺序
+
           messages = messages.sort((a, b) => a.timestamp - b.timestamp)
         } else {
-          // 默认返回所有消息，按时间戳升序排列
+
           messages = sortedMessages.sort((a, b) => a.timestamp - b.timestamp)
         }
 
@@ -98,7 +94,6 @@ export class ApiHandlers {
       }
     })
 
-    // 获取所有频道消息数量的 API
     this.ctx.console.addListener('get-all-channel-message-counts' as any, async () => {
       try {
         const data = this.fileManager.readChatDataFromFile()
@@ -123,16 +118,14 @@ export class ApiHandlers {
       }
     })
 
-    // 图片获取 API
     this.ctx.console.addListener('fetch-image' as any, async (data: { url: string }) => {
       try {
-        // 检查是否是本地文件路径
+
         if (this.isFileUrl(data.url)) {
           this.logInfo('处理本地文件请求:', data.url)
           return await this.handleLocalFileRequest(data.url)
         }
 
-        // 处理网络图片
         const response = await fetch(data.url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -158,7 +151,6 @@ export class ApiHandlers {
       }
     })
 
-    // 清理频道历史记录的 API
     this.ctx.console.addListener('clear-channel-history' as any, async (data: {
       selfId: string
       channelId: string
@@ -208,7 +200,6 @@ export class ApiHandlers {
       }
     })
 
-    // 发送消息的 API
     this.ctx.console.addListener('send-message' as any, async (data: {
       selfId: string
       channelId: string
@@ -221,14 +212,12 @@ export class ApiHandlers {
       try {
         this.logInfo('收到发送消息请求:', data)
 
-        // 优化机器人查找逻辑
         const bot = this.ctx.bots.find((bot: any) => bot.selfId === data.selfId || bot.user?.id === data.selfId)
         if (!bot) {
           this.logger.error('未找到机器人:', data.selfId, '当前可用机器人:', this.ctx.bots.map((b: any) => b.selfId))
           return { success: false, error: `未找到机器人 ${data.selfId}，请检查机器人是否在线` }
         }
 
-        // 检查机器人状态
         if (bot.status !== Universal.Status.ONLINE) {
           this.logger.error('机器人离线:', data.selfId, '状态:', bot.status)
           return { success: false, error: `机器人 ${data.selfId} 当前离线` }
@@ -236,7 +225,6 @@ export class ApiHandlers {
 
         let messageContent = data.content
 
-        // 如果有图片，添加图片元素
         if (data.images && data.images.length > 0) {
           const tempDir = this.ctx.baseDir + '/data/chat-patch/temp'
 
@@ -247,7 +235,7 @@ export class ApiHandlers {
 
             if (files.length > 0) {
               const imagePath = `${tempDir}/${files[0]}`
-              // 使用 pathToFileURL 创建正确的文件 URL
+
               const fileUrl = this.createFileUrl(imagePath)
               messageContent += h.image(fileUrl).toString()
               this.logInfo('添加图片到消息:', { imagePath, fileUrl })
@@ -257,7 +245,6 @@ export class ApiHandlers {
 
         const parsedContent = h.parse(messageContent)
 
-        // 在发送消息前，通知 MessageHandler 正确的 channelId
         this.messageHandler.setCorrectChannelId(data.selfId, data.channelId)
 
         const result = await bot.sendMessage(data.channelId, parsedContent)
@@ -265,19 +252,17 @@ export class ApiHandlers {
 
         const messageId = Array.isArray(result) ? result[0] : result;
 
-        // 发送成功后，更新本地存储中的虚拟消息为真实 ID
         if (messageId) {
           const chatData = this.fileManager.readChatDataFromFile()
           const channelKey = `${data.selfId}:${data.channelId}`
           const messages = chatData.messages[channelKey] || []
-          // 找到最近的一条正在发送的机器人消息
+
           const msg = [...messages].reverse().find(m => m.type === 'bot' && m.sending)
           if (msg) {
             msg.realId = messageId;
             msg.sending = false;
             this.fileManager.writeChatDataToFile(chatData)
 
-            // 广播更新事件给前端
             this.ctx.console.broadcast('bot-message-updated', {
               channelKey,
               tempId: msg.id,
@@ -297,14 +282,12 @@ export class ApiHandlers {
       }
     })
 
-    // 清理临时图片的 API（由前端在消息发送成功后调用）
     this.ctx.console.addListener('cleanup-temp-images' as any, async (data: {
       tempImageIds: string[]
     }) => {
       try {
         this.logInfo('收到清理临时图片请求:', data.tempImageIds)
 
-        // 不立即删除，只是记录日志，让定时任务处理清理
         this.logInfo('临时图片将由定时任务清理，保持文件可用性')
 
         return { success: true, cleanedCount: 0 }
@@ -314,7 +297,6 @@ export class ApiHandlers {
       }
     })
 
-    // 删除机器人所有数据的 API
     this.ctx.console.addListener('delete-bot-data' as any, async (data: {
       selfId: string
     }) => {
@@ -356,7 +338,6 @@ export class ApiHandlers {
       }
     })
 
-    // 删除频道所有数据的 API
     this.ctx.console.addListener('delete-channel-data' as any, async (data: {
       selfId: string
       channelId: string
@@ -394,7 +375,6 @@ export class ApiHandlers {
       }
     })
 
-    // 设置置顶机器人列表的 API
     this.ctx.console.addListener('set-pinned-bots' as any, async (data: {
       pinnedBots: string[]
     }) => {
@@ -410,7 +390,6 @@ export class ApiHandlers {
       }
     })
 
-    // 设置置顶频道列表的 API
     this.ctx.console.addListener('set-pinned-channels' as any, async (data: {
       pinnedChannels: string[]
     }) => {
@@ -426,26 +405,22 @@ export class ApiHandlers {
       }
     })
 
-    // 上传图片的 API
     this.ctx.console.addListener('upload-image' as any, async (data: {
-      file: string // base64 encoded image
+      file: string
       filename: string
       mimeType: string
-      isGif?: boolean // 是否为GIF图片
+      isGif?: boolean
     }) => {
       try {
         this.logInfo('收到图片上传请求:', { filename: data.filename, mimeType: data.mimeType, isGif: data.isGif })
 
-        // 将base64转换为Buffer
         const base64Data = data.file.replace(/^data:image\/\w+;base64,/, '')
         const buffer = Buffer.from(base64Data, 'base64')
 
-        // 生成临时文件路径，保持原始扩展名以保持GIF格式
         const tempId = Date.now() + '_' + Math.random().toString(36).substring(2, 11)
         const extension = data.filename.split('.').pop()?.toLowerCase() || (data.isGif ? 'gif' : 'jpg')
         const tempFilename = `temp_${tempId}.${extension}`
 
-        // 保存到临时目录
         const tempDir = this.ctx.baseDir + '/data/chat-patch/temp'
         if (!require('fs').existsSync(tempDir)) {
           require('fs').mkdirSync(tempDir, { recursive: true })
@@ -453,7 +428,6 @@ export class ApiHandlers {
 
         const tempPath = `${tempDir}/${tempFilename}`
 
-        // 对于GIF文件，直接保存原始数据以保持动画
         require('fs').writeFileSync(tempPath, buffer)
 
         this.logInfo('图片上传成功:', { tempPath, size: buffer.length, isGif: data.isGif })
@@ -472,7 +446,6 @@ export class ApiHandlers {
       }
     })
 
-    // 删除临时图片的 API
     this.ctx.console.addListener('delete-temp-image' as any, async (data: {
       tempId: string
     }) => {
@@ -497,10 +470,8 @@ export class ApiHandlers {
       }
     })
 
-    // 定时清理过期临时文件（备用机制）
     this.setupTempFileCleanup()
 
-    // 获取插件配置的 API
     this.ctx.console.addListener('get-plugin-config' as any, async () => {
       try {
         return {
@@ -520,13 +491,11 @@ export class ApiHandlers {
       }
     })
 
-    // 获取用户信息 API
     this.ctx.console.addListener('get-user-info' as any, async (data: { selfId: string, userId: string, guildId?: string }) => {
       try {
         const bot = this.ctx.bots.find(b => b.selfId === data.selfId)
         if (!bot) return { success: false, error: '机器人不存在' }
 
-        // 检查平台是否支持 getUser 方法
         if (!bot.getUser || typeof bot.getUser !== 'function') {
           return { success: false, error: '此平台不支持查看用户信息' }
         }
@@ -534,7 +503,7 @@ export class ApiHandlers {
         const user = await bot.getUser(data.userId, data.guildId)
 
         if (user) {
-          // 缓存头像到本地
+
           if (user.avatar) {
             user.avatar = await this.messageHandler.downloadAndCacheMedia(user.avatar, 'avatar')
           }
@@ -542,10 +511,8 @@ export class ApiHandlers {
           const chatData = this.fileManager.readChatDataFromFile()
           let changed = false
 
-          // 1. 如果是私聊，更新频道名 - 支持多种私聊ID格式
           const botChannels = chatData.channels[data.selfId] || {}
 
-          // 查找所有可能的私聊频道ID格式
           const possibleChannelIds = [
             data.userId,
             `private:${data.userId}`,
@@ -564,7 +531,6 @@ export class ApiHandlers {
             }
           }
 
-          // 2. 更新该用户在所有历史消息中的头像和昵称（持久化缓存）
           const channelKeyPrefix = `${data.selfId}:`
           for (const [key, messages] of Object.entries(chatData.messages)) {
             if (key.startsWith(channelKeyPrefix)) {
@@ -585,7 +551,7 @@ export class ApiHandlers {
 
           if (changed) {
             this.fileManager.writeChatDataToFile(chatData)
-            // 广播更新事件，让前端实时刷新
+
             this.ctx.console.broadcast('chat-data-updated', {})
           }
         }
@@ -596,7 +562,6 @@ export class ApiHandlers {
       }
     })
 
-    // 调试API：获取原始文件数据
     this.ctx.console.addListener('debug-get-raw-data' as any, async () => {
       try {
         const data = this.fileManager.readChatDataFromFile()
@@ -610,18 +575,15 @@ export class ApiHandlers {
       }
     })
 
-    // 按需加载视频的临时缓存 API - 返回 base64 供前端转换为 blob
     this.ctx.console.addListener('fetch-video-temp' as any, async (data: { url: string }) => {
       try {
         this.logInfo('收到视频临时加载请求:', data.url)
 
-        // 检查是否是本地文件
         if (this.isFileUrl(data.url)) {
           const result = await this.handleLocalFileRequest(data.url)
           return result
         }
 
-        // 下载视频并返回 base64
         const response = await fetch(data.url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -636,7 +598,6 @@ export class ApiHandlers {
         const buffer = await response.arrayBuffer()
         const base64 = Buffer.from(buffer).toString('base64')
 
-        // 尝试从 Content-Type 获取 MIME 类型
         const contentType = response.headers.get('content-type') || 'video/mp4'
 
         this.logInfo('视频下载成功:', { size: buffer.byteLength, contentType })
@@ -655,7 +616,6 @@ export class ApiHandlers {
     })
   }
 
-  // 检查是否为文件 URL
   private isFileUrl(url: string): boolean {
     try {
       const parsedUrl = new URL(url)
@@ -665,28 +625,24 @@ export class ApiHandlers {
     }
   }
 
-  // 创建文件 URL
   private createFileUrl(filePath: string): string {
     try {
       return pathToFileURL(filePath).href
     } catch (error) {
       this.logger.error('创建文件URL失败:', { filePath, error })
-      // 回退到简单的字符串拼接
+
       return `file://${filePath}`
     }
   }
 
-  // 处理本地文件请求
   private async handleLocalFileRequest(fileUrl: string) {
     try {
-      // 使用 fileURLToPath 转换 file:// URL 为系统路径
+
       const filePath = fileURLToPath(fileUrl)
 
-      // 改用 node:fs 直接读取文件，避免 ctx.http.file 可能存在的编码或协议处理问题
       const buffer = readFileSync(filePath)
       const base64 = buffer.toString('base64')
 
-      // 使用 mime-types 库精确推断 MIME 类型
       const contentType = mime.lookup(filePath) || 'application/octet-stream'
 
       this.logInfo('成功读取本地文件:', { fileUrl, filePath, contentType })
@@ -706,15 +662,13 @@ export class ApiHandlers {
     }
   }
 
-  // 设置定时清理临时文件
   private setupTempFileCleanup() {
-    // 每5分钟执行一次基于数量的清理
-    setInterval(() => {
+
+    this.ctx.setInterval(() => {
       this.cleanupMediaCache()
     }, 5 * 60 * 1000)
   }
 
-  // 统一清理媒体缓存
   private async cleanupMediaCache() {
     const baseDir = this.ctx.baseDir + '/data/chat-patch/persist-media'
     if (!require('node:fs').existsSync(baseDir)) return
@@ -738,8 +692,8 @@ export class ApiHandlers {
       }
     }
 
-    cleanupDir('images', 100) // 图片缓存100个
-    cleanupDir('media', 20)   // 富媒体缓存20个
+    cleanupDir('images', 100)
+    cleanupDir('media', 20)
   }
 
   private logInfo(...args: any[]) {

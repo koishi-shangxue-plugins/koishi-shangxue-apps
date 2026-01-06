@@ -12,6 +12,14 @@ export class FileManager {
   private logger: Logger
   private utils: Utils
 
+  private memoryCache: ChatData | null = null
+
+  private pendingMessages: MessageInfo[] = []
+
+  private writeTimer: (() => void) | null = null
+
+  private readonly WRITE_DEBOUNCE_MS = 1000
+
   constructor(
     private ctx: Context,
     private config: Config
@@ -19,9 +27,10 @@ export class FileManager {
     this.dataFilePath = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'chat-data.json')
     this.logger = ctx.logger('chat-patch')
     this.utils = new Utils(config)
+
+    this.memoryCache = this.readChatDataFromFile()
   }
 
-  // 确保目录存在
   private ensureDataDir() {
     const dir = path.dirname(this.dataFilePath)
     if (!fs.existsSync(dir)) {
@@ -29,46 +38,110 @@ export class FileManager {
     }
   }
 
-  // 从JSON文件读取数据
   readChatDataFromFile(): ChatData {
-    try {
-      if (fs.existsSync(this.dataFilePath)) {
-        const jsonData = fs.readFileSync(this.dataFilePath, 'utf8')
-        const data = JSON.parse(jsonData)
-        return {
-          bots: data.bots || {},
-          channels: data.channels || {},
-          messages: data.messages || {},
-          pinnedBots: data.pinnedBots || [],
-          pinnedChannels: data.pinnedChannels || [],
-          lastSaveTime: data.lastSaveTime
-        }
-      }
-    } catch (error) {
-      this.logger.error('读取聊天数据失败:', error)
+
+    if (this.memoryCache) {
+      return this.memoryCache
     }
-    return {
+
+    process.nextTick(() => {
+      try {
+        if (fs.existsSync(this.dataFilePath)) {
+          const jsonData = fs.readFileSync(this.dataFilePath, 'utf8')
+          const data = JSON.parse(jsonData)
+          this.memoryCache = {
+            bots: data.bots || {},
+            channels: data.channels || {},
+            messages: data.messages || {},
+            pinnedBots: data.pinnedBots || [],
+            pinnedChannels: data.pinnedChannels || [],
+            lastSaveTime: data.lastSaveTime
+          }
+        }
+      } catch (error) {
+        this.logger.error('读取聊天数据失败:', error)
+      }
+    })
+
+    this.memoryCache = {
       bots: {},
       channels: {},
       messages: {},
       pinnedBots: [],
       pinnedChannels: []
     }
+    return this.memoryCache
   }
 
-  // 写入数据到JSON文件
   writeChatDataToFile(data: ChatData) {
-    try {
-      this.ensureDataDir()
-      data.lastSaveTime = Date.now()
-      const jsonData = JSON.stringify(data, null, 2)
-      fs.writeFileSync(this.dataFilePath, jsonData, 'utf8')
-    } catch (error) {
-      this.logger.error('写入聊天数据失败:', error)
-    }
+
+    data.lastSaveTime = Date.now()
+    this.memoryCache = data
+
+    process.nextTick(() => {
+      try {
+        this.ensureDataDir()
+        const jsonData = JSON.stringify(data, null, 2)
+        fs.writeFileSync(this.dataFilePath, jsonData, 'utf8')
+      } catch (error) {
+        this.logger.error('写入聊天数据失败:', error)
+      }
+    })
   }
 
-  // 清理超量消息
+  private scheduleWrite() {
+
+    if (this.writeTimer) {
+      this.writeTimer()
+      this.writeTimer = null
+    }
+
+    this.writeTimer = this.ctx.setTimeout(() => {
+
+      process.nextTick(() => {
+        this.flushPendingMessages()
+      })
+      this.writeTimer = null
+    }, this.WRITE_DEBOUNCE_MS)
+  }
+
+  private flushPendingMessages() {
+    if (this.pendingMessages.length === 0) return
+
+    const messagesToWrite = [...this.pendingMessages]
+    this.pendingMessages = []
+
+    const data = this.memoryCache || this.readChatDataFromFile()
+
+    for (const messageInfo of messagesToWrite) {
+      const channelKey = `${messageInfo.selfId}:${messageInfo.channelId}`
+
+      if (!data.messages[channelKey]) {
+        data.messages[channelKey] = []
+      }
+
+      const existingMessage = data.messages[channelKey].find(m => m.id === messageInfo.id)
+      if (existingMessage) {
+        continue
+      }
+
+      if (!messageInfo.timestamp) {
+        messageInfo.timestamp = Date.now()
+      }
+
+      const cleanedMessageInfo = this.utils.cleanBase64Content(messageInfo) as MessageInfo
+      data.messages[channelKey].push(cleanedMessageInfo)
+
+      if (data.messages[channelKey].length > this.config.maxMessagesPerChannel) {
+        data.messages[channelKey].sort((a, b) => a.timestamp - b.timestamp)
+        data.messages[channelKey] = data.messages[channelKey].slice(-this.config.maxMessagesPerChannel)
+      }
+    }
+
+    this.writeChatDataToFile(data)
+    this.logInfo(`批量写入 ${messagesToWrite.length} 条消息`)
+  }
+
   cleanExcessMessages(data: ChatData): ChatData {
     let cleanedCount = 0
     const cleanedMessages: Record<string, MessageInfo[]> = {}
@@ -95,70 +168,43 @@ export class FileManager {
     }
   }
 
-  // 添加消息到JSON文件（使用锁机制防止并发冲突）
   async addMessageToFile(messageInfo: MessageInfo) {
-    this.fileOperationLock = this.fileOperationLock.then(async () => {
-      const data = this.readChatDataFromFile()
-      const channelKey = `${messageInfo.selfId}:${messageInfo.channelId}`
 
-      if (!data.messages[channelKey]) {
-        data.messages[channelKey] = []
-      }
+    this.pendingMessages.push(messageInfo)
 
-      // 检查消息是否已存在
-      const existingMessage = data.messages[channelKey].find(m => m.id === messageInfo.id)
-      if (existingMessage) {
-        this.logInfo('消息已存在，跳过保存:', {
-          channelKey: channelKey,
-          messageId: messageInfo.id,
-          existingType: existingMessage.type,
-          existingContent: existingMessage.content,
-          newType: messageInfo.type,
-          newContent: messageInfo.content
-        })
-        return
-      }
+    const data = this.memoryCache || this.readChatDataFromFile()
+    const channelKey = `${messageInfo.selfId}:${messageInfo.channelId}`
 
+    if (!data.messages[channelKey]) {
+      data.messages[channelKey] = []
+    }
+
+    const existingMessage = data.messages[channelKey].find(m => m.id === messageInfo.id)
+    if (!existingMessage) {
       if (!messageInfo.timestamp) {
         messageInfo.timestamp = Date.now()
       }
-
-      // 清理消息中的base64内容
       const cleanedMessageInfo = this.utils.cleanBase64Content(messageInfo) as MessageInfo
-
-      const beforeCount = data.messages[channelKey].length
       data.messages[channelKey].push(cleanedMessageInfo)
-      const afterCount = data.messages[channelKey].length
 
-      // 限制消息数量 - 保留最新的消息
       if (data.messages[channelKey].length > this.config.maxMessagesPerChannel) {
         data.messages[channelKey].sort((a, b) => a.timestamp - b.timestamp)
-        const removedCount = data.messages[channelKey].length - this.config.maxMessagesPerChannel
         data.messages[channelKey] = data.messages[channelKey].slice(-this.config.maxMessagesPerChannel)
-        this.logInfo(`频道 ${channelKey} 达到消息上限，清理了 ${removedCount} 条旧消息`)
       }
 
-      this.writeChatDataToFile(data)
+      this.memoryCache = data
+    }
 
-      const isCommandMessage = messageInfo.content?.startsWith('++') || messageInfo.content?.startsWith('.')
+    this.scheduleWrite()
+  }
 
-      this.logInfo('添加消息到文件:', {
-        channelKey: channelKey,
-        messageId: messageInfo.id,
-        content: messageInfo.content,
-        type: messageInfo.type,
-        userId: messageInfo.userId,
-        username: messageInfo.username,
-        timestamp: messageInfo.timestamp,
-        isCommandMessage: isCommandMessage,
-        消息数变化: `${beforeCount} -> ${afterCount} -> ${data.messages[channelKey].length}`
-      })
+  dispose() {
+    if (this.writeTimer) {
+      this.writeTimer()
+      this.writeTimer = null
+    }
 
-    }).catch(error => {
-      this.logger.error('保存消息时发生错误:', error)
-    })
-
-    await this.fileOperationLock
+    this.flushPendingMessages()
   }
 
   private logInfo(...args: any[]) {
