@@ -2,7 +2,7 @@
   "name": "koishi-plugin-bilibili-videolink-analysis",
   "description": "[<ruby>Bilibili视频解析<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)解析B站链接（支持小程序卡片）支持搜索点播功能！灵感来自完美的 [bili-parser](/market?keyword=bili-parser) ！",
   "license": "MIT",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

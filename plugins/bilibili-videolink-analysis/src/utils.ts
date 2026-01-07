@@ -161,33 +161,33 @@ export class BilibiliParser {
 
     // 实际处理单个 session 任务
     private async processSessionTask(session: Session, sessioncontent: string) {
-        this.logger.info(`[队列] 开始处理消息: ${sessioncontent.substring(0, 50)}...`);
+        this.logInfo(`[队列] 开始处理消息: ${sessioncontent.substring(0, 50)}...`);
 
         const links = await this.isProcessLinks(sessioncontent);
         if (!links) {
-            this.logger.info(`[队列] 未检测到链接`);
+            this.logInfo(`[队列] 未检测到链接`);
             return;
         }
 
-        this.logger.info(`[队列] 检测到 ${links.length} 个链接`);
+        this.logInfo(`[队列] 检测到 ${links.length} 个链接`);
 
         // 逐个处理链接
         for (let i = 0; i < links.length; i++) {
             const link = links[i];
-            this.logger.info(`[队列] 处理第 ${i + 1}/${links.length} 个链接`);
+            this.logInfo(`[队列] 处理第 ${i + 1}/${links.length} 个链接`);
 
             const ret = await this.extractLinks(session, [link]);
             if (ret && !this.isLinkProcessedRecently(ret, session.channelId)) {
-                this.logger.info(`[队列] 开始下载视频`);
+                this.logInfo(`[队列] 开始下载视频`);
                 // 直接处理，不再使用视频级别的缓冲
                 await this.processVideoTask(session, ret, { video: true });
-                this.logger.info(`[队列] 视频处理完成`);
+                this.logInfo(`[队列] 视频处理完成`);
             } else {
-                this.logger.info(`[队列] 链接已处理过，跳过`);
+                this.logInfo(`[队列] 链接已处理过，跳过`);
             }
         }
 
-        this.logger.info(`[队列] Session 处理完成`);
+        this.logInfo(`[队列] Session 处理完成`);
     }
 
     // 添加任务到缓冲区（已废弃，保留兼容性）
@@ -304,7 +304,7 @@ export class BilibiliParser {
 
         // 视频/链接解析
         if (this.config.videoParseComponents.length > 0) {
-            const fullAPIurl = `http://api.xingzhige.cn/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
+            const fullAPIurl = `http://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
 
             try {
                 const responseData: any = await this.ctx.http.get(fullAPIurl);
@@ -390,33 +390,33 @@ export class BilibiliParser {
                                     // 检查文件大小
                                     const contentLength = response.headers.get('content-length');
                                     const fileSizeMB = contentLength ? parseInt(contentLength) / 1024 / 1024 : 0;
-                                    this.logger.info(`[下载] 视频大小: ${fileSizeMB.toFixed(2)}MB`);
+                                    this.logInfo(`[下载] 视频大小: ${fileSizeMB.toFixed(2)}MB`);
 
                                     // 检查是否超过配置的最大大小
                                     const maxSize = this.config.maxFileSizeMB;
-                                    this.logger.info(`[下载] 配置的最大大小: ${maxSize}MB`);
+                                    this.logInfo(`[下载] 配置的最大大小: ${maxSize}MB`);
 
                                     if (maxSize > 0 && fileSizeMB > maxSize) {
                                         this.logger.warn(`[下载] 文件过大 (${fileSizeMB.toFixed(2)}MB > ${maxSize}MB)，使用直链模式`);
                                         // 不下载，使用原始URL
                                         videoData = video.url;
                                     } else {
-                                        this.logger.info(`[下载] 开始下载并转换为Base64...`);
+                                        this.logInfo(`[下载] 开始下载并转换为Base64...`);
 
                                         // 获取 MIME 类型
                                         const contentType = response.headers.get('content-type');
                                         const mimeType = contentType ? contentType.split(';')[0].trim() : 'video/mp4';
 
-                                        this.logger.info(`[下载] 读取响应体...`);
+                                        this.logInfo(`[下载] 读取响应体...`);
                                         // 读取响应体并转换
                                         const arrayBuffer = await response.arrayBuffer();
-                                        this.logger.info(`[下载] 创建Buffer...`);
+                                        this.logInfo(`[下载] 创建Buffer...`);
                                         const buffer = Buffer.from(arrayBuffer);
-                                        this.logger.info(`[下载] 转换为Base64...`);
+                                        this.logInfo(`[下载] 转换为Base64...`);
                                         const base64Data = buffer.toString('base64');
                                         videoData = `data:${mimeType};base64,${base64Data}`;
 
-                                        this.logger.info(`[下载] 视频下载完成，已转换为Base64`);
+                                        this.logInfo(`[下载] 视频下载完成，已转换为Base64`);
                                     }
                                 } catch (error) {
                                     this.logger.error("下载视频失败:", error);
@@ -432,7 +432,7 @@ export class BilibiliParser {
                                     videoElements.push(h.audio(videoData));
                                 } else {
                                     if (this.config.videoParseComponents.includes('log')) {
-                                        this.logger.info(video.url);
+                                        this.logInfo(video.url);
                                     }
                                     if (this.config.videoParseComponents.includes('link')) {
                                         videoElements.push(h.text(video.url));
