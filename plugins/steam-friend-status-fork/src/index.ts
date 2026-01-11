@@ -420,11 +420,16 @@ export function apply(ctx: Context, config) {
                 textMessage = `${changeInfo.userName} 不玩 ${changeInfo.oldGame} 了，开始玩 ${changeInfo.newGame} 了`;
               }
 
-              if (playerInfo && config.broadcastWithImage) {
-                const image = await getGameChangeImg(ctx, playerInfo, changeInfo);
-                await bot.sendMessage(channel.id, [h.text(textMessage), image]);
-              } else {
-                await bot.sendMessage(channel.id, textMessage);
+              // 捕获发送消息的错误，避免一个群发送失败影响其他群
+              try {
+                if (playerInfo && config.broadcastWithImage) {
+                  const image = await getGameChangeImg(ctx, playerInfo, changeInfo);
+                  await bot.sendMessage(channel.id, [h.text(textMessage), image]);
+                } else {
+                  await bot.sendMessage(channel.id, textMessage);
+                }
+              } catch (error) {
+                ctx.logger.warn(`向群组 ${channel.id} 发送消息失败:`, error);
               }
             }
           }
