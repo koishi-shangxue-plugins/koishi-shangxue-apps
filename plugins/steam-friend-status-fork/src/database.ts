@@ -2,6 +2,7 @@
 import { Context, Session } from "koishi";
 import { SteamUser } from "./types";
 import { getSteamId, getSteamUserInfo } from "./steam";
+import { deleteUserNickname, deleteAllUserNicknames } from "./userdata";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -113,12 +114,16 @@ export async function unbindPlayer(
       // 如果只在一个群组绑定，则完全移除
       await removeAvatar(ctx, userData.steamId);
       await ctx.database.remove("SteamUser", { userId: userid });
+      // 删除用户的所有昵称记录
+      await deleteAllUserNicknames(ctx, userid);
     } else {
       // 从群组列表中移除
       const effectGroups = userData.effectGroups.filter(
         (id) => id !== channelid,
       );
       await ctx.database.set("SteamUser", { userId: userid }, { effectGroups });
+      // 删除用户在该群组的昵称
+      await deleteUserNickname(ctx, userid, channelid);
     }
     return "解绑成功";
   }
@@ -159,12 +164,16 @@ export async function unbindAll(
       // 如果只在当前频道绑定，则完全移除
       await removeAvatar(ctx, user.steamId);
       await ctx.database.remove("SteamUser", { userId: user.userId });
+      // 删除用户的所有昵称记录
+      await deleteAllUserNicknames(ctx, user.userId);
     } else {
       // 从群组列表中移除当前频道
       const effectGroups = user.effectGroups.filter(
         (id) => id !== channelid,
       );
       await ctx.database.set("SteamUser", { userId: user.userId }, { effectGroups });
+      // 删除用户在该群组的昵称
+      await deleteUserNickname(ctx, user.userId, channelid);
     }
     unbindCount++;
   }

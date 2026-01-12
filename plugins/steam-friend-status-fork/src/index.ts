@@ -14,6 +14,13 @@ import {
   getSteamProfileImg,
   getGameChangeImg,
 } from "./image";
+import {
+  startGameSession,
+  endGameSession,
+  formatPlayTime,
+  setUserNickname,
+  getUserNickname,
+} from "./userdata";
 import * as path from "node:path";
 import * as fs from "node:fs";
 
@@ -257,9 +264,9 @@ export function apply(ctx: Context, config) {
   ctx
     .command("steam-friend-status.更新steam", "更新绑定的steam用户的头像")
     .action(async ({ session }) => {
-      // 更新指令调用者的昵称
-      if (session.username) {
-        await ctx.database.set('SteamUser', { userId: session.userId }, { userName: session.username });
+      // 更新指令调用者在当前群组的昵称
+      if (session.username && session.channelId) {
+        await setUserNickname(ctx, session.userId, session.channelId, session.username);
       }
 
       await updataPlayerHeadshots(ctx, config.SteamApiKey);
@@ -272,8 +279,13 @@ export function apply(ctx: Context, config) {
   ctx
     .command("steam-friend-status.看看steam", "查看当前绑定过的玩家状态")
     .action(async ({ session }) => {
-      const { channelId, bot } = session;
+      const { channelId, bot, username, userId } = session;
       let channelName = "当前群组";
+
+      // 更新当前用户在当前群组的昵称
+      if (username && channelId) {
+        await setUserNickname(ctx, userId, channelId, username);
+      }
 
       if (typeof bot.getGuild === "function") {
         try {
@@ -410,14 +422,23 @@ export function apply(ctx: Context, config) {
                 (p) => p.steamid === user.steamId,
               );
 
+              // 获取用户在当前群组的昵称
+              const channelNickname = await getUserNickname(ctx, changeInfo.userId, channel.id);
+              const displayName = channelNickname || changeInfo.userName;
+
               // 重新构建文本消息
               let textMessage = "";
               if (changeInfo.status === "start") {
-                textMessage = `${changeInfo.userName} 开始玩 ${changeInfo.newGame} 了`;
+                textMessage = `${displayName} 开始玩 ${changeInfo.newGame} 了`;
               } else if (changeInfo.status === "stop") {
-                textMessage = `${changeInfo.userName} 不玩 ${changeInfo.oldGame} 了`;
+                // 如果有游玩时长，添加到消息中
+                if (changeInfo.playTime) {
+                  textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了，玩了 ${changeInfo.playTime}`;
+                } else {
+                  textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了`;
+                }
               } else if (changeInfo.status === "change") {
-                textMessage = `${changeInfo.userName} 不玩 ${changeInfo.oldGame} 了，开始玩 ${changeInfo.newGame} 了`;
+                textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了，开始玩 ${changeInfo.newGame} 了`;
               }
 
               // 捕获发送消息的错误，避免一个群发送失败影响其他群
@@ -475,6 +496,7 @@ export function apply(ctx: Context, config) {
     status: "start" | "stop" | "change";
     oldGame?: string;
     newGame?: string;
+    playTime?: string; // 游玩时长（格式化后的字符串）
   }
 
   // 检查玩家状态是否变化，返回结构化数据
@@ -508,13 +530,17 @@ export function apply(ctx: Context, config) {
 
       let changeInfo: GameChangeInfo = null;
       if (newGame && !trimmedOldGame) {
+        // 开始玩游戏
         changeInfo = {
           userId: userData.userId,
           userName,
           status: "start",
           newGame,
         };
+        // 记录游戏开始时间
+        await startGameSession(ctx, userData.userId, newGame);
       } else if (newGame && trimmedOldGame && newGame !== trimmedOldGame) {
+        // 切换游戏
         changeInfo = {
           userId: userData.userId,
           userName,
@@ -522,12 +548,18 @@ export function apply(ctx: Context, config) {
           oldGame: trimmedOldGame,
           newGame,
         };
+        // 结束旧游戏会话，开始新游戏会话
+        await endGameSession(ctx, userData.userId);
+        await startGameSession(ctx, userData.userId, newGame);
       } else if (!newGame && trimmedOldGame) {
+        // 停止玩游戏
+        const playTimeMinutes = await endGameSession(ctx, userData.userId);
         changeInfo = {
           userId: userData.userId,
           userName,
           status: "stop",
           oldGame: trimmedOldGame,
+          playTime: playTimeMinutes ? formatPlayTime(playTimeMinutes) : undefined,
         };
       }
 
