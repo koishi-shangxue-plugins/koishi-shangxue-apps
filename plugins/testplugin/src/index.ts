@@ -74,6 +74,12 @@ export function apply(ctx: Context) {
   //     }
   //   });
 
+  ctx.command('这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令',"这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这一个超级长的测试指令")
+    .action(async ({ session }) => {
+      ctx.assets.transform("")
+      ctx.logger.info("===")
+      return
+    })
   command
     .subcommand('.logger')
     .action(async ({ session }, id) => {

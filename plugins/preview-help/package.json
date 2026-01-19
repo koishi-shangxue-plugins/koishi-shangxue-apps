@@ -1,13 +1,11 @@
 {
   "name": "koishi-plugin-preview-help",
-  "description": "好像是一个图片菜单生成器？",
-  "version": "4.0.0",
+  "description": "[<ruby>图片菜单渲染<rp>（</rp><rt>点我查看预览效果</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/openplatform/7cfeb33745f63bb290f4f50982d3a1d22aca644c.jpg) ",
+  "version": "5.0.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
-    "client",
-    "dist",
-    "help",
+    "source",
     "lib",
     "src"
   ],
@@ -16,7 +14,6 @@
     "chatbot",
     "koishi",
     "plugin",
-    "自定义编辑",
     "图片菜单"
   ],
   "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
@@ -24,11 +21,6 @@
     "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "peerDependencies": {
-    "@koishijs/plugin-console": "^5.11.0",
-    "koishi": "^4.16.0"
-  },
-  "devDependencies": {
-    "@koishijs/client": "^5.11.0",
     "koishi": "^4.16.0"
   }
 }
