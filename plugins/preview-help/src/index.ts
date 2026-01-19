@@ -31,20 +31,33 @@ export const logger = new Logger('preview-help')
 export interface Config {
   commandName: string
   screenshotQuality: number
+  excludeCommands: string[]
 }
 
 export const Config: Schema<Config> = Schema.object({
   commandName: Schema.string().default('preview-help').description('指令名称'),
   screenshotQuality: Schema.number().min(1).max(100).default(80).description('截图质量 (1-100, 仅对 jpeg 有效)'),
+  excludeCommands: Schema.array(String).role('table').default([
+  "preview-help",
+  "command",
+  "help",
+  "timer",
+  "clear",
+  "user",
+  "channel",
+  "inspect",
+  "plugin"
+]).description('不希望在菜单中显示的指令列表'),
 })
 
 /**
  * 获取可见指令列表
  */
-function getVisibleCommands(session: Session, commands: Command[]): Command[] {
+function getVisibleCommands(session: Session, commands: Command[], excludeCommands: string[]): Command[] {
   const visible: Command[] = []
   for (const cmd of commands) {
-    // 过滤隐藏指令和无权限指令
+    // 过滤隐藏指令、无权限指令以及排除列表中的指令
+    if (excludeCommands.includes(cmd.name)) continue
     if (session.resolve(cmd.config['hidden'])) continue
     if (!cmd.match(session)) continue
     visible.push(cmd)
@@ -99,7 +112,7 @@ export function apply(ctx: Context, config: Config) {
 
       // 1. 获取指令数据并计算哈希
       const allCommands = ctx.$commander._commandList.filter(cmd => !cmd.parent)
-      const visibleCommands = getVisibleCommands(session, allCommands)
+      const visibleCommands = getVisibleCommands(session, allCommands, config.excludeCommands)
 
       if (visibleCommands.length === 0) {
         return '暂无可用指令'
