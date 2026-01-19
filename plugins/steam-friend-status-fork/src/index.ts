@@ -438,7 +438,12 @@ export function apply(ctx: Context, config) {
                   textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了`;
                 }
               } else if (changeInfo.status === "change") {
-                textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了，开始玩 ${changeInfo.newGame} 了`;
+                // 如果有游玩时长，添加到消息中
+                if (changeInfo.playTime) {
+                  textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了，玩了 ${changeInfo.playTime}，开始玩 ${changeInfo.newGame} 了`;
+                } else {
+                  textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了，开始玩 ${changeInfo.newGame} 了`;
+                }
               }
 
               // 捕获发送消息的错误，避免一个群发送失败影响其他群
@@ -541,15 +546,17 @@ export function apply(ctx: Context, config) {
         await startGameSession(ctx, userData.userId, newGame);
       } else if (newGame && trimmedOldGame && newGame !== trimmedOldGame) {
         // 切换游戏
+        // 结束旧游戏会话并获取游玩时长
+        const playTimeMinutes = await endGameSession(ctx, userData.userId);
         changeInfo = {
           userId: userData.userId,
           userName,
           status: "change",
           oldGame: trimmedOldGame,
           newGame,
+          playTime: playTimeMinutes ? formatPlayTime(playTimeMinutes) : undefined,
         };
-        // 结束旧游戏会话，开始新游戏会话
-        await endGameSession(ctx, userData.userId);
+        // 开始新游戏会话
         await startGameSession(ctx, userData.userId, newGame);
       } else if (!newGame && trimmedOldGame) {
         // 停止玩游戏
