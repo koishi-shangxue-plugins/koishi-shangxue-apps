@@ -168,7 +168,10 @@ export class MessageHandler {
 
   public async downloadAndCacheMedia(url: string, type: 'image' | 'media' | 'avatar') {
     try {
-      if (!url || url.startsWith('data:') || url.startsWith('file:')) return url
+      if (!url || url.startsWith('data:')) return url
+
+      // 如果已经是 Vite @fs 路径，直接返回
+      if (url.includes('/vite/@fs/')) return url
 
       let folder = 'media'
       if (type === 'image') folder = 'images'
@@ -185,15 +188,17 @@ export class MessageHandler {
       const filename = `${hash}${ext}`
       const filePath = require('node:path').join(dir, filename)
 
-      if (require('node:fs').existsSync(filePath)) {
-        return require('node:url').pathToFileURL(filePath).href
+      if (!require('node:fs').existsSync(filePath)) {
+        const buffer = await this.ctx.http.get(url, { responseType: 'arraybuffer' })
+        require('node:fs').writeFileSync(filePath, Buffer.from(buffer))
       }
 
-      const buffer = await this.ctx.http.get(url, { responseType: 'arraybuffer' })
-      require('node:fs').writeFileSync(filePath, Buffer.from(buffer))
-
-      return require('node:url').pathToFileURL(filePath).href
+      // 返回 Vite @fs 路径格式，让浏览器通过 Vite 开发服务器加载本地文件
+      // Windows 路径需要转换为正斜杠
+      const normalizedPath = filePath.replace(/\\/g, '/')
+      return `/vite/@fs/${normalizedPath}`
     } catch (e) {
+      this.logger.warn('下载并缓存媒体失败:', e)
       return url
     }
   }
