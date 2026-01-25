@@ -119,33 +119,62 @@ export class ApiHandlers {
 
     this.ctx.console.addListener('fetch-image' as any, async (data: { url: string }) => {
       try {
+        // 如果已经是 Vite @fs 路径，直接返回
+        if (data.url.includes('/vite/@fs/')) {
+          return {
+            success: true,
+            viteUrl: data.url
+          }
+        }
 
+        // 如果是本地文件 URL，转换为 Vite @fs 路径
         if (this.isFileUrl(data.url)) {
           this.logInfo('处理本地文件请求:', data.url)
-          return await this.handleLocalFileRequest(data.url)
-        }
-
-        const response = await fetch(data.url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Referer': ''
+          const filePath = require('node:url').fileURLToPath(data.url)
+          const normalizedPath = filePath.replace(/\\/g, '/')
+          return {
+            success: true,
+            viteUrl: `/vite/@fs/${normalizedPath}`
           }
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
 
-        const buffer = await response.arrayBuffer()
-        const base64 = Buffer.from(buffer).toString('base64')
-        const contentType = response.headers.get('content-type') || 'image/jpeg'
+        // 网络图片：下载并缓存到本地，返回 Vite @fs 路径
+        const dir = require('node:path').join(this.ctx.baseDir, 'data', 'chat-patch', 'persist-media', 'images')
+        if (!require('node:fs').existsSync(dir)) {
+          require('node:fs').mkdirSync(dir, { recursive: true })
+        }
+
+        const crypto = require('node:crypto')
+        const hash = crypto.createHash('md5').update(data.url).digest('hex')
+        const ext = require('node:path').extname(new URL(data.url).pathname) || '.jpg'
+        const filename = `${hash}${ext}`
+        const filePath = require('node:path').join(dir, filename)
+
+        // 如果文件不存在，下载并保存
+        if (!require('node:fs').existsSync(filePath)) {
+          const response = await fetch(data.url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+              'Referer': ''
+            }
+          })
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          }
+
+          const buffer = await response.arrayBuffer()
+          require('node:fs').writeFileSync(filePath, Buffer.from(buffer))
+        }
+
+        // 返回 Vite @fs 路径
+        const normalizedPath = filePath.replace(/\\/g, '/')
         return {
           success: true,
-          base64: base64,
-          contentType: contentType,
-          dataUrl: `data:${contentType};base64,${base64}`
+          viteUrl: `/vite/@fs/${normalizedPath}`
         }
       } catch (error: any) {
+        this.logger.error('获取图片失败:', error)
         return { success: false, error: error?.message || String(error) }
       }
     })
@@ -578,35 +607,59 @@ export class ApiHandlers {
       try {
         this.logInfo('收到视频临时加载请求:', data.url)
 
-        if (this.isFileUrl(data.url)) {
-          const result = await this.handleLocalFileRequest(data.url)
-          return result
-        }
-
-        const response = await fetch(data.url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Referer': ''
+        // 如果已经是 Vite @fs 路径，直接返回
+        if (data.url.includes('/vite/@fs/')) {
+          return {
+            success: true,
+            viteUrl: data.url
           }
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
 
-        const buffer = await response.arrayBuffer()
-        const base64 = Buffer.from(buffer).toString('base64')
+        // 如果是本地文件 URL，转换为 Vite @fs 路径
+        if (this.isFileUrl(data.url)) {
+          const filePath = require('node:url').fileURLToPath(data.url)
+          const normalizedPath = filePath.replace(/\\/g, '/')
+          return {
+            success: true,
+            viteUrl: `/vite/@fs/${normalizedPath}`
+          }
+        }
 
-        const contentType = response.headers.get('content-type') || 'video/mp4'
+        // 网络视频：下载并缓存到本地，返回 Vite @fs 路径
+        const dir = require('node:path').join(this.ctx.baseDir, 'data', 'chat-patch', 'persist-media', 'media')
+        if (!require('node:fs').existsSync(dir)) {
+          require('node:fs').mkdirSync(dir, { recursive: true })
+        }
 
-        this.logInfo('视频下载成功:', { size: buffer.byteLength, contentType })
+        const crypto = require('node:crypto')
+        const hash = crypto.createHash('md5').update(data.url).digest('hex')
+        const ext = require('node:path').extname(new URL(data.url).pathname) || '.mp4'
+        const filename = `${hash}${ext}`
+        const filePath = require('node:path').join(dir, filename)
 
+        // 如果文件不存在，下载并保存
+        if (!require('node:fs').existsSync(filePath)) {
+          const response = await fetch(data.url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Referer': ''
+            }
+          })
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          }
+
+          const buffer = await response.arrayBuffer()
+          require('node:fs').writeFileSync(filePath, Buffer.from(buffer))
+          this.logInfo('视频下载成功:', { size: buffer.byteLength, path: filePath })
+        }
+
+        // 返回 Vite @fs 路径
+        const normalizedPath = filePath.replace(/\\/g, '/')
         return {
           success: true,
-          base64: base64,
-          contentType: contentType,
-          dataUrl: `data:${contentType};base64,${base64}`,
-          size: buffer.byteLength
+          viteUrl: `/vite/@fs/${normalizedPath}`
         }
       } catch (error: any) {
         this.logger.error('视频临时加载失败:', error)

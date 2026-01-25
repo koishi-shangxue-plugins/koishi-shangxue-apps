@@ -48,35 +48,30 @@ export function useVideoCache() {
       const result = await (send as any)('fetch-video-temp', { url })
 
       if (result.success) {
-        // 清理上一个 blob URL
-        if (currentBlobUrl.value) {
-          URL.revokeObjectURL(currentBlobUrl.value)
+        // 如果返回 Vite @fs 路径，直接使用，不需要转换为 blob
+        if (result.viteUrl) {
+          loadedVideos.value[url] = result.viteUrl
+          return result.viteUrl
         }
 
-        // 如果返回的是 dataUrl，转换为 blob
-        let blobUrl: string
+        // 兼容旧的 dataUrl 格式（如果有的话）
         if (result.dataUrl) {
+          // 清理上一个 blob URL
+          if (currentBlobUrl.value) {
+            URL.revokeObjectURL(currentBlobUrl.value)
+          }
+
           // 从 data URL 创建 blob
           const response = await fetch(result.dataUrl)
           const blob = await response.blob()
-          blobUrl = URL.createObjectURL(blob)
-        } else if (result.fileUrl) {
-          // 如果是文件 URL，也尝试转换为 blob
-          try {
-            const response = await fetch(result.fileUrl)
-            const blob = await response.blob()
-            blobUrl = URL.createObjectURL(blob)
-          } catch (e) {
-            // 如果转换失败，直接使用文件 URL
-            blobUrl = result.fileUrl
-          }
-        } else {
-          return null
+          const blobUrl = URL.createObjectURL(blob)
+
+          currentBlobUrl.value = blobUrl
+          loadedVideos.value[url] = blobUrl
+          return blobUrl
         }
 
-        currentBlobUrl.value = blobUrl
-        loadedVideos.value[url] = blobUrl
-        return blobUrl
+        return null
       }
 
       return null

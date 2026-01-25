@@ -134,38 +134,48 @@ export function useImageCache() {
     if (existing) return existing
 
     try {
-      // 通过后端获取图片
+      // 通过后端获取图片（现在返回 Vite @fs 路径）
       const result = await (send as any)('fetch-image', { url })
       if (!result.success) return null
 
-      const response = await fetch(result.dataUrl)
-      const blob = await response.blob()
-
-      // 检查图片大小
-      if (blob.size > MAX_IMAGE_SIZE) {
-        console.warn(`[ImageCache] 图片过大 (${blob.size} bytes)，不缓存`)
-        return result.dataUrl // 直接返回 dataUrl，不缓存
+      // 如果后端返回 Vite @fs 路径，直接使用，不需要缓存到 IndexedDB
+      if (result.viteUrl) {
+        // 将 Vite 路径缓存到内存中，避免重复请求后端
+        imageBlobUrls.value[url] = result.viteUrl
+        return result.viteUrl
       }
 
-      const item: ImageCacheItem = {
-        url,
-        blob,
-        timestamp: Date.now(),
-        size: blob.size,
-        channelKey
+      // 兼容旧的 base64 返回格式（如果有的话）
+      if (result.dataUrl) {
+        const response = await fetch(result.dataUrl)
+        const blob = await response.blob()
+
+        // 检查图片大小
+        if (blob.size > MAX_IMAGE_SIZE) {
+          console.warn(`[ImageCache] 图片过大 (${blob.size} bytes)，不缓存`)
+          return result.dataUrl
+        }
+
+        const item: ImageCacheItem = {
+          url,
+          blob,
+          timestamp: Date.now(),
+          size: blob.size,
+          channelKey
+        }
+
+        await saveToDB(item)
+
+        const blobUrl = URL.createObjectURL(blob)
+        imageBlobUrls.value[url] = blobUrl
+        currentMemoryUsage += blob.size
+        blobCount++
+        cleanupMemoryBlobs()
+
+        return blobUrl
       }
 
-      // 保存到 IndexedDB
-      await saveToDB(item)
-
-      // 保存到内存
-      const blobUrl = URL.createObjectURL(blob)
-      imageBlobUrls.value[url] = blobUrl
-      currentMemoryUsage += blob.size
-      blobCount++
-      cleanupMemoryBlobs() // 检查是否需要清理
-
-      return blobUrl
+      return null
     } catch (e) {
       console.error('[ImageCache] 缓存图片失败:', e)
       return null
