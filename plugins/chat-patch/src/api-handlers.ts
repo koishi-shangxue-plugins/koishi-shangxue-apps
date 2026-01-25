@@ -35,10 +35,10 @@ export class ApiHandlers {
 
     this.ctx.console.addListener('get-chat-data' as any, async () => {
       try {
+        // 只读取元数据，不加载消息到内存
+        const data = this.fileManager.readMetadataOnly()
 
-        const data = this.fileManager.readChatDataFromFile()
-
-        this.logInfo('获取基础聊天数据')
+        this.logInfo('获取基础聊天数据（仅元数据）')
 
         return {
           success: true,
@@ -47,7 +47,7 @@ export class ApiHandlers {
             channels: data.channels || {},
             pinnedBots: data.pinnedBots || [],
             pinnedChannels: data.pinnedChannels || [],
-
+            // 不返回消息数据，由前端按需加载
             messages: {}
           }
         }
@@ -64,9 +64,8 @@ export class ApiHandlers {
       offset?: number
     }) => {
       try {
-        const data = this.fileManager.readChatDataFromFile()
-        const channelKey = `${requestData.selfId}:${requestData.channelId}`
-        let messages = data.messages[channelKey] || []
+        // 直接从文件读取该频道的消息，不加载所有消息到内存
+        let messages = this.fileManager.readChannelMessages(requestData.selfId, requestData.channelId)
 
         const sortedMessages = messages.sort((a, b) => b.timestamp - a.timestamp)
 
@@ -77,11 +76,11 @@ export class ApiHandlers {
 
           messages = messages.sort((a, b) => a.timestamp - b.timestamp)
         } else {
-
+          // 如果没有指定limit，返回所有消息（按时间正序）
           messages = sortedMessages.sort((a, b) => a.timestamp - b.timestamp)
         }
 
-        this.logInfo('获取历史消息:', channelKey, '共', messages.length, '条消息')
+        this.logInfo('获取历史消息:', `${requestData.selfId}:${requestData.channelId}`, '共', messages.length, '条消息')
 
         return {
           success: true,

@@ -66,8 +66,8 @@ export class FileManager {
     return path.join(botDir, `${channelId}.json`)
   }
 
-  // 读取单个频道的消息
-  private readChannelMessages(selfId: string, channelId: string): MessageInfo[] {
+  // 读取单个频道的消息（公共方法）
+  readChannelMessages(selfId: string, channelId: string): MessageInfo[] {
     const filePath = this.getChannelFilePath(selfId, channelId)
     if (!fs.existsSync(filePath)) {
       return []
@@ -124,6 +124,11 @@ export class FileManager {
         pinnedChannels: []
       }
     }
+  }
+
+  // 只读取元数据，不加载消息（公共方法）
+  readMetadataOnly(): Omit<ChatData, 'messages'> {
+    return this.readMetadata()
   }
 
   // 写入元数据
