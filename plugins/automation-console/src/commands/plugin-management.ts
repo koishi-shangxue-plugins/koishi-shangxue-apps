@@ -1,6 +1,6 @@
 import { Context } from "koishi";
 import { Config, PageInstance } from "../types";
-import { ensureUIControl, closeUIIfEnabled, createLogger } from "../utils";
+import { getConsoleUrl, createLogger } from "../utils";
 
 /**
  * 注册插件管理相关命令
@@ -8,16 +8,12 @@ import { ensureUIControl, closeUIIfEnabled, createLogger } from "../utils";
 export function registerPluginManagementCommands(
   ctx: Context,
   config: Config,
-  pageRef: { current: PageInstance },
   commandNames: {
     automation: string | null;
     plugins: string | null;
-    cancanUI: string | null;
-    openUI: string | null;
-    closeUI: string | null;
   }
 ) {
-  const { automation, plugins, cancanUI, openUI, closeUI } = commandNames;
+  const { automation, plugins } = commandNames;
   const log = createLogger(ctx, config);
 
   // 配置插件
@@ -27,13 +23,34 @@ export function registerPluginManagementCommands(
     })
       .example("配置插件 commands  1  1")
       .action(async ({ session }, pluginname, pluginchoice, pluginoperation) => {
-        if (!await ensureUIControl(pageRef.current, config, session, openUI)) return;
+        let page: PageInstance = null;
+
         try {
-          // 进入插件页面
-          await pageRef.current!.click('a[href^="/plugins/"]');
+          // 打开页面并直接访问插件配置路由
+          const consoleUrl = getConsoleUrl(ctx, config, '/plugins/');
+          page = await ctx.puppeteer.page();
+          await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
+
+          // 如果需要登录
+          if (config.enable_auth && page.url().includes('/login')) {
+            await page.evaluate(() => {
+              (document.querySelector('input[placeholder="用户名"]') as HTMLInputElement).value = '';
+              (document.querySelector('input[placeholder="密码"]') as HTMLInputElement).value = '';
+            });
+
+            await page.type('input[placeholder="用户名"]', config.text);
+            await page.type('input[placeholder="密码"]', config.secret);
+
+            await page.evaluate(() => {
+              (document.querySelectorAll('button.k-button.primary')[1] as HTMLElement).click();
+            });
+
+            await page.waitForSelector('a[href^="/logs"]');
+            await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
+          }
 
           // 获取所有插件的名称
-          const plugins = await pageRef.current!.evaluate(() => {
+          const plugins = await page.evaluate(() => {
             const elements = document.querySelectorAll('.label[title]');
             return Array.from(elements).map(el => el.getAttribute('title'));
           });
@@ -50,7 +67,6 @@ export function registerPluginManagementCommands(
           const matches = plugins.filter(name => name && name.includes(keyword));
           if (matches.length === 0) {
             await session.send("没有找到匹配的插件。");
-            await closeUIIfEnabled(session, config, closeUI);
             return;
           }
 
@@ -70,28 +86,28 @@ export function registerPluginManagementCommands(
 
           if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= limitedMatches.length) {
             await session.send("无效的选择。");
-            await closeUIIfEnabled(session, config, closeUI);
             return;
           }
 
           const selectedPlugin = limitedMatches[choiceIndex];
 
           // 操作插件
-          await pageRef.current!.evaluate((selectedPlugin, choiceIndex) => {
+          await page.evaluate((selectedPlugin, choiceIndex) => {
             const elements = Array.from(document.querySelectorAll('.label[title]'));
             const targetElement = elements.filter(el => el.getAttribute('title') === selectedPlugin)[choiceIndex] as HTMLElement;
             targetElement.click();
           }, selectedPlugin, choiceIndex);
-          await session.execute(`${cancanUI}`);
+
+          // 等待页面更新
+          await new Promise(resolve => setTimeout(resolve, 500));
 
           // 检查可用按钮数量
-          const buttonCount = await pageRef.current!.evaluate(() => {
+          const buttonCount = await page.evaluate(() => {
             return document.querySelectorAll('.right .menu-item:not(.disabled)').length;
           });
 
           if (buttonCount < 6) {
             await session.send("可用按钮不足6个，非普通插件，请前往控制台操作！");
-            await closeUIIfEnabled(session, config, closeUI);
             return;
           }
 
@@ -104,44 +120,37 @@ export function registerPluginManagementCommands(
 
           if (isNaN(operation) || operation < 0 || operation > 5) {
             await session.send("此插件无法执行此操作。");
-            await closeUIIfEnabled(session, config, closeUI);
             return;
           }
 
           if (operation === 0) {
             // 双击启用/停用插件
-            await pageRef.current!.evaluate(() => {
+            await page.evaluate(() => {
               const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
               (buttons[0] as HTMLElement).click(); // 第一次点击
             });
 
             await new Promise(resolve => setTimeout(resolve, 1000)); // 等待一秒
 
-            await pageRef.current!.evaluate(() => {
+            await page.evaluate(() => {
               const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
               (buttons[0] as HTMLElement).click(); // 第二次点击
             });
 
-            // 截图并返回
             await session.send('插件已双击操作完成。');
-
-            await session.execute(`${cancanUI}`);
-            await closeUIIfEnabled(session, config, closeUI);
             return;
           } else if ([1, 2, 5].includes(operation)) {
             // 执行简单操作
-            await pageRef.current!.evaluate((operation) => {
+            await page.evaluate((operation) => {
               const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
               (buttons[operation - 1] as HTMLElement).click();
             }, operation);
 
             await session.send("操作已完成。");
-            await session.execute(`${cancanUI}`);
-            await closeUIIfEnabled(session, config, closeUI);
             return;
           } else if (operation === 3) {
             // 重命名
-            await pageRef.current!.evaluate(() => {
+            await page.evaluate(() => {
               const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
               (buttons[2] as HTMLElement).click(); // 点击重命名
             });
@@ -149,7 +158,7 @@ export function registerPluginManagementCommands(
             await session.send("请发送重命名的插件名称：");
             const newName = await session.prompt(config.wait_for_prompt * 1000);
 
-            await pageRef.current!.evaluate((newName) => {
+            await page.evaluate((newName) => {
               const input = document.querySelector('.el-dialog .el-input__inner') as HTMLInputElement;
               input.value = newName;
               const event = new Event('input', { bubbles: true });
@@ -159,31 +168,31 @@ export function registerPluginManagementCommands(
             }, newName);
 
             await session.send("重命名操作已完成。");
-            await session.execute(`${cancanUI}`);
-            await closeUIIfEnabled(session, config, closeUI);
             return;
           } else if (operation === 4) {
             // 移除插件
-            await pageRef.current!.evaluate(() => {
+            await page.evaluate(() => {
               const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
               (buttons[3] as HTMLElement).click(); // 点击移除插件
             });
 
-            await pageRef.current!.evaluate(() => {
+            await page.evaluate(() => {
               const confirmButton = document.querySelector('.el-dialog__footer .el-button--danger') as HTMLElement;
               confirmButton.click();
             });
 
             await session.send("移除插件操作已完成。");
-            await session.execute(`${cancanUI}`);
-            await closeUIIfEnabled(session, config, closeUI);
             return;
           }
 
         } catch (error) {
           ctx.logger.error('操作插件时出错:', error);
           await session.send("操作插件时出错，请重试。");
-          await closeUIIfEnabled(session, config, closeUI);
+        } finally {
+          // 自动关闭页面
+          if (page) {
+            await page.close();
+          }
         }
       });
   }

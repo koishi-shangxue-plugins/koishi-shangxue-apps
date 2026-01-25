@@ -12,12 +12,9 @@ export interface Config {
   enable_auth: boolean
   text: string
   secret: string
-  auto_execute_openUI: boolean
-  auto_execute_closeUI: boolean
   wait_for_prompt: number
   maxlist: number
   resolvetimeout: number
-  resolvesetTimeout: boolean
   loggerinfo: boolean
 }
 

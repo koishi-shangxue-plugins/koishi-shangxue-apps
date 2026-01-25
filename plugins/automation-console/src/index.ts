@@ -79,11 +79,6 @@ export const Config = ConfigSchema;
  * 插件主函数
  */
 export async function apply(ctx: Context, config: ConfigType) {
-  // 页面实例引用
-  const pageRef: { current: Awaited<ReturnType<Context['puppeteer']['page']>> | null } = {
-    current: null
-  };
-
   // 注册所有命令
-  registerAllCommands(ctx, config, pageRef);
+  registerAllCommands(ctx, config);
 }
