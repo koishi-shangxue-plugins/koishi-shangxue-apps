@@ -11,7 +11,6 @@ export function useChatData() {
 
   const pluginConfig = ref<PluginConfig>({
     maxMessagesPerChannel: 1000,
-    keepMessagesOnClear: 50,
     loggerinfo: false,
     blockedPlatforms: [],
     chatContainerHeight: 80,

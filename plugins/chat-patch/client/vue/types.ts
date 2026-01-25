@@ -62,7 +62,6 @@ export interface ChatData {
 
 export interface PluginConfig {
   maxMessagesPerChannel: number
-  keepMessagesOnClear: number
   loggerinfo: boolean
   blockedPlatforms: Array<{
     platformName: string

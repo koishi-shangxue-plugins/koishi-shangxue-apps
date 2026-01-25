@@ -179,14 +179,15 @@ export class ApiHandlers {
       }
     })
 
+    // 清理历史记录 API 已废弃，现在直接通过右键删除频道数据
     this.ctx.console.addListener('clear-channel-history' as any, async (data: {
       selfId: string
       channelId: string
-      keepCount?: number
     }) => {
       try {
-        this.logInfo('收到清理历史记录请求:', data)
+        this.logInfo('收到清理历史记录请求（已废弃，建议使用删除频道数据）:', data)
 
+        // 直接删除该频道的所有消息
         const chatData = this.fileManager.readChatDataFromFile()
         const channelKey = `${data.selfId}:${data.channelId}`
 
@@ -194,33 +195,19 @@ export class ApiHandlers {
           return { success: true, message: '频道没有历史消息' }
         }
 
-        const messages = chatData.messages[channelKey]
-        const originalCount = messages.length
-
-        const keepCount = data.keepCount || this.config.keepMessagesOnClear
-
-        if (keepCount > 0 && originalCount <= keepCount) {
-          return { success: true, message: `消息数量(${originalCount})未超过保留数量(${keepCount})，无需清理` }
-        }
-
-        const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp)
-        const keptMessages = keepCount > 0 ? sortedMessages.slice(-keepCount) : []
-        const clearedCount = originalCount - keptMessages.length
-
-        chatData.messages[channelKey] = keptMessages
+        const originalCount = chatData.messages[channelKey].length
+        delete chatData.messages[channelKey]
         this.fileManager.writeChatDataToFile(chatData)
 
-        this.logInfo(`频道 ${channelKey} 历史记录清理完成:`, {
-          原始消息数: originalCount,
-          保留消息数: keptMessages.length,
-          清理消息数: clearedCount
+        this.logInfo(`频道 ${channelKey} 历史记录已清空:`, {
+          清理消息数: originalCount
         })
 
         return {
           success: true,
-          message: `成功清理 ${clearedCount} 条历史消息，保留最新 ${keptMessages.length} 条`,
-          clearedCount: clearedCount,
-          keptCount: keptMessages.length
+          message: `成功清理 ${originalCount} 条历史消息`,
+          clearedCount: originalCount,
+          keptCount: 0
         }
       } catch (error: any) {
         this.logger.error('清理频道历史记录失败:', error)
@@ -506,7 +493,6 @@ export class ApiHandlers {
           success: true,
           config: {
             maxMessagesPerChannel: this.config.maxMessagesPerChannel,
-            keepMessagesOnClear: this.config.keepMessagesOnClear,
             maxPersistImages: this.config.maxPersistImages,
             loggerinfo: this.config.loggerinfo,
             blockedPlatforms: this.config.blockedPlatforms || [],
