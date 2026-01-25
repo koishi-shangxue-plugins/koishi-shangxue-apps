@@ -3,8 +3,8 @@ import {} from 'koishi-plugin-puppeteer';
 
 // 配置接口
 export interface Config {
-  link: string
-  table2: Array<{
+  accessPort: number
+  commandTable: Array<{
     command: string
     commandname: string
     command_authority: number

@@ -1,6 +1,6 @@
 import { Context, h } from "koishi";
 import { Config, PageInstance } from "../types";
-import { ensureUIControl } from "../utils";
+import { ensureUIControl, getConsoleUrl } from "../utils";
 
 /**
  * 注册 UI 控制相关命令
@@ -20,8 +20,8 @@ export function registerUIControlCommands(
 
   // 打开UI控制
   if (openUI) {
-    ctx.command(`${automation || "automation-console"}/${openUI}`, "打开UI控制台", {
-      authority: config.table2.find(item => item.command === "打开UI控制")?.command_authority
+    ctx.command(`${automation || "automation-console"}.${openUI}`, "打开UI控制台", {
+      authority: config.commandTable.find(item => item.command === "打开UI控制")?.command_authority
     })
       .action(async ({ session }) => {
         if (pageRef.current) {
@@ -30,8 +30,9 @@ export function registerUIControlCommands(
         }
 
         try {
+          const consoleUrl = getConsoleUrl(ctx, config);
           pageRef.current = await ctx.puppeteer.page();
-          await pageRef.current.goto(config.link, { waitUntil: 'networkidle2' });
+          await pageRef.current.goto(consoleUrl, { waitUntil: 'networkidle2' });
 
           if (config.enable_auth) {
             const isLoggedIn = await pageRef.current.evaluate(() => {
@@ -67,8 +68,8 @@ export function registerUIControlCommands(
 
   // 查看UI控制
   if (cancanUI) {
-    ctx.command(`${automation || "automation-console"}/${cancanUI}`, "查看UI控制台当前页面", {
-      authority: config.table2.find(item => item.command === "查看UI控制")?.command_authority
+    ctx.command(`${automation || "automation-console"}.${cancanUI}`, "查看UI控制台当前页面", {
+      authority: config.commandTable.find(item => item.command === "查看UI控制")?.command_authority
     })
       .action(async ({ session }) => {
         if (!await ensureUIControl(pageRef.current, config, session, openUI)) return;
@@ -84,8 +85,8 @@ export function registerUIControlCommands(
 
   // 退出UI控制
   if (closeUI) {
-    ctx.command(`${automation || "automation-console"}/${closeUI}`, "关闭UI控制台", {
-      authority: config.table2.find(item => item.command === "退出UI控制")?.command_authority
+    ctx.command(`${automation || "automation-console"}.${closeUI}`, "关闭UI控制台", {
+      authority: config.commandTable.find(item => item.command === "退出UI控制")?.command_authority
     })
       .action(async ({ session }) => {
         if (!await ensureUIControl(pageRef.current, config, session, openUI)) return;

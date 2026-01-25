@@ -22,8 +22,8 @@ export function registerPluginManagementCommands(
 
   // 配置插件
   if (plugins) {
-    ctx.command(`${automation || "automation-console"}/${plugins} [pluginname] [pluginchoice] [pluginoperation]`, "搜索插件", {
-      authority: config.table2.find(item => item.command === "配置插件")?.command_authority
+    ctx.command(`${automation || "automation-console"}.${plugins} [pluginname] [pluginchoice] [pluginoperation]`, "搜索插件", {
+      authority: config.commandTable.find(item => item.command === "配置插件")?.command_authority
     })
       .example("配置插件 commands  1  1")
       .action(async ({ session }, pluginname, pluginchoice, pluginoperation) => {

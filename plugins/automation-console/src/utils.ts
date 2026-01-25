@@ -5,7 +5,7 @@ import { Config, PageInstance } from "./types";
  * 获取指令名称
  */
 export function getCommandName(config: Config, command: string): string | null {
-  const entry = config.table2.find(item => item.command === command);
+  const entry = config.commandTable.find(item => item.command === command);
   return entry ? entry.commandname : null;
 }
 
@@ -13,8 +13,19 @@ export function getCommandName(config: Config, command: string): string | null {
  * 获取指令权限等级
  */
 export function getCommandAuthority(config: Config, command: string): number | null {
-  const entry = config.table2.find(item => item.command === command);
+  const entry = config.commandTable.find(item => item.command === command);
   return entry ? entry.command_authority : null;
+}
+
+/**
+ * 获取控制台 URL
+ */
+export function getConsoleUrl(ctx: Context, config: Config): string {
+  const port = config.accessPort || ctx.server?.port;
+  if (!port) {
+    throw new Error('无法获取控制台端口');
+  }
+  return `http://127.0.0.1:${port}`;
 }
 
 /**

@@ -2,7 +2,7 @@ import { Schema } from "koishi";
 import { Config } from "./types";
 
 // 默认指令表
-export const defaulttable2 = [
+export const defaultCommandTable = [
   {
     "command": "automation-console",
     "commandname": "automation-console",
@@ -59,12 +59,15 @@ export const defaulttable2 = [
 export const ConfigSchema: Schema<Config> =
   Schema.intersect([
     Schema.object({
-      link: Schema.string().role('link').default('http://127.0.0.1:5140').description("需要控制的koishi控制台地址<br>必须可用访问哦，预期的地址是koishi的【欢迎】页面"),
-      table2: Schema.array(Schema.object({
+      accessPort: Schema.union([
+        Schema.const(0).description('自动检测'),
+        Schema.natural().description('自定义').default(5140)
+      ]).description('访问的控制台端口').default(0),
+      commandTable: Schema.array(Schema.object({
         command: Schema.string().description("备注指令").disabled(),
         commandname: Schema.string().description("实际注册的指令名称"),
         command_authority: Schema.number().default(4).description('允许使用指令的权限等级').experimental(),
-      })).role('table').default(defaulttable2).description("指令注册表<br>若要关闭某个指令 可以删掉该行"),
+      })).role('table').default(defaultCommandTable).description("指令注册表<br>若要关闭某个指令 可以删掉该行"),
     }).description('基础设置'),
 
     Schema.object({

@@ -1,5 +1,6 @@
 import { Context } from "koishi";
 import {} from 'koishi-plugin-puppeteer';
+import {} from '@koishijs/plugin-server';
 import type { Config as ConfigType } from "./types";
 import { ConfigSchema } from "./config";
 import { registerAllCommands } from "./commands";
@@ -7,7 +8,8 @@ import { registerAllCommands } from "./commands";
 export const reusable = false;
 export const name = "automation-console";
 export const inject = {
-  required: ['puppeteer']
+  required: ['puppeteer'],
+  optional: ['server']
 };
 
 export const usage = `

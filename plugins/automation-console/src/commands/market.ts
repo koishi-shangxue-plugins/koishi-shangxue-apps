@@ -21,8 +21,8 @@ export function registerMarketCommands(
 
   // 插件市场搜索插件
   if (searchMarketPlugins) {
-    ctx.command(`${automation || "automation-console"}/${searchMarketPlugins} [...pluginname]`, "插件市场搜索插件", {
-      authority: config.table2.find(item => item.command === "插件市场搜索插件")?.command_authority
+    ctx.command(`${automation || "automation-console"}.${searchMarketPlugins} [...pluginname]`, "插件市场搜索插件", {
+      authority: config.commandTable.find(item => item.command === "插件市场搜索插件")?.command_authority
     })
       .example("插件市场搜索插件  puppeteer  email:1919892171@qq.com")
       .action(async ({ session }, ...args) => {
@@ -151,8 +151,8 @@ export function registerMarketCommands(
 
   // 刷新插件市场
   if (refreshMarket) {
-    ctx.command(`${automation || "automation-console"}/${refreshMarket}`, "刷新插件市场", {
-      authority: config.table2.find(item => item.command === "刷新插件市场")?.command_authority
+    ctx.command(`${automation || "automation-console"}.${refreshMarket}`, "刷新插件市场", {
+      authority: config.commandTable.find(item => item.command === "刷新插件市场")?.command_authority
     })
       .action(async ({ session }) => {
         if (!await ensureUIControl(pageRef.current, config, session, openUI)) return;

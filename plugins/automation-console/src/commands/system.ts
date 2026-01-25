@@ -23,8 +23,8 @@ export function registerSystemCommands(
 
   // 软重启Koishi
   if (restart) {
-    ctx.command(`${automation || "automation-console"}/${restart}`, "重启Koishi控制台", {
-      authority: config.table2.find(item => item.command === "软重启")?.command_authority
+    ctx.command(`${automation || "automation-console"}.${restart}`, "重启Koishi控制台", {
+      authority: config.commandTable.find(item => item.command === "软重启")?.command_authority
     })
       .action(async ({ session }) => {
         if (!await ensureUIControl(pageRef.current, config, session, openUI)) return;
@@ -59,8 +59,8 @@ export function registerSystemCommands(
 
   // 小火箭更新依赖
   if (yarnUpToLatest) {
-    ctx.command(`${automation || "automation-console"}/${yarnUpToLatest}`, "小火箭更新", {
-      authority: config.table2.find(item => item.command === "小火箭更新依赖")?.command_authority
+    ctx.command(`${automation || "automation-console"}.${yarnUpToLatest}`, "小火箭更新", {
+      authority: config.commandTable.find(item => item.command === "小火箭更新依赖")?.command_authority
     })
       .action(async ({ session }) => {
         if (!await ensureUIControl(pageRef.current, config, session, openUI)) return;
@@ -125,8 +125,8 @@ export function registerSystemCommands(
 
   // 查看日志
   if (cancanLogs) {
-    ctx.command(`${automation || "automation-console"}/${cancanLogs}`, "查看日志截图", {
-      authority: config.table2.find(item => item.command === "查看日志")?.command_authority
+    ctx.command(`${automation || "automation-console"}.${cancanLogs}`, "查看日志截图", {
+      authority: config.commandTable.find(item => item.command === "查看日志")?.command_authority
     })
       .action(async ({ session }) => {
         if (!await ensureUIControl(pageRef.current, config, session, openUI)) return;
