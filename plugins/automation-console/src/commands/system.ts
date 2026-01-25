@@ -1,6 +1,6 @@
 import { Context, h } from "koishi";
 import { Config, PageInstance } from "../types";
-import { getConsoleUrl } from "../utils";
+import { handleLoginAndNavigate } from "../utils";
 
 /**
  * 注册系统相关命令
@@ -26,28 +26,9 @@ export function registerSystemCommands(
         let page: PageInstance = null;
 
         try {
-          // 打开页面并直接访问插件配置路由
-          const consoleUrl = getConsoleUrl(ctx, config, '/plugins/');
+          // 打开页面并处理登录
           page = await ctx.puppeteer.page();
-          await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
-
-          // 如果需要登录
-          if (config.enable_auth && page.url().includes('/login')) {
-            await page.evaluate(() => {
-              (document.querySelector('input[placeholder="用户名"]') as HTMLInputElement).value = '';
-              (document.querySelector('input[placeholder="密码"]') as HTMLInputElement).value = '';
-            });
-
-            await page.type('input[placeholder="用户名"]', config.text);
-            await page.type('input[placeholder="密码"]', config.secret);
-
-            await page.evaluate(() => {
-              (document.querySelectorAll('button.k-button.primary')[1] as HTMLElement).click();
-            });
-
-            await page.waitForSelector('a[href^="/logs"]');
-            await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
-          }
+          await handleLoginAndNavigate(ctx, config, page, '/plugins/');
 
           // 点击【全局设置】
           await page.waitForSelector('.item .label[title="全局设置"]');
@@ -86,28 +67,9 @@ export function registerSystemCommands(
         let page: PageInstance = null;
 
         try {
-          // 打开页面并直接访问依赖管理路由
-          const consoleUrl = getConsoleUrl(ctx, config, '/dependencies');
+          // 打开页面并处理登录
           page = await ctx.puppeteer.page();
-          await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
-
-          // 如果需要登录
-          if (config.enable_auth && page.url().includes('/login')) {
-            await page.evaluate(() => {
-              (document.querySelector('input[placeholder="用户名"]') as HTMLInputElement).value = '';
-              (document.querySelector('input[placeholder="密码"]') as HTMLInputElement).value = '';
-            });
-
-            await page.type('input[placeholder="用户名"]', config.text);
-            await page.type('input[placeholder="密码"]', config.secret);
-
-            await page.evaluate(() => {
-              (document.querySelectorAll('button.k-button.primary')[1] as HTMLElement).click();
-            });
-
-            await page.waitForSelector('a[href^="/logs"]');
-            await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
-          }
+          await handleLoginAndNavigate(ctx, config, page, '/dependencies');
 
           // 在页面上下文中执行脚本，查找按钮
           const canUpdate = await page.evaluate(() => {
@@ -174,28 +136,9 @@ export function registerSystemCommands(
         let page: PageInstance = null;
 
         try {
-          // 打开页面并直接访问日志路由
-          const consoleUrl = getConsoleUrl(ctx, config, '/logs');
+          // 打开页面并处理登录
           page = await ctx.puppeteer.page();
-          await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
-
-          // 如果需要登录
-          if (config.enable_auth && page.url().includes('/login')) {
-            await page.evaluate(() => {
-              (document.querySelector('input[placeholder="用户名"]') as HTMLInputElement).value = '';
-              (document.querySelector('input[placeholder="密码"]') as HTMLInputElement).value = '';
-            });
-
-            await page.type('input[placeholder="用户名"]', config.text);
-            await page.type('input[placeholder="密码"]', config.secret);
-
-            await page.evaluate(() => {
-              (document.querySelectorAll('button.k-button.primary')[1] as HTMLElement).click();
-            });
-
-            await page.waitForSelector('a[href^="/logs"]');
-            await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
-          }
+          await handleLoginAndNavigate(ctx, config, page, '/logs');
 
           // 截图并发送
           const screenshot = await page.screenshot();

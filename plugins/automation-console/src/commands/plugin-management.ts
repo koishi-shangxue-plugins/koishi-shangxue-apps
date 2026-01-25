@@ -1,6 +1,6 @@
 import { Context } from "koishi";
 import { Config, PageInstance } from "../types";
-import { getConsoleUrl, createLogger } from "../utils";
+import { handleLoginAndNavigate, createLogger } from "../utils";
 
 /**
  * 注册插件管理相关命令
@@ -26,28 +26,9 @@ export function registerPluginManagementCommands(
         let page: PageInstance = null;
 
         try {
-          // 打开页面并直接访问插件配置路由
-          const consoleUrl = getConsoleUrl(ctx, config, '/plugins/');
+          // 打开页面并处理登录
           page = await ctx.puppeteer.page();
-          await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
-
-          // 如果需要登录
-          if (config.enable_auth && page.url().includes('/login')) {
-            await page.evaluate(() => {
-              (document.querySelector('input[placeholder="用户名"]') as HTMLInputElement).value = '';
-              (document.querySelector('input[placeholder="密码"]') as HTMLInputElement).value = '';
-            });
-
-            await page.type('input[placeholder="用户名"]', config.text);
-            await page.type('input[placeholder="密码"]', config.secret);
-
-            await page.evaluate(() => {
-              (document.querySelectorAll('button.k-button.primary')[1] as HTMLElement).click();
-            });
-
-            await page.waitForSelector('a[href^="/logs"]');
-            await page.goto(consoleUrl, { waitUntil: 'networkidle2' });
-          }
+          await handleLoginAndNavigate(ctx, config, page, '/plugins/');
 
           // 获取所有插件的名称
           const plugins = await page.evaluate(() => {
