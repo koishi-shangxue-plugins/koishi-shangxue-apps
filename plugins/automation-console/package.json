@@ -1,19 +1,18 @@
 {
   "name": "koishi-plugin-automation-console",
-  "version": "1.3.4",
-  "description": "[<ruby>**指令控制台操作**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-automation-console) 通过 Puppeteer 操作 控制台的插件，提供多种功能，包括打开控制台、小火箭更新、配置插件、查看日志、软重启等。",
+  "version": "2.0.0",
+  "description": "[<ruby>**指令控制台操作**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-automation-console) 通过 Puppeteer 操作控制台的插件，小火箭更新、配置插件、查看日志、软重启等。",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "dist"
+    "src"
   ],
   "keywords": [
     "koishi",
     "plugin",
     "console",
-    "控制台",
-    "自动化"
+    "控制台"
   ],
   "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
   "bugs": {

@@ -13,63 +13,25 @@ export const inject = {
 };
 
 export const usage = `
+<p><strong>Automation Console</strong> - 通过指令自动化操作 Koishi 控制台</p>
 
-<p><strong>Automation Console</strong> 是一个 Koishi 插件，
-
-用于通过指令来自动化操作 Koishi 的 Web 控制台界面。
-
-通过此插件，用户可以启动、控制、截图和管理控制台页面。</p>
-
----
-
-<h2>功能列表</h2>
-
+<h2>主要功能</h2>
 <ul>
-<li>启动和登录控制台页面</li>
-<li>控制台页面截图功能</li>
-<li>关闭控制台页面</li>
-<li>重启 Koishi 控制台</li>
-<li>插件配置和管理功能</li>
-<li>刷新插件市场</li>
-<li>更新依赖管理</li>
-<li>查看日志截图</li>
+<li><strong>配置插件</strong> - 搜索并操作插件（启用/停用、重命名、移除等）</li>
+<li><strong>软重启</strong> - 重启 Koishi 控制台</li>
+<li><strong>小火箭更新依赖</strong> - 一键更新所有依赖</li>
+<li><strong>查看日志</strong> - 截图查看最新日志</li>
 </ul>
 
----
-
-<h2>使用说明</h2>
-
-<p>该插件主要通过指令来控制 Koishi 的 Web UI 界面，具体使用步骤如下：</p>
-
-<ol>
-<li>使用 <code>打开UI控制</code> 打开并登录控制台页面。</li>
-<li>使用 <code>查看UI控制</code> 查看页面截图，确保操作完成。</li>
-<li>可根据需要使用其他指令如 <code>配置插件</code>、<code>刷新插件市场</code>、<code>查看日志</code> 等操作。</li>
-<li>完成操作后，可使用 <code>退出UI控制</code> 关闭控制台页面。</li>
-</ol>
-
-其中的 <code>配置插件</code> 支持快速指定操作，操作如 <code>配置插件 commands  1  1</code>
-
-这样可以快速指定搜索 commands 插件的第一个匹配项，并且按下第1个操作按钮
-
-这个示例实现了快速开启/关闭 commands 插件
-
----
+<h2>快速开始</h2>
+<p><code>配置插件 commands 1 1</code> - 快速开启/关闭 commands 插件</p>
 
 <h2>注意事项</h2>
-
 <ul>
-<li>确保 <code>puppeteer</code> 已正确配置并可用。</li>
-<li>当 <code>enable_auth</code> 配置为 <code>true</code> 时，请确保用户名和密码正确。</li>
-<li>使用指令前请确认权限等级 与<code>command_authority</code>是否匹配。</li>
+<li>需要安装并配置 <code>puppeteer</code> 插件</li>
+<li>如需插件市场搜索功能，请使用 <a href="https://www.npmjs.com/package/koishi-plugin-screenshot-console" target="_blank">koishi-plugin-screenshot-console</a></li>
+<li>开启 <code>enable_auth</code> 时请确保用户名密码正确</li>
 </ul>
-
-<h2>日志调试</h2>
-
-<p>启用 <code>loggerinfo</code> 配置项后，插件将会记录调试日志，帮助排查问题。</p>
-
-
----
 `;
 
 // 导出配置

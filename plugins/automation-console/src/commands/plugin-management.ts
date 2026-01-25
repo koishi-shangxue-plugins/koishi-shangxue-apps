@@ -72,12 +72,15 @@ export function registerPluginManagementCommands(
 
           const selectedPlugin = limitedMatches[choiceIndex];
 
-          // 操作插件
-          await page.evaluate((selectedPlugin, choiceIndex) => {
+          // 操作插件 - 点击对应的插件标签
+          await page.evaluate((selectedPlugin) => {
             const elements = Array.from(document.querySelectorAll('.label[title]'));
-            const targetElement = elements.filter(el => el.getAttribute('title') === selectedPlugin)[choiceIndex] as HTMLElement;
+            const targetElement = elements.find(el => el.getAttribute('title') === selectedPlugin) as HTMLElement;
+            if (!targetElement) {
+              throw new Error(`未找到插件: ${selectedPlugin}`);
+            }
             targetElement.click();
-          }, selectedPlugin, choiceIndex);
+          }, selectedPlugin);
 
           // 等待页面更新
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -94,13 +97,19 @@ export function registerPluginManagementCommands(
 
           // 如果没有提供 pluginoperation ，才请求用户输入
           let operation = pluginoperation ? parseInt(pluginoperation, 10) : null;
-          if (operation === null || isNaN(operation) || operation < 1 || operation > 5) {
-            await session.send("请选择操作的按钮序号：\n0.双击【启用插件/停用插件】\n1.单击【启用插件/停用插件】\n2.【保存配置/重载配置】\n3.【重命名】\n4.【移除插件】\n5.【克隆配置】");
+          if (operation === null || isNaN(operation) || operation < 1 || operation > 6) {
+            await session.send("请选择操作的按钮序号：\n0.双击【启用插件/停用插件】\n1.单击【启用插件/停用插件】\n2.【保存配置/重载配置】\n3.【重命名】\n4.【移除插件】\n5.【克隆配置】\n6.【取消操作】");
             operation = parseInt(await session.prompt(config.wait_for_prompt * 1000), 10);
           }
 
-          if (isNaN(operation) || operation < 0 || operation > 5) {
+          if (isNaN(operation) || operation < 0 || operation > 6) {
             await session.send("此插件无法执行此操作。");
+            return;
+          }
+
+          // 取消操作
+          if (operation === 6) {
+            await session.send("已取消操作。");
             return;
           }
 
