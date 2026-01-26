@@ -15,6 +15,7 @@ export interface Config {
   wait_for_prompt: number
   maxlist: number
   resolvetimeout: number
+  extraWaitTimeout: number
   loggerinfo: boolean
 }
 

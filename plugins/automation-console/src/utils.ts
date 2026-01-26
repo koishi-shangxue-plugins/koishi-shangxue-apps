@@ -52,13 +52,16 @@ export async function handleLoginAndNavigate(
 
   const baseUrl = getConsoleUrl(ctx, config);
 
+  // 使用配置的额外等待时间（毫秒）
+  const extraTimeout = config.extraWaitTimeout * 1000;
+
   // 如果需要登录，先访问登录页面
   if (config.enable_auth) {
     const loginUrl = `${baseUrl}/login`;
     await page.goto(loginUrl, { waitUntil: 'networkidle2' });
 
     // 等待登录表单加载
-    await page.waitForSelector('div.login-form input', { timeout: 5000 });
+    await page.waitForSelector('div.login-form input', { timeout: extraTimeout });
 
     // 获取登录表单的输入框
     const [usernameInput, passwordInput] = await page.$$('div.login-form input');
@@ -75,7 +78,7 @@ export async function handleLoginAndNavigate(
 
     // 点击登录按钮并等待导航完成
     await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }),
+      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: extraTimeout }),
       page.click('div.login-form button:nth-child(2)'),
     ]);
 

@@ -55,6 +55,7 @@ export const ConfigSchema: Schema<Config> =
       wait_for_prompt: Schema.number().default(30).description("等待用户输入内容的超时时间（单位：秒）"),
       maxlist: Schema.number().default(5).description("【找到多个匹配的插件】时，返回的最大数量"),
       resolvetimeout: Schema.number().default(10).description("【刷新】依赖后需要等待的时间（单位：秒）"),
+      extraWaitTimeout: Schema.number().default(30).description("每一步操作至多额外等待的秒数（适用于慢速服务器）"),
       loggerinfo: Schema.boolean().default(false).description("日志调试模式").experimental(),
     }).description('进阶设置'),
   ]) as Schema<Config>;
