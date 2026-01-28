@@ -1,4 +1,4 @@
-import { Context, h, Logger, Schema, sleep, Universal } from 'koishi'
+import { clone, Context, h, Logger, Schema, sleep, Universal } from 'koishi'
 import { } from '@koishijs/assets';
 import { inspect } from 'node:util'
 
@@ -74,12 +74,33 @@ export function apply(ctx: Context) {
   //     }
   //   });
 
-  ctx.command('这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令',"这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这一个超级长的测试指令")
+  ctx.command('这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令', "这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这一个超级长的测试指令")
     .action(async ({ session }) => {
       ctx.assets.transform("")
       ctx.logger.info("===")
       return
     })
+
+  command
+    .subcommand('.fork')
+    .action(async ({ session }, id) => {
+      // 手动创建一个新对象，复制 session 的主要属性
+      // 这样可以避免复制不可克隆的属性（如 Proxy、函数等）
+      let forksession = {
+        ...session,
+        content: session.content,  // 显式复制 content 字符串
+      }
+
+      ctx.logger.info("修改前 forksession.content:", forksession.content)
+      ctx.logger.info("修改前 session.content:", session.content)
+
+      forksession.content = "123123"
+
+      ctx.logger.info("修改后 forksession.content:", forksession.content)
+      ctx.logger.info("修改后 session.content:", session.content)
+      return
+    })
+
   command
     .subcommand('.logger')
     .action(async ({ session }, id) => {
