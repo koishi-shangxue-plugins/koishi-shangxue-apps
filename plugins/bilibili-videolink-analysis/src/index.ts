@@ -76,7 +76,7 @@ export interface Config {
   bVideoShowIntroductionTofixed: number;
   isfigure: boolean;
   filebuffer: boolean;
-  maxFileSizeMB: number;
+  MaximumFileSizeMB: number;
   middleware: boolean;
   userAgent: string;
   pageclose: boolean;
@@ -136,8 +136,8 @@ export const Config = Schema.intersect([
           tipcontent: Schema.string().default('视频太短啦！不看不看~').description("文字提示内容"),
           tipanalysis: Schema.boolean().default(true).description("是否进行图文解析（不会返回视频链接）"),
         }).description('返回文字提示'),
-        Schema.const(null),
       ]).description("对`过短视频`的文字提示内容").default(null),
+      MaximumFileSizeMB: Schema.number().default(50).description("文件缓冲最大大小（MB）`超过这个大小 就不会发视频内容`<br>设置为0 表示不限制").min(0).max(200),
       Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频内容`").min(1),
       Maximumduration_tip: Schema.union([
         Schema.const('return').description('不返回文字提示'),
@@ -145,7 +145,6 @@ export const Config = Schema.intersect([
           tipcontent: Schema.string().default('视频太长啦！内容还是去B站看吧~').description("文字提示内容"),
           tipanalysis: Schema.boolean().default(true).description("是否进行图文解析（不会返回视频链接）"),
         }).description('返回文字提示'),
-        Schema.const(null),
       ]).description("对`过长视频`的文字提示内容").default(null),
       parseLimit: Schema.number().default(3).description("单对话多链接解析上限").hidden(),
       useNumeral: Schema.boolean().default(true).description("使用格式化数字").hidden(),
@@ -164,7 +163,6 @@ export const Config = Schema.intersect([
       bVideoShowIntroductionTofixed: Schema.number().default(50).description("视频的`简介`最大的字符长度<br>超出部分会使用 `...` 代替"),
       isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
       filebuffer: Schema.boolean().default(true).description("是否将视频链接下载后再发送 （以解决部分onebot协议端的问题）<br>否则使用视频直链发送").experimental(),
-      maxFileSizeMB: Schema.number().default(50).description("文件缓冲最大大小（MB）<br>超过此大小的视频将使用直链发送，避免内存溢出<br>设置为0表示不限制").min(0).max(200),
       bufferDelay: Schema.number().default(5).description("消息接收缓冲延迟（秒）<br>收到链接后等待指定时间，收集同时发送的多个链接后再逐个处理").min(0).max(30),
       middleware: Schema.boolean().default(false).description("前置中间件模式"),
       userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),

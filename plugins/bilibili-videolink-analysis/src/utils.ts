@@ -393,13 +393,13 @@ export class BilibiliParser {
                                     this.logInfo(`[下载] 视频大小: ${fileSizeMB.toFixed(2)}MB`);
 
                                     // 检查是否超过配置的最大大小
-                                    const maxSize = this.config.maxFileSizeMB;
+                                    const maxSize = this.config.MaximumFileSizeMB;
                                     this.logInfo(`[下载] 配置的最大大小: ${maxSize}MB`);
 
                                     if (maxSize > 0 && fileSizeMB > maxSize) {
-                                        this.logger.warn(`[下载] 文件过大 (${fileSizeMB.toFixed(2)}MB > ${maxSize}MB)，使用直链模式`);
-                                        // 不下载，使用原始URL
-                                        videoData = video.url;
+                                        this.logger.warn(`[下载] 文件过大 (${fileSizeMB.toFixed(2)}MB > ${maxSize}MB)，跳过发送`);
+                                        // 文件过大，直接返回，不发送视频
+                                        return;
                                     } else {
                                         this.logInfo(`[下载] 开始下载并转换为Base64...`);
 
