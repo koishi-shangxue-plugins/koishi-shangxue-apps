@@ -27,11 +27,11 @@ export const Config: Schema<Config> = Schema.intersect([
       owner: Schema.string().description('仓库所有者 (Owner)'),
       repo: Schema.string().description('仓库名称 (Repo)'),
     })).role('table').default([
-  {
-    "owner": "koishi-shangxue-plugins",
-    "repo": "koishi-plugin-adapter-github"
-  }
-]).description('监听的仓库列表<br>-> 建议填入机器人创建的仓库 以确保权限完整'),
+      {
+        "owner": "koishi-shangxue-plugins",
+        "repo": "koishi-plugin-adapter-github"
+      }
+    ]).description('监听的仓库列表<br>-> 建议填入机器人创建的仓库 以确保权限完整'),
   }).description('基础设置'),
 
   Schema.object({
@@ -39,30 +39,30 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description('通信模式选择'),
 
   Schema.union([
-    Schema.object({
-      mode: Schema.const('webhook').required(),
-      webhookPath: Schema.string().default('/github/webhook').description('Webhook 路径<br>默认地址：`http://127.0.0.1:5140/github/webhook`'),
-      webhookSecret: Schema.string().description('Webhook 密钥（可选，用于验证请求）').role('secret'),
-    }),
-    Schema.object({
-      mode: Schema.const('pull'),
-      interval: Schema.number().default(20).description('轮询间隔 (单位：秒，默认 20 秒)'),
-    }),
+    Schema.intersect([
+      Schema.object({
+        mode: Schema.const('webhook').required(),
+        webhookPath: Schema.string().default('/github/webhook').description('Webhook 路径<br>默认地址：`http://127.0.0.1:5140/github/webhook`'),
+        webhookSecret: Schema.string().description('Webhook 密钥（可选，用于验证请求）').role('secret'),
+      }),
+    ]),
+    Schema.intersect([
+      Schema.object({
+        mode: Schema.const('pull'),
+        interval: Schema.number().default(20).description('轮询间隔 (单位：秒，默认 20 秒)'),
+        useProxy: Schema.boolean().default(false).description('是否使用代理'),
+      }),
+      Schema.union([
+        Schema.object({
+          useProxy: Schema.const(true).required().description('是否使用代理'),
+          proxyUrl: Schema.string().description('代理地址（支持 http/https 协议）').default("http://localhost:7890"),
+        }),
+        Schema.object({
+          useProxy: Schema.const(false).description('是否使用代理'),
+        }),
+      ]),
+    ]),
   ]).description('模式配置'),
-
-  Schema.object({
-    useProxy: Schema.boolean().default(false).description('是否使用代理'),
-  }).description('代理设置'),
-
-  Schema.union([
-    Schema.object({
-      useProxy: Schema.const(true).required(),
-      proxyUrl: Schema.string().description('请输入代理地址。').default("socks://localhost:7897"),
-    }),
-    Schema.object({
-      useProxy: Schema.const(false),
-    }),
-  ]).description('代理配置（仅 Pull 模式需要）'),
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式").experimental(),
