@@ -106,6 +106,7 @@ export class GitHubBot extends Bot<Context, Config> {
         this.logInfo(`拉取到 ${newEvents.length} 个新事件。`)
         // 逆序处理，确保消息按时间顺序派发
         for (const event of newEvents.reverse()) {
+          this.logInfo(`处理事件: ${event.type} - ${event.actor.login}`)
           await this.handleEvent(event)
         }
       }
@@ -247,5 +248,62 @@ ${event.payload.pull_request.body || ''}`
       logger.error(`向频道 ${channelId} 发送消息失败:`, e)
     }
     return []
+  }
+
+  // 获取群组信息（对应 Issue/PR/Discussion）
+  async getGuild(guildId: string): Promise<Universal.Guild> {
+    const [type, numberStr] = guildId.split(':')
+    const number = parseInt(numberStr)
+
+    try {
+      if (type === 'issues' || type === 'pull') {
+        const { data } = await this.octokit.issues.get({
+          owner: this.config.owner,
+          repo: this.config.repo,
+          issue_number: number,
+        })
+        return {
+          id: guildId,
+          name: data.title,
+        }
+      } else if (type === 'discussions') {
+        const { repository } = await this.graphql<{
+          repository: { discussion: { title: string } }
+        }>(`
+          query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              discussion(number: $number) {
+                title
+              }
+            }
+          }
+        `, {
+          owner: this.config.owner,
+          repo: this.config.repo,
+          number,
+        })
+        return {
+          id: guildId,
+          name: repository.discussion.title,
+        }
+      }
+    } catch (e) {
+      this.logInfo(`获取群组信息失败: ${guildId}`, e)
+    }
+
+    return {
+      id: guildId,
+      name: `${type} #${number}`,
+    }
+  }
+
+  // 获取频道信息（与群组相同）
+  async getChannel(channelId: string, guildId?: string): Promise<Universal.Channel> {
+    const guild = await this.getGuild(channelId)
+    return {
+      id: channelId,
+      name: guild.name,
+      type: Universal.Channel.Type.TEXT,
+    }
   }
 }
