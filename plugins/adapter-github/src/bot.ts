@@ -435,4 +435,424 @@ ${event.payload.pull_request.body || ''}`
 
     await this.handleEvent(normalizedEvent, owner, repo)
   }
+
+  // ========== Satori 通用 API 实现 ==========
+
+  // 解析 channelId 的辅助方法
+  private parseChannelId(channelId: string): { owner: string; repo: string; type: string; number: number } | null {
+    const parts = channelId.split(':')
+    if (parts.length !== 3) return null
+
+    const [repoPrefix, type, numberStr] = parts
+    const [owner, repo] = repoPrefix.split('/')
+    const number = parseInt(numberStr)
+
+    if (isNaN(number) || !owner || !repo) return null
+    return { owner, repo, type, number }
+  }
+
+  // 获取登录信息
+  async getLogin(): Promise<Universal.Login> {
+    return {
+      user: this.user,
+      selfId: this.selfId,
+      platform: 'github',
+      status: this.status,
+    } as Universal.Login
+  }
+
+  // 获取用户信息
+  async getUser(userId: string): Promise<Universal.User> {
+    try {
+      const { data: user } = await this.octokit.users.getByUsername({ username: userId })
+      return {
+        id: user.login,
+        name: user.name || user.login,
+        avatar: user.avatar_url,
+      }
+    } catch (e) {
+      this.logError(`获取用户信息失败: ${userId}`, e)
+      throw e
+    }
+  }
+
+  // 获取消息
+  async getMessage(channelId: string, messageId: string): Promise<Universal.Message> {
+    const parsed = this.parseChannelId(channelId)
+    if (!parsed) throw new Error('Invalid channel ID')
+
+    const { owner, repo, type, number } = parsed
+
+    try {
+      if (type === 'issues' || type === 'pull') {
+        // 获取评论
+        const commentId = parseInt(messageId)
+        const { data: comment } = await this.octokit.issues.getComment({
+          owner,
+          repo,
+          comment_id: commentId,
+        })
+
+        return {
+          id: comment.id.toString(),
+          content: comment.body || '',
+          user: {
+            id: comment.user?.login || '',
+            name: comment.user?.login || '',
+            avatar: comment.user?.avatar_url,
+          },
+          timestamp: new Date(comment.created_at).getTime(),
+        }
+      }
+    } catch (e) {
+      this.logError(`获取消息失败: ${messageId}`, e)
+      throw e
+    }
+
+    throw new Error('Unsupported channel type')
+  }
+
+  // 删除消息
+  async deleteMessage(channelId: string, messageId: string): Promise<void> {
+    const parsed = this.parseChannelId(channelId)
+    if (!parsed) throw new Error('Invalid channel ID')
+
+    const { owner, repo, type } = parsed
+
+    try {
+      if (type === 'issues' || type === 'pull') {
+        const commentId = parseInt(messageId)
+        await this.octokit.issues.deleteComment({
+          owner,
+          repo,
+          comment_id: commentId,
+        })
+      }
+    } catch (e) {
+      this.logError(`删除消息失败: ${messageId}`, e)
+      throw e
+    }
+  }
+
+  // 编辑消息
+  async editMessage(channelId: string, messageId: string, content: Fragment): Promise<void> {
+    const parsed = this.parseChannelId(channelId)
+    if (!parsed) throw new Error('Invalid channel ID')
+
+    const { owner, repo, type } = parsed
+    const body = await encodeMessage(this, content)
+
+    try {
+      if (type === 'issues' || type === 'pull') {
+        const commentId = parseInt(messageId)
+        await this.octokit.issues.updateComment({
+          owner,
+          repo,
+          comment_id: commentId,
+          body,
+        })
+      }
+    } catch (e) {
+      this.logError(`编辑消息失败: ${messageId}`, e)
+      throw e
+    }
+  }
+
+  // 创建反应（GitHub Reaction）
+  async createReaction(channelId: string, messageId: string, emoji: string): Promise<void> {
+    const parsed = this.parseChannelId(channelId)
+    if (!parsed) throw new Error('Invalid channel ID')
+
+    const { owner, repo, type, number } = parsed
+
+    // GitHub 支持的反应类型映射
+    const reactionMap: Record<string, string> = {
+      '👍': '+1',
+      '👎': '-1',
+      '😄': 'laugh',
+      '🎉': 'hooray',
+      '😕': 'confused',
+      '❤️': 'heart',
+      '🚀': 'rocket',
+      '👀': 'eyes',
+    }
+
+    const content = reactionMap[emoji] || emoji
+
+    try {
+      if (type === 'issues' || type === 'pull') {
+        if (messageId === 'issue' || messageId === 'pull') {
+          // 对 Issue/PR 本身添加反应
+          await this.octokit.reactions.createForIssue({
+            owner,
+            repo,
+            issue_number: number,
+            content: content as any,
+          })
+        } else {
+          // 对评论添加反应
+          const commentId = parseInt(messageId)
+          await this.octokit.reactions.createForIssueComment({
+            owner,
+            repo,
+            comment_id: commentId,
+            content: content as any,
+          })
+        }
+      }
+    } catch (e) {
+      this.logError(`创建反应失败: ${emoji}`, e)
+      throw e
+    }
+  }
+
+  // 删除反应
+  async deleteReaction(channelId: string, messageId: string, emoji: string): Promise<void> {
+    // GitHub API 不直接支持删除特定反应，需要先获取反应 ID
+    this.logInfo('GitHub 删除反应需要反应 ID，暂不支持')
+  }
+
+  // 获取反应列表
+  async getReactionList(channelId: string, messageId: string, emoji: string): Promise<Universal.List<Universal.User>> {
+    const parsed = this.parseChannelId(channelId)
+    if (!parsed) throw new Error('Invalid channel ID')
+
+    const { owner, repo, type, number } = parsed
+
+    try {
+      if (type === 'issues' || type === 'pull') {
+        let reactions: any[]
+
+        if (messageId === 'issue' || messageId === 'pull') {
+          // 获取 Issue/PR 的反应
+          const { data } = await this.octokit.reactions.listForIssue({
+            owner,
+            repo,
+            issue_number: number,
+          })
+          reactions = data
+        } else {
+          // 获取评论的反应
+          const commentId = parseInt(messageId)
+          const { data } = await this.octokit.reactions.listForIssueComment({
+            owner,
+            repo,
+            comment_id: commentId,
+          })
+          reactions = data
+        }
+
+        // 过滤指定 emoji 的用户
+        const filtered = emoji ? reactions.filter(r => r.content === emoji) : reactions
+
+        return {
+          data: filtered.map(r => ({
+            id: r.user.login,
+            name: r.user.login,
+            avatar: r.user.avatar_url,
+          })),
+        }
+      }
+    } catch (e) {
+      this.logError(`获取反应列表失败`, e)
+      throw e
+    }
+
+    return { data: [] }
+  }
+
+  // 获取群组成员列表（Issue/PR 的参与者）
+  async getGuildMemberList(guildId: string): Promise<Universal.List<Universal.GuildMember>> {
+    const parsed = this.parseChannelId(guildId)
+    if (!parsed) throw new Error('Invalid guild ID')
+
+    const { owner, repo, type, number } = parsed
+
+    try {
+      if (type === 'issues' || type === 'pull') {
+        // 获取 Issue/PR 的参与者
+        const { data: comments } = await this.octokit.issues.listComments({
+          owner,
+          repo,
+          issue_number: number,
+        })
+
+        // 去重用户
+        const users = new Map<string, any>()
+        for (const comment of comments) {
+          if (comment.user) {
+            users.set(comment.user.login, comment.user)
+          }
+        }
+
+        return {
+          data: Array.from(users.values()).map(user => ({
+            user: {
+              id: user.login,
+              name: user.login,
+              avatar: user.avatar_url,
+            },
+            name: user.login,
+            avatar: user.avatar_url,
+          })),
+        }
+      }
+    } catch (e) {
+      this.logError(`获取群组成员列表失败`, e)
+      throw e
+    }
+
+    return { data: [] }
+  }
+
+  // 获取群组成员
+  async getGuildMember(guildId: string, userId: string): Promise<Universal.GuildMember> {
+    try {
+      const user = await this.getUser(userId)
+      return {
+        user,
+        name: user.name,
+        avatar: user.avatar,
+      }
+    } catch (e) {
+      this.logError(`获取群组成员失败: ${userId}`, e)
+      throw e
+    }
+  }
+
+  // 获取群组列表（监听的仓库）
+  async getGuildList(): Promise<Universal.List<Universal.Guild>> {
+    const guilds: Universal.Guild[] = []
+
+    for (const repo of this.config.repositories) {
+      try {
+        const { data: repoData } = await this.octokit.repos.get({
+          owner: repo.owner,
+          repo: repo.repo,
+        })
+
+        guilds.push({
+          id: `${repo.owner}/${repo.repo}`,
+          name: repoData.full_name,
+        })
+      } catch (e) {
+        this.logError(`获取仓库信息失败: ${repo.owner}/${repo.repo}`, e)
+      }
+    }
+
+    return { data: guilds }
+  }
+
+  // 获取频道列表（仓库的 Issues/PRs）
+  async getChannelList(guildId: string): Promise<Universal.List<Universal.Channel>> {
+    const [owner, repo] = guildId.split('/')
+    if (!owner || !repo) throw new Error('Invalid guild ID')
+
+    const channels: Universal.Channel[] = []
+
+    try {
+      // 获取 Issues
+      const { data: issues } = await this.octokit.issues.listForRepo({
+        owner,
+        repo,
+        state: 'open',
+        per_page: 50,
+      })
+
+      for (const issue of issues) {
+        if (!issue.pull_request) {
+          channels.push({
+            id: `${owner}/${repo}:issues:${issue.number}`,
+            name: issue.title,
+            type: Universal.Channel.Type.TEXT,
+          })
+        }
+      }
+
+      // 获取 Pull Requests
+      const { data: pulls } = await this.octokit.pulls.list({
+        owner,
+        repo,
+        state: 'open',
+        per_page: 50,
+      })
+
+      for (const pull of pulls) {
+        channels.push({
+          id: `${owner}/${repo}:pull:${pull.number}`,
+          name: pull.title,
+          type: Universal.Channel.Type.TEXT,
+        })
+      }
+    } catch (e) {
+      this.logError(`获取频道列表失败: ${guildId}`, e)
+      throw e
+    }
+
+    return { data: channels }
+  }
+
+  // 创建频道（创建 Issue）
+  async createChannel(guildId: string, data: Partial<Universal.Channel>): Promise<Universal.Channel> {
+    const [owner, repo] = guildId.split('/')
+    if (!owner || !repo) throw new Error('Invalid guild ID')
+
+    try {
+      const { data: issue } = await this.octokit.issues.create({
+        owner,
+        repo,
+        title: data.name || 'New Issue',
+        body: '',
+      })
+
+      return {
+        id: `${owner}/${repo}:issues:${issue.number}`,
+        name: issue.title,
+        type: Universal.Channel.Type.TEXT,
+      }
+    } catch (e) {
+      this.logError(`创建频道失败`, e)
+      throw e
+    }
+  }
+
+  // 更新频道（更新 Issue/PR 标题）
+  async updateChannel(channelId: string, data: Partial<Universal.Channel>): Promise<void> {
+    const parsed = this.parseChannelId(channelId)
+    if (!parsed) throw new Error('Invalid channel ID')
+
+    const { owner, repo, number } = parsed
+
+    try {
+      await this.octokit.issues.update({
+        owner,
+        repo,
+        issue_number: number,
+        title: data.name,
+      })
+    } catch (e) {
+      this.logError(`更新频道失败`, e)
+      throw e
+    }
+  }
+
+  // 删除频道（关闭 Issue/PR）
+  async deleteChannel(channelId: string): Promise<void> {
+    const parsed = this.parseChannelId(channelId)
+    if (!parsed) throw new Error('Invalid channel ID')
+
+    const { owner, repo, number } = parsed
+
+    try {
+      await this.octokit.issues.update({
+        owner,
+        repo,
+        issue_number: number,
+        state: 'closed',
+      })
+    } catch (e) {
+      this.logError(`删除频道失败`, e)
+      throw e
+    }
+  }
 }
