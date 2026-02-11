@@ -36,8 +36,8 @@ export const Config: Schema<Config> = Schema.intersect([
 
   Schema.object({
     mode: Schema.union([
-      Schema.const('webhook').description('server'),
-      Schema.const('pull').description('polling')
+      Schema.const('webhook').description('server（完整支持）'),
+      Schema.const('pull').description('polling（部分事件受限）')
     ]).default('pull').description('通信模式<br>-> 相关接入方法 请参考文档'),
   }).description('通信模式选择'),
 
