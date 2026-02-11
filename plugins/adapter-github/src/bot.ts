@@ -9,7 +9,7 @@ import { logger } from './index'
 export class GitHubBot extends Bot<Context, Config> {
   octokit: Octokit
   graphql: typeof graphql
-  private _timer: any
+  private _timer: () => void
   private _lastEventId: string | null = null
 
   constructor(ctx: Context, config: Config) {
@@ -69,8 +69,8 @@ export class GitHubBot extends Bot<Context, Config> {
       this.status = Universal.Status.ONLINE
       logger.info(`GitHub 机器人已上线：${this.selfId} (监听仓库：${this.config.owner}/${this.config.repo})`)
 
-      // 开启定时轮询
-      this._timer = setInterval(() => this.poll(), this.config.interval)
+      // 开启定时轮询，使用 ctx.setInterval 确保插件停用时自动清理
+      this._timer = this.ctx.setInterval(() => this.poll(), this.config.interval)
     } catch (e) {
       logger.error('GitHub 机器人启动失败:', e)
       this.status = Universal.Status.OFFLINE
@@ -80,7 +80,8 @@ export class GitHubBot extends Bot<Context, Config> {
 
   // 停止机器人
   async stop() {
-    if (this._timer) clearInterval(this._timer)
+    // 调用 ctx.setInterval 返回的函数来清理定时器
+    if (this._timer) this._timer()
     this.status = Universal.Status.OFFLINE
     logger.info(`GitHub 机器人已下线：${this.selfId}`)
   }
