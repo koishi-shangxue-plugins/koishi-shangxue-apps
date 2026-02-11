@@ -1,5 +1,5 @@
 import { Context, Logger, Schema } from 'koishi'
-import { GitHubBot } from './bot'
+import { GitHubBot } from './bot/bot'
 import { Config } from './config'
 
 export const name = 'adapter-github'
