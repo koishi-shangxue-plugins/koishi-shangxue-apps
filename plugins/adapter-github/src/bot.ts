@@ -70,7 +70,7 @@ export class GitHubBot extends Bot<Context, Config> {
       logger.info(`GitHub 机器人已上线：${this.selfId} (监听仓库：${this.config.owner}/${this.config.repo})`)
 
       // 开启定时轮询，使用 ctx.setInterval 确保插件停用时自动清理
-      this._timer = this.ctx.setInterval(() => this.poll(), this.config.interval)
+      this._timer = this.ctx.setInterval(() => this.poll(), this.config.interval * 1000)
     } catch (e) {
       logger.error('GitHub 机器人启动失败:', e)
       this.status = Universal.Status.OFFLINE

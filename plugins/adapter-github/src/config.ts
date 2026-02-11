@@ -14,10 +14,10 @@ export interface Config {
 // 定义配置项 Schema
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    token: Schema.string().required().description('GitHub Personal Access Token (PAT)'),
+    token: Schema.string().required().description('GitHub Personal Access Token (PAT)').role('secret'),
     owner: Schema.string().required().description('仓库所有者 (Owner)'),
     repo: Schema.string().required().description('仓库名称 (Repo)'),
-    interval: Schema.number().default(60000).description('轮询间隔 (单位：毫秒，默认 1 分钟)'),
+    interval: Schema.number().default(20).description('轮询间隔 (单位：秒，默认 20 秒)'),
   }).description('基础设置'),
 
   Schema.union([
