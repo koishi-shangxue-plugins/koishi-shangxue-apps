@@ -55,7 +55,7 @@ export const Config: Schema<Config> = Schema.intersect([
       Schema.union([
         Schema.object({
           useProxy: Schema.const(true).required().description('是否使用代理'),
-          proxyUrl: Schema.string().description('代理地址（支持 http/https 协议）').default("http://localhost:7890"),
+          proxyUrl: Schema.string().description('代理地址（支持 http/https 协议）').default("http://localhost:7897"),
         }),
         Schema.object({
           useProxy: Schema.const(false).description('是否使用代理'),

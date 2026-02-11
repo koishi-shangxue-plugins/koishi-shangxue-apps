@@ -61,7 +61,13 @@ export class GitHubBotWithEventHandling extends GitHubBot {
       this.status = Universal.Status.ONLINE
       const repoList = validRepos.map(r => `${r.owner}/${r.repo}`).join(', ')
       this.loggerInfo(`GitHub 机器人已上线：${this.selfId} (监听仓库：${repoList})`)
-      this.loggerInfo(`通信模式：${this.config.mode === 'webhook' ? 'Webhook' : 'Pull'}`)
+
+      // 构建通信模式信息
+      let modeInfo = this.config.mode === 'webhook' ? 'Webhook' : 'Pull'
+      if (this.config.mode === 'pull' && this.config.useProxy && this.config.proxyUrl) {
+        modeInfo += ` (代理：${this.config.proxyUrl})`
+      }
+      this.loggerInfo(`通信模式：${modeInfo}`)
 
       // 仅在 Pull 模式下启动定时器
       if (this.config.mode === 'pull' && this.ctx.scope.isActive) {
