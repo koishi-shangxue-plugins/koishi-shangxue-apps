@@ -1,6 +1,6 @@
 import { h } from 'koishi'
 import { } from '@koishijs/assets'
-import { GitHubBot } from '../bot/bot'
+import { GitHubBot } from '../bot/base'
 
 /**
  * 使用 assets 服务转存非 HTTPS 协议的资源
