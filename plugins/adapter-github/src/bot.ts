@@ -118,7 +118,12 @@ export class GitHubBot extends Bot<Context, Config> {
   // 处理 GitHub 事件并转换为 Koishi 会话
   async handleEvent(event: any) {
     // 忽略机器人自己产生的事件
-    if (event.actor.login === this.selfId) return
+    if (event.actor.login === this.selfId) {
+      this.logInfo(`忽略机器人自己的事件: ${event.type}`)
+      return
+    }
+
+    this.logInfo(`事件详情: ${JSON.stringify(event, null, 2)}`)
 
     const session = this.session({
       type: 'message',
@@ -138,6 +143,7 @@ export class GitHubBot extends Bot<Context, Config> {
       case 'IssueCommentEvent':
         channelId = `issues:${event.payload.issue.number}`
         content = event.payload.comment.body
+        this.logInfo(`解析 IssueCommentEvent: channelId=${channelId}, content=${content}`)
         break
       case 'IssuesEvent':
         if (['opened', 'closed', 'reopened'].includes(event.payload.action)) {

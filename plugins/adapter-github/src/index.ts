@@ -20,7 +20,7 @@ export function apply(ctx: Context, config: Config) {
     if (bot || isDisposing) return
 
     bot = new GitHubBot(ctx, config)
-    await bot.start()
+    // Koishi 会自动调用 bot.start()，不需要手动调用
   })
 
   ctx.on('dispose', async () => {
