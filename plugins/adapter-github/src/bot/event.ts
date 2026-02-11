@@ -17,10 +17,18 @@ export class GitHubBotWithEventHandling extends GitHubBot {
         avatar: user.avatar_url,
       }
 
-      // 初始化每个仓库的最新事件 ID
+      // 验证并初始化每个仓库的最新事件 ID
+      const validRepos: typeof this.config.repositories = []
       for (const repo of this.config.repositories) {
         const repoKey = `${repo.owner}/${repo.repo}`
         try {
+          // 先验证仓库是否存在
+          await this.octokit.repos.get({
+            owner: repo.owner,
+            repo: repo.repo,
+          })
+
+          // 获取最新事件
           const { data: events } = await this.octokit.activity.listRepoEvents({
             owner: repo.owner,
             repo: repo.repo,
@@ -29,13 +37,30 @@ export class GitHubBotWithEventHandling extends GitHubBot {
           if (events.length > 0) {
             this._lastEventIds.set(repoKey, events[0].id)
           }
-        } catch (e) {
-          this.logError(`初始化仓库 ${repoKey} 失败:`, e)
+
+          validRepos.push(repo)
+          logger.info(`仓库 ${repoKey} 验证成功`)
+        } catch (e: any) {
+          if (e.status === 404) {
+            logger.warn(`仓库 ${repoKey} 不存在或无权访问，已自动跳过`)
+          } else {
+            logger.error(`初始化仓库 ${repoKey} 失败:`, e)
+          }
         }
       }
 
+      // 检查是否有有效的仓库
+      if (validRepos.length === 0) {
+        logger.error('没有可用的仓库，插件将自动关闭')
+        this.ctx.scope.dispose()
+        return
+      }
+
+      // 更新配置为只包含有效的仓库
+      this.config.repositories = validRepos
+
       this.status = Universal.Status.ONLINE
-      const repoList = this.config.repositories.map(r => `${r.owner}/${r.repo}`).join(', ')
+      const repoList = validRepos.map(r => `${r.owner}/${r.repo}`).join(', ')
       logger.info(`GitHub 机器人已上线：${this.selfId} (监听仓库：${repoList})`)
       logger.info(`通信模式：${this.config.mode === 'webhook' ? 'Webhook' : 'Pull'}`)
 

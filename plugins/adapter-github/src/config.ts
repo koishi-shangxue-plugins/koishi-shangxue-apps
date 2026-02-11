@@ -56,7 +56,7 @@ export const Config: Schema<Config> = Schema.intersect([
       proxyUrl: Schema.string().description('请输入代理地址。').default("socks://localhost:7897"),
     }),
     Schema.object({
-      useProxy: Schema.const(false).default(false),
+      useProxy: Schema.const(false),
     }),
   ]).description('代理配置（仅 Pull 模式需要）'),
 
