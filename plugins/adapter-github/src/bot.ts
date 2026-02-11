@@ -6,13 +6,14 @@ import { Config } from './config'
 import { logger } from './index'
 import { encodeMessage } from './message'
 import { decodeMarkdown } from './markdown'
+import * as crypto from 'crypto'
 
 // GitHub 机器人实现类
 export class GitHubBot extends Bot<Context, Config> {
   octokit: Octokit
   graphql: typeof graphql
   private _timer: () => void
-  private _lastEventId: string | null = null
+  private _lastEventIds: Map<string, string> = new Map()
 
   constructor(ctx: Context, config: Config) {
     super(ctx, config, 'github')
@@ -60,23 +61,32 @@ export class GitHubBot extends Bot<Context, Config> {
         avatar: user.avatar_url,
       }
 
-      // 初始拉取一次事件，记录最新的 event ID，避免重复处理旧事件
-      const { data: events } = await this.octokit.activity.listRepoEvents({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        per_page: 1,
-      })
-      if (events.length > 0) {
-        this._lastEventId = events[0].id
+      // 初始化每个仓库的最新事件 ID
+      for (const repo of this.config.repositories) {
+        const repoKey = `${repo.owner}/${repo.repo}`
+        try {
+          const { data: events } = await this.octokit.activity.listRepoEvents({
+            owner: repo.owner,
+            repo: repo.repo,
+            per_page: 1,
+          })
+          if (events.length > 0) {
+            this._lastEventIds.set(repoKey, events[0].id)
+          }
+        } catch (e) {
+          this.logError(`初始化仓库 ${repoKey} 失败:`, e)
+        }
       }
 
       this.status = Universal.Status.ONLINE
-      logger.info(`GitHub 机器人已上线：${this.selfId} (监听仓库：${this.config.owner}/${this.config.repo})`)
+      const repoList = this.config.repositories.map(r => `${r.owner}/${r.repo}`).join(', ')
+      logger.info(`GitHub 机器人已上线：${this.selfId} (监听仓库：${repoList})`)
+      logger.info(`通信模式：${this.config.mode === 'webhook' ? 'Webhook' : 'Pull'}`)
 
-      // 检查上下文是否活跃，避免在非活跃上下文中创建定时器
-      if (this.ctx.scope.isActive) {
+      // 仅在 Pull 模式下启动定时器
+      if (this.config.mode === 'pull' && this.ctx.scope.isActive) {
         this._timer = this.ctx.setInterval(() => this.poll(), this.config.interval * 1000)
-      } else {
+      } else if (this.config.mode === 'pull') {
         logger.warn('上下文未激活，跳过定时器创建')
       }
     } catch (e) {
@@ -96,33 +106,37 @@ export class GitHubBot extends Bot<Context, Config> {
 
   // 轮询 GitHub 事件
   async poll() {
-    try {
-      const { data: events } = await this.octokit.activity.listRepoEvents({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        per_page: 20,
-      })
+    for (const repo of this.config.repositories) {
+      const repoKey = `${repo.owner}/${repo.repo}`
+      try {
+        const { data: events } = await this.octokit.activity.listRepoEvents({
+          owner: repo.owner,
+          repo: repo.repo,
+          per_page: 20,
+        })
 
-      const newEvents = []
-      for (const event of events) {
-        if (event.id === this._lastEventId) break
-        newEvents.push(event)
-      }
-
-      if (newEvents.length > 0) {
-        this._lastEventId = events[0].id
-        // 逆序处理，确保消息按时间顺序派发
-        for (const event of newEvents.reverse()) {
-          await this.handleEvent(event)
+        const lastEventId = this._lastEventIds.get(repoKey)
+        const newEvents = []
+        for (const event of events) {
+          if (event.id === lastEventId) break
+          newEvents.push(event)
         }
+
+        if (newEvents.length > 0) {
+          this._lastEventIds.set(repoKey, events[0].id)
+          // 逆序处理，确保消息按时间顺序派发
+          for (const event of newEvents.reverse()) {
+            await this.handleEvent(event, repo.owner, repo.repo)
+          }
+        }
+      } catch (e) {
+        this.logError(`轮询仓库 ${repoKey} 事件时出错:`, e)
       }
-    } catch (e) {
-      this.logError('轮询 GitHub 事件时出错:', e)
     }
   }
 
   // 处理 GitHub 事件并转换为 Koishi 会话
-  async handleEvent(event: any) {
+  async handleEvent(event: any, owner: string, repo: string) {
     // 忽略机器人自己产生的事件
     if (event.actor.login === this.selfId) {
       this.logInfo(`忽略机器人自己的事件: ${event.type}`)
@@ -143,16 +157,17 @@ export class GitHubBot extends Bot<Context, Config> {
 
     let content = ''
     let channelId = ''
+    const repoPrefix = `${owner}/${repo}`
 
     // 根据事件类型解析频道 ID 和内容
     switch (event.type) {
       case 'IssueCommentEvent':
-        channelId = `issues:${event.payload.issue.number}`
+        channelId = `${repoPrefix}:issues:${event.payload.issue.number}`
         content = event.payload.comment.body
         break
       case 'IssuesEvent':
         if (['opened', 'closed', 'reopened'].includes(event.payload.action)) {
-          channelId = `issues:${event.payload.issue.number}`
+          channelId = `${repoPrefix}:issues:${event.payload.issue.number}`
           content = `[Issue ${event.payload.action}] ${event.payload.issue.title}`
           if (event.payload.action === 'opened') {
             content += `
@@ -162,7 +177,7 @@ ${event.payload.issue.body || ''}`
         break
       case 'PullRequestEvent':
         if (['opened', 'closed', 'reopened'].includes(event.payload.action)) {
-          channelId = `pull:${event.payload.pull_request.number}`
+          channelId = `${repoPrefix}:pull:${event.payload.pull_request.number}`
           content = `[PR ${event.payload.action}] ${event.payload.pull_request.title}`
           if (event.payload.action === 'opened') {
             content += `
@@ -171,15 +186,15 @@ ${event.payload.pull_request.body || ''}`
         }
         break
       case 'PullRequestReviewCommentEvent':
-        channelId = `pull:${event.payload.pull_request.number}`
+        channelId = `${repoPrefix}:pull:${event.payload.pull_request.number}`
         content = event.payload.comment.body
         break
       case 'DiscussionEvent':
-        channelId = `discussions:${event.payload.discussion.number}`
+        channelId = `${repoPrefix}:discussions:${event.payload.discussion.number}`
         content = `[Discussion ${event.payload.action}] ${event.payload.discussion.title}`
         break
       case 'DiscussionCommentEvent':
-        channelId = `discussions:${event.payload.discussion.number}`
+        channelId = `${repoPrefix}:discussions:${event.payload.discussion.number}`
         content = event.payload.comment.body
         break
     }
@@ -234,9 +249,14 @@ ${event.payload.pull_request.body || ''}`
 
   // 发送消息实现
   async sendMessage(channelId: string, content: Fragment, guildId?: string) {
-    const [type, numberStr] = channelId.split(':')
+    // 解析 channelId: owner/repo:type:number
+    const parts = channelId.split(':')
+    if (parts.length !== 3) return []
+
+    const [repoPrefix, type, numberStr] = parts
+    const [owner, repo] = repoPrefix.split('/')
     const number = parseInt(numberStr)
-    if (isNaN(number)) return []
+    if (isNaN(number) || !owner || !repo) return []
 
     // 使用消息编码器将 Fragment 转换为纯文本
     const body = await encodeMessage(this, content)
@@ -244,8 +264,8 @@ ${event.payload.pull_request.body || ''}`
     try {
       if (type === 'issues' || type === 'pull') {
         const { data } = await this.octokit.issues.createComment({
-          owner: this.config.owner,
-          repo: this.config.repo,
+          owner,
+          repo,
           issue_number: number,
           body,
         })
@@ -263,8 +283,8 @@ ${event.payload.pull_request.body || ''}`
             }
           }
         `, {
-          owner: this.config.owner,
-          repo: this.config.repo,
+          owner,
+          repo,
           number,
         });
 
@@ -299,19 +319,29 @@ ${event.payload.pull_request.body || ''}`
 
   // 获取群组信息（对应 Issue/PR/Discussion）
   async getGuild(guildId: string): Promise<Universal.Guild> {
-    const [type, numberStr] = guildId.split(':')
+    // 解析 guildId: owner/repo:type:number
+    const parts = guildId.split(':')
+    if (parts.length !== 3) {
+      return { id: guildId, name: guildId }
+    }
+
+    const [repoPrefix, type, numberStr] = parts
+    const [owner, repo] = repoPrefix.split('/')
     const number = parseInt(numberStr)
+    if (isNaN(number) || !owner || !repo) {
+      return { id: guildId, name: guildId }
+    }
 
     try {
       if (type === 'issues' || type === 'pull') {
         const { data } = await this.octokit.issues.get({
-          owner: this.config.owner,
-          repo: this.config.repo,
+          owner,
+          repo,
           issue_number: number,
         })
         return {
           id: guildId,
-          name: data.title,
+          name: `[${repoPrefix}] ${data.title}`,
         }
       } else if (type === 'discussions') {
         const { repository } = await this.graphql<{
@@ -325,13 +355,13 @@ ${event.payload.pull_request.body || ''}`
             }
           }
         `, {
-          owner: this.config.owner,
-          repo: this.config.repo,
+          owner,
+          repo,
           number,
         })
         return {
           id: guildId,
-          name: repository.discussion.title,
+          name: `[${repoPrefix}] ${repository.discussion.title}`,
         }
       }
     } catch (e) {
@@ -340,7 +370,7 @@ ${event.payload.pull_request.body || ''}`
 
     return {
       id: guildId,
-      name: `${type} #${number}`,
+      name: `${repoPrefix} ${type} #${number}`,
     }
   }
 
@@ -352,5 +382,57 @@ ${event.payload.pull_request.body || ''}`
       name: guild.name,
       type: Universal.Channel.Type.TEXT,
     }
+  }
+
+  // 验证 webhook 签名
+  verifyWebhookSignature(payload: string, signature: string): boolean {
+    if (!this.config.webhookSecret) return true // 如果没有配置密钥，跳过验证
+
+    const hmac = crypto.createHmac('sha256', this.config.webhookSecret)
+    const digest = 'sha256=' + hmac.update(payload).digest('hex')
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))
+  }
+
+  // 处理 webhook 事件
+  async handleWebhookEvent(event: any, owner: string, repo: string) {
+    this.logInfo(`收到 Webhook 事件: ${event.action || event.type}`)
+
+    // 构造类似 GitHub Events API 的事件对象
+    let eventType = ''
+    let payload: any = {}
+    let actor: any = event.sender
+
+    if (event.issue && event.comment) {
+      eventType = 'IssueCommentEvent'
+      payload = { issue: event.issue, comment: event.comment, action: event.action }
+    } else if (event.issue) {
+      eventType = 'IssuesEvent'
+      payload = { issue: event.issue, action: event.action }
+    } else if (event.pull_request && event.comment) {
+      eventType = 'PullRequestReviewCommentEvent'
+      payload = { pull_request: event.pull_request, comment: event.comment }
+    } else if (event.pull_request) {
+      eventType = 'PullRequestEvent'
+      payload = { pull_request: event.pull_request, action: event.action }
+    } else if (event.discussion && event.comment) {
+      eventType = 'DiscussionCommentEvent'
+      payload = { discussion: event.discussion, comment: event.comment }
+    } else if (event.discussion) {
+      eventType = 'DiscussionEvent'
+      payload = { discussion: event.discussion, action: event.action }
+    } else {
+      this.logInfo(`未处理的 webhook 事件类型`)
+      return
+    }
+
+    const normalizedEvent = {
+      id: `webhook-${Date.now()}`,
+      type: eventType,
+      actor: actor,
+      payload: payload,
+      created_at: new Date().toISOString(),
+    }
+
+    await this.handleEvent(normalizedEvent, owner, repo)
   }
 }
