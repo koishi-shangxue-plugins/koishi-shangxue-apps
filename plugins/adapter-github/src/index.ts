@@ -39,6 +39,7 @@ export function apply(ctx: Context, config: Config) {
 
   // 在子上下文销毁时自动清理
   botCtx.on('dispose', async () => {
-    await bot.stop()
+    // 与start一样 koishi会自动调用
+    //  await bot.stop()
   })
 }

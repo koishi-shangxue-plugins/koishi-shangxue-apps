@@ -31,7 +31,7 @@ export const Config: Schema<Config> = Schema.intersect([
     "owner": "koishi-shangxue-plugins",
     "repo": "koishi-plugin-adapter-github"
   }
-]).description('监听的仓库列表'),
+]).description('监听的仓库列表<br>-> 建议填入机器人创建的仓库 以确保权限完整'),
   }).description('基础设置'),
 
   Schema.object({
@@ -41,7 +41,7 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.union([
     Schema.object({
       mode: Schema.const('webhook').required(),
-      webhookPath: Schema.string().default('/github/webhook').description('Webhook 路径'),
+      webhookPath: Schema.string().default('/github/webhook').description('Webhook 路径<br>默认地址：`http://127.0.0.1:5140/github/webhook`'),
       webhookSecret: Schema.string().description('Webhook 密钥（可选，用于验证请求）').role('secret'),
     }),
     Schema.object({
@@ -49,6 +49,10 @@ export const Config: Schema<Config> = Schema.intersect([
       interval: Schema.number().default(20).description('轮询间隔 (单位：秒，默认 20 秒)'),
     }),
   ]).description('模式配置'),
+
+  Schema.object({
+    useProxy: Schema.boolean().default(false).description('是否使用代理'),
+  }).description('代理设置'),
 
   Schema.union([
     Schema.object({
