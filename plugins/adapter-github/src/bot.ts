@@ -72,8 +72,12 @@ export class GitHubBot extends Bot<Context, Config> {
       this.status = Universal.Status.ONLINE
       logger.info(`GitHub 机器人已上线：${this.selfId} (监听仓库：${this.config.owner}/${this.config.repo})`)
 
-      // 开启定时轮询，使用 ctx.setInterval 确保插件停用时自动清理
-      this._timer = this.ctx.setInterval(() => this.poll(), this.config.interval * 1000)
+      // 检查上下文是否活跃，避免在非活跃上下文中创建定时器
+      if (this.ctx.scope.isActive) {
+        this._timer = this.ctx.setInterval(() => this.poll(), this.config.interval * 1000)
+      } else {
+        logger.warn('上下文未激活，跳过定时器创建')
+      }
     } catch (e) {
       logger.error('GitHub 机器人启动失败:', e)
       this.status = Universal.Status.OFFLINE
