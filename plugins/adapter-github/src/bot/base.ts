@@ -3,7 +3,6 @@ import { Octokit } from '@octokit/rest'
 import { graphql } from '@octokit/graphql'
 import { fetchWithProxy } from './http'
 import { Config } from '../config'
-import { logger } from '../index'
 
 // GitHub 机器人基础类
 export class GitHubBot extends Bot<Context, Config> {

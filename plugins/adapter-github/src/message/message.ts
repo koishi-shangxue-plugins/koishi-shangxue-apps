@@ -30,7 +30,6 @@ async function transformUrl(bot: GitHubBot, elementString: string): Promise<stri
 
 /**
  * 将 Koishi 的 Fragment 转换为纯文本，用于发送到 GitHub
- * 特别处理 i18n 标签和其他元素
  */
 export async function encodeMessage(bot: GitHubBot, content: h.Fragment): Promise<string> {
   let result = ''
