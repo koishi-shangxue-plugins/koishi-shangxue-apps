@@ -5,6 +5,7 @@ import { fetchWithProxy } from './http'
 import { Config } from './config'
 import { logger } from './index'
 import { encodeMessage } from './message'
+import { decodeMarkdown } from './markdown'
 
 // GitHub 机器人实现类
 export class GitHubBot extends Bot<Context, Config> {
@@ -187,7 +188,11 @@ ${event.payload.pull_request.body || ''}`
     if (channelId && content) {
       session.channelId = channelId
       session.guildId = channelId
-      session.content = content
+      // 将 Markdown 内容转换为 Satori 元素，然后转为字符串用于 content
+      const elements = decodeMarkdown(content)
+      session.content = h.normalize(elements).join('')
+      // 保存原始元素供后续使用
+      session.elements = h.normalize(elements)
       session.messageId = event.id
 
       // 设置 guild 和 channel 信息
