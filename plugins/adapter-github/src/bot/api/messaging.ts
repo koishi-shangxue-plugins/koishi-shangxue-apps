@@ -1,7 +1,6 @@
 import { Fragment } from 'koishi'
 import { GitHubBotWithEventHandling } from '../event'
 import { encodeMessage } from '../../message/message'
-import { logger } from '../../index'
 
 // 扩展 GitHubBot 类，添加消息发送方法
 export class GitHubBotWithMessaging extends GitHubBotWithEventHandling {
@@ -70,7 +69,7 @@ export class GitHubBotWithMessaging extends GitHubBotWithEventHandling {
         return [addDiscussionComment.comment.id];
       }
     } catch (e) {
-      logger.error(`向频道 ${channelId} 发送消息失败:`, e)
+      this.loggerError(`向频道 ${channelId} 发送消息失败:`, e)
     }
     return []
   }

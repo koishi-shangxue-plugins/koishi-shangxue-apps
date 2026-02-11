@@ -1,7 +1,6 @@
 import { h, Universal } from 'koishi'
 import { GitHubBot } from './base'
 import { decodeMarkdown } from '../message/markdown'
-import { logger } from '../index'
 
 // 扩展 GitHubBot 类，添加事件处理方法
 export class GitHubBotWithEventHandling extends GitHubBot {
@@ -39,19 +38,19 @@ export class GitHubBotWithEventHandling extends GitHubBot {
           }
 
           validRepos.push(repo)
-          logger.info(`仓库 ${repoKey} 验证成功`)
+          this.loggerInfo(`仓库 ${repoKey} 验证成功`)
         } catch (e: any) {
           if (e.status === 404) {
-            logger.warn(`仓库 ${repoKey} 不存在或无权访问，已自动跳过`)
+            this.loggerWarn(`仓库 ${repoKey} 不存在或无权访问，已自动跳过`)
           } else {
-            logger.error(`初始化仓库 ${repoKey} 失败:`, e)
+            this.loggerError(`初始化仓库 ${repoKey} 失败:`, e)
           }
         }
       }
 
       // 检查是否有有效的仓库
       if (validRepos.length === 0) {
-        logger.error('没有可用的仓库，插件将自动关闭')
+        this.loggerError('没有可用的仓库，插件将自动关闭')
         this.ctx.scope.dispose()
         return
       }
@@ -61,17 +60,17 @@ export class GitHubBotWithEventHandling extends GitHubBot {
 
       this.status = Universal.Status.ONLINE
       const repoList = validRepos.map(r => `${r.owner}/${r.repo}`).join(', ')
-      logger.info(`GitHub 机器人已上线：${this.selfId} (监听仓库：${repoList})`)
-      logger.info(`通信模式：${this.config.mode === 'webhook' ? 'Webhook' : 'Pull'}`)
+      this.loggerInfo(`GitHub 机器人已上线：${this.selfId} (监听仓库：${repoList})`)
+      this.loggerInfo(`通信模式：${this.config.mode === 'webhook' ? 'Webhook' : 'Pull'}`)
 
       // 仅在 Pull 模式下启动定时器
       if (this.config.mode === 'pull' && this.ctx.scope.isActive) {
         this._timer = this.ctx.setInterval(() => this.poll(), this.config.interval * 1000)
       } else if (this.config.mode === 'pull') {
-        logger.warn('上下文未激活，跳过定时器创建')
+        this.loggerWarn('上下文未激活，跳过定时器创建')
       }
     } catch (e) {
-      logger.error('GitHub 机器人启动失败:', e)
+      this.loggerError('GitHub 机器人启动失败:', e)
       this.status = Universal.Status.OFFLINE
       throw e
     }

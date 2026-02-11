@@ -1,7 +1,6 @@
 import { Context } from 'koishi'
 import { GitHubBot } from './bot/bot'
 import { Config } from './config'
-import { logger } from './index'
 
 /**
  * 注册 Webhook 路由
@@ -22,18 +21,18 @@ export function registerWebhookRouter(ctx: Context, bot: GitHubBot, config: Conf
 
     // POST 路由处理 webhook 事件
     server.post(webhookPath, async (koaCtx: any) => {
-      logger.info(`收到 Webhook 请求: ${koaCtx.headers['x-github-event']}`)
+      bot.loggerInfo(`收到 Webhook 请求: ${koaCtx.headers['x-github-event']}`)
 
       const signature = koaCtx.headers['x-hub-signature-256'] as string
       const event = koaCtx.headers['x-github-event'] as string
       const payload = koaCtx.request.body
 
-      logger.info(`Webhook payload: ${JSON.stringify(payload).substring(0, 200)}...`)
+      bot.loggerInfo(`Webhook payload: ${JSON.stringify(payload).substring(0, 200)}...`)
 
       // 验证签名
       const rawBody = JSON.stringify(payload)
       if (signature && !bot.verifyWebhookSignature(rawBody, signature)) {
-        logger.warn('Webhook 签名验证失败')
+        bot.loggerWarn('Webhook 签名验证失败')
         koaCtx.status = 401
         koaCtx.body = { error: 'Invalid signature' }
         return
@@ -44,13 +43,13 @@ export function registerWebhookRouter(ctx: Context, bot: GitHubBot, config: Conf
       const repo = payload.repository?.name
 
       if (!owner || !repo) {
-        logger.warn('Webhook 事件缺少仓库信息')
+        bot.loggerWarn('Webhook 事件缺少仓库信息')
         koaCtx.status = 400
         koaCtx.body = { error: 'Missing repository info' }
         return
       }
 
-      logger.info(`仓库信息: ${owner}/${repo}`)
+      bot.loggerInfo(`仓库信息: ${owner}/${repo}`)
 
       // 检查是否在监听列表中
       const isMonitored = config.repositories.some(
@@ -58,7 +57,7 @@ export function registerWebhookRouter(ctx: Context, bot: GitHubBot, config: Conf
       )
 
       if (!isMonitored) {
-        logger.info(`收到未监听仓库的 webhook: ${owner}/${repo}`)
+        bot.loggerInfo(`收到未监听仓库的 webhook: ${owner}/${repo}`)
         koaCtx.status = 200
         koaCtx.body = { message: 'Repository not monitored' }
         return
@@ -70,12 +69,12 @@ export function registerWebhookRouter(ctx: Context, bot: GitHubBot, config: Conf
         koaCtx.status = 200
         koaCtx.body = { message: 'Event processed' }
       } catch (error) {
-        logger.error('处理 webhook 事件失败:', error)
+        bot.loggerError('处理 webhook 事件失败:', error)
         koaCtx.status = 500
         koaCtx.body = { error: 'Internal server error' }
       }
     })
 
-    logger.info(`GitHub Webhook 路由已注册: ${webhookPath}`)
+    bot.loggerInfo(`GitHub Webhook 路由已注册: ${webhookPath}`)
   })
 }

@@ -37,15 +37,28 @@ export class GitHubBot extends Bot<Context, Config> {
     })
   }
 
+  // 日志函数
+  loggerInfo(message: any, ...args: any[]): void {
+    this.ctx.logger.info(message, ...args)
+  }
+
+  loggerWarn(message: any, ...args: any[]): void {
+    this.ctx.logger.warn(message, ...args)
+  }
+
+  loggerError(message: any, ...args: any[]): void {
+    this.ctx.logger.error(message, ...args)
+  }
+
   // 调试日志函数
-  logInfo(...args: any[]) {
+  logInfo(message: any, ...args: any[]) {
     if (this.config.loggerinfo) {
-      (logger.info as (...args: any[]) => void)(...args);
+      this.loggerInfo(message, ...args)
     }
   }
 
-  logError(...args: any[]) {
-    (logger.error as (...args: any[]) => void)(...args);
+  logError(message: any, ...args: any[]) {
+    this.loggerError(message, ...args)
   }
 
   // 解析 channelId 的辅助方法
@@ -67,6 +80,6 @@ export class GitHubBot extends Bot<Context, Config> {
     // 调用 ctx.setInterval 返回的函数来清理定时器
     if (this._timer) this._timer()
     this.status = Universal.Status.OFFLINE
-    logger.info(`GitHub 机器人已下线：${this.selfId}`)
+    this.loggerInfo(`GitHub 机器人已下线：${this.selfId}`)
   }
 }
