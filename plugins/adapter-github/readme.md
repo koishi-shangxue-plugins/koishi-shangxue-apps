@@ -25,18 +25,81 @@
 
 在 Koishi 的插件市场中找到 `adapter-github` 并进行配置。
 
-* **`token`**: 粘贴你刚刚生成的 Personal Access Token。
-* **`owner`**: 填写你想要监听的仓库的所有者的名称。
-* **`repo`**: 填写你想要监听的仓库名称。
-* **`interval`**: 设置机器人检查更新的频率（单位：秒）。
+### 基础配置
 
-也可以使用webhook
+* **`token`**: 粘贴你刚刚生成的 Personal Access Token
+* **`repositories`**: 监听的仓库列表
+  * **`owner`**: 仓库所有者的用户名或组织名
+  * **`repo`**: 仓库名称
+
+### 通信模式
+
+#### Pull 模式（轮询模式）
+
+适合没有公网 IP 或无法配置 Webhook 的场景。
+
+* **`mode`**: 选择 `pull`
+* **`interval`**: 轮询间隔（单位：秒，默认 60 秒）
+
+#### Webhook 模式（推送模式）
+
+实时性更好，推荐有公网 IP 的用户使用。
+
+* **`mode`**: 选择 `webhook`
+* **`webhookPath`**: Webhook 路径（默认 `/github/webhook`）
+* **`webhookSecret`**: Webhook 密钥（可选，用于验证请求安全性）
+
+**Webhook 配置步骤：**
 
 ![alt text](./readme/2026-02-11_15-34-09.png)
 
+1. 在 GitHub 仓库设置中找到 **Settings** → **Webhooks** → **Add webhook**
+2. 填写配置：
+   * **Payload URL**: `http://你的服务器地址:端口/github/webhook`
+   * **Content type**: 选择 `application/json`
+   * **Secret**: 填写你在插件中配置的密钥（如果有）
+   * **Which events would you like to trigger this webhook?**: 选择 `Let me select individual events`，勾选：
+     * Issues
+     * Issue comments
+     * Pull requests
+     * Pull request reviews
+     * Pull request review comments
+     * Discussions
+     * Discussion comments
+3. 点击 **Add webhook** 完成配置
+
 ---
 
-* **代理配置**: 如果你的网络环境需要代理才能访问 GitHub，请启用并填写正确的代理地址。
-* **调试设置**: 如果插件工作不正常，可以开启日志调试模式以输出更详细的信息。
+### 高级配置
 
-配置完成后，启用插件即可。机器人将会开始监听指定仓库的动态。
+* **代理配置**
+  * **`useProxy`**: 是否使用代理
+  * **`proxyUrl`**: 代理地址（例如 `http://localhost:7890` 或 `socks://localhost:7897`）
+
+* **调试设置**
+  * **`loggerinfo`**: 开启后会输出详细的调试日志
+
+### 多仓库支持
+
+可以在"监听的仓库列表"中添加多个仓库，适配器会同时监听所有配置的仓库。
+
+---
+
+## 常见问题
+
+### 为什么收不到消息？
+
+1. 检查 Token 权限是否正确
+2. 检查仓库配置是否正确
+3. 如果使用 Webhook 模式，检查 Webhook 是否配置成功
+4. 开启调试日志查看详细信息
+
+### Webhook 模式无法接收消息？
+
+1. 确保服务器有公网 IP 且端口可访问
+2. 检查 Webhook 路径是否正确
+3. 在 GitHub Webhook 设置页面查看推送记录和错误信息
+
+### 如何测试 Webhook 是否正常？
+
+访问 `http://你的服务器地址:端口/github/webhook`，如果看到提示信息说明路由已注册成功。
