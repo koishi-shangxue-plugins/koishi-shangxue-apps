@@ -5,8 +5,6 @@ import { GitHubBotWithReaction } from './reaction'
  * 这些方法会直接返回，不执行任何操作
  */
 export class GitHubBotWithUnsupported extends GitHubBotWithReaction {
-  // ========== 不支持的消息相关 API ==========
-
   /**
    * 广播消息（不支持）
    */
@@ -37,8 +35,6 @@ export class GitHubBotWithUnsupported extends GitHubBotWithReaction {
     this.logInfo('GitHub 适配器不支持 getMessageIter 方法')
   }
 
-  // ========== 不支持的频道相关 API ==========
-
   /**
    * 创建私聊频道（不支持）
    */
@@ -62,8 +58,6 @@ export class GitHubBotWithUnsupported extends GitHubBotWithReaction {
     return []
   }
 
-  // ========== 不支持的群组相关 API ==========
-
   /**
    * 获取群组迭代器（不支持）
    */
@@ -77,8 +71,6 @@ export class GitHubBotWithUnsupported extends GitHubBotWithReaction {
   async handleGuildRequest(...args: any[]): Promise<any> {
     this.logInfo('GitHub 适配器不支持 handleGuildRequest 方法')
   }
-
-  // ========== 不支持的成员相关 API ==========
 
   /**
    * 获取群组成员迭代器（不支持）
@@ -107,8 +99,6 @@ export class GitHubBotWithUnsupported extends GitHubBotWithReaction {
   async handleGuildMemberRequest(...args: any[]): Promise<any> {
     this.logInfo('GitHub 适配器不支持 handleGuildMemberRequest 方法')
   }
-
-  // ========== 不支持的角色相关 API ==========
 
   /**
    * 获取群组角色列表（不支持）
@@ -161,8 +151,6 @@ export class GitHubBotWithUnsupported extends GitHubBotWithReaction {
     this.logInfo('GitHub 适配器不支持 unsetGuildMemberRole 方法')
   }
 
-  // ========== 不支持的好友相关 API ==========
-
   /**
    * 获取好友列表（不支持）
    */
@@ -184,8 +172,6 @@ export class GitHubBotWithUnsupported extends GitHubBotWithReaction {
   async handleFriendRequest(...args: any[]): Promise<any> {
     this.logInfo('GitHub 适配器不支持 handleFriendRequest 方法')
   }
-
-  // ========== 不支持的反应相关 API ==========
 
   /**
    * 获取反应迭代器（不支持）

@@ -7,8 +7,6 @@ import { GitHubBotComplete } from '../webhook'
 export class GitHubInternal {
   constructor(private bot: GitHubBotComplete) {}
 
-  // ========== Issue 管理 ==========
-
   /**
    * 创建 Issue
    * @param owner 仓库所有者
@@ -190,8 +188,6 @@ export class GitHubInternal {
       throw e
     }
   }
-
-  // ========== Pull Request 管理 ==========
 
   /**
    * 创建 Pull Request
