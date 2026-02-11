@@ -4,6 +4,7 @@ import { graphql } from '@octokit/graphql'
 import { fetchWithProxy } from './http'
 import { Config } from './config'
 import { logger } from './index'
+import { encodeMessage } from './message'
 
 // GitHub 机器人实现类
 export class GitHubBot extends Bot<Context, Config> {
@@ -43,7 +44,9 @@ export class GitHubBot extends Bot<Context, Config> {
       (logger.info as (...args: any[]) => void)(...args);
     }
   }
-
+  logError(...args: any[]) {
+    (logger.error as (...args: any[]) => void)(...args);
+  }
   // 启动机器人
   async start() {
     try {
@@ -103,15 +106,13 @@ export class GitHubBot extends Bot<Context, Config> {
 
       if (newEvents.length > 0) {
         this._lastEventId = events[0].id
-        this.logInfo(`拉取到 ${newEvents.length} 个新事件。`)
         // 逆序处理，确保消息按时间顺序派发
         for (const event of newEvents.reverse()) {
-          this.logInfo(`处理事件: ${event.type} - ${event.actor.login}`)
           await this.handleEvent(event)
         }
       }
     } catch (e) {
-      this.logInfo('轮询 GitHub 事件时出错:', e)
+      this.logError('轮询 GitHub 事件时出错:', e)
     }
   }
 
@@ -143,7 +144,6 @@ export class GitHubBot extends Bot<Context, Config> {
       case 'IssueCommentEvent':
         channelId = `issues:${event.payload.issue.number}`
         content = event.payload.comment.body
-        this.logInfo(`解析 IssueCommentEvent: channelId=${channelId}, content=${content}`)
         break
       case 'IssuesEvent':
         if (['opened', 'closed', 'reopened'].includes(event.payload.action)) {
@@ -185,7 +185,40 @@ ${event.payload.pull_request.body || ''}`
       session.guildId = channelId
       session.content = content
       session.messageId = event.id
-      this.logInfo(`派发事件: [${channelId}] ${content.substring(0, 50)}...`)
+
+      // 设置 guild 和 channel 信息
+      if (event.type === 'IssueCommentEvent' || event.type === 'IssuesEvent') {
+        session.event.guild = {
+          id: channelId,
+          name: event.payload.issue.title,
+        }
+        session.event.channel = {
+          id: channelId,
+          name: event.payload.issue.title,
+          type: Universal.Channel.Type.TEXT,
+        }
+      } else if (event.type === 'PullRequestEvent' || event.type === 'PullRequestReviewCommentEvent') {
+        session.event.guild = {
+          id: channelId,
+          name: event.payload.pull_request.title,
+        }
+        session.event.channel = {
+          id: channelId,
+          name: event.payload.pull_request.title,
+          type: Universal.Channel.Type.TEXT,
+        }
+      } else if (event.type === 'DiscussionEvent' || event.type === 'DiscussionCommentEvent') {
+        session.event.guild = {
+          id: channelId,
+          name: event.payload.discussion.title,
+        }
+        session.event.channel = {
+          id: channelId,
+          name: event.payload.discussion.title,
+          type: Universal.Channel.Type.TEXT,
+        }
+      }
+
       this.dispatch(session)
     }
   }
@@ -196,11 +229,11 @@ ${event.payload.pull_request.body || ''}`
     const number = parseInt(numberStr)
     if (isNaN(number)) return []
 
-    const body = String(content)
+    // 使用消息编码器将 Fragment 转换为纯文本
+    const body = await encodeMessage(this, content)
 
     try {
       if (type === 'issues' || type === 'pull') {
-        this.logInfo(`向频道 ${channelId} 发送消息: ${body.substring(0, 50)}...`)
         const { data } = await this.octokit.issues.createComment({
           owner: this.config.owner,
           repo: this.config.repo,
@@ -209,7 +242,6 @@ ${event.payload.pull_request.body || ''}`
         })
         return [data.id.toString()]
       } else if (type === 'discussions') {
-        this.logInfo(`向 Discussions 频道 ${channelId} 发送消息...`);
         // 1. 通过 GraphQL 查询获取 Discussion 的 node_id
         const { repository } = await this.graphql<{
           repository: { discussion: { id: string } }
@@ -294,7 +326,7 @@ ${event.payload.pull_request.body || ''}`
         }
       }
     } catch (e) {
-      this.logInfo(`获取群组信息失败: ${guildId}`, e)
+      this.logError(`获取群组信息失败: ${guildId}`, e)
     }
 
     return {

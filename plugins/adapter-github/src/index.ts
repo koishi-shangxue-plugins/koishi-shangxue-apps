@@ -12,24 +12,13 @@ export * from './config'
 
 // 插件入口
 export function apply(ctx: Context, config: Config) {
-  let bot: GitHubBot | null = null
-  let isDisposing = false
+  // 创建子上下文，确保 bot 的生命周期与插件绑定
+  const botCtx = ctx.guild()
 
-  ctx.on('ready', async () => {
-    // 防止重复创建 bot 实例
-    if (bot || isDisposing) return
+  const bot = new GitHubBot(botCtx, config)
 
-    bot = new GitHubBot(ctx, config)
-    // Koishi 会自动调用 bot.start()，不需要手动调用
-  })
-
-  ctx.on('dispose', async () => {
-    if (isDisposing) return
-    isDisposing = true
-
-    if (bot) {
-      await bot.stop()
-      bot = null
-    }
+  // 在子上下文销毁时自动清理
+  botCtx.on('dispose', async () => {
+    await bot.stop()
   })
 }
