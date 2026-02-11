@@ -113,6 +113,109 @@ export class GitHubBotWithEventHandling extends GitHubBot {
     }
   }
 
+  // 派发 GitHub 特殊事件
+  private dispatchGitHubEvent(event: any, owner: string, repo: string) {
+    const repoKey = `${owner}/${repo}`
+
+    // 构建事件数据
+    const eventData = {
+      owner,
+      repo,
+      repoKey,
+      actor: event.actor,
+      payload: event.payload,
+      type: event.type,
+      action: event.payload?.action,
+      timestamp: new Date(event.created_at).getTime(),
+    }
+
+    // 根据事件类型派发不同的自定义事件
+    switch (event.type) {
+      case 'IssuesEvent':
+        // 派发 github/issue-{action} 事件
+        if (event.payload.action) {
+          (this.ctx.emit as any)(`github/issue-${event.payload.action}`, {
+            ...eventData,
+            issue: event.payload.issue,
+          })
+        }
+        // 派发通用 github/issue 事件
+        (this.ctx.emit as any)('github/issue', {
+          ...eventData,
+          issue: event.payload.issue,
+        })
+        break
+
+      case 'IssueCommentEvent':
+        // 派发 github/issue-comment-{action} 事件
+        if (event.payload.action) {
+          (this.ctx.emit as any)(`github/issue-comment-${event.payload.action}`, {
+            ...eventData,
+            issue: event.payload.issue,
+            comment: event.payload.comment,
+          })
+        }
+        // 派发通用 github/issue-comment 事件
+        (this.ctx.emit as any)('github/issue-comment', {
+          ...eventData,
+          issue: event.payload.issue,
+          comment: event.payload.comment,
+        })
+        break
+
+      case 'PullRequestEvent':
+        // 派发 github/pull-request-{action} 事件
+        if (event.payload.action) {
+          (this.ctx.emit as any)(`github/pull-request-${event.payload.action}`, {
+            ...eventData,
+            pullRequest: event.payload.pull_request,
+          })
+        }
+        // 派发通用 github/pull-request 事件
+        (this.ctx.emit as any)('github/pull-request', {
+          ...eventData,
+          pullRequest: event.payload.pull_request,
+        })
+        break
+
+      case 'PullRequestReviewCommentEvent':
+        // 派发 github/pull-request-review-comment 事件
+        (this.ctx.emit as any)('github/pull-request-review-comment', {
+          ...eventData,
+          pullRequest: event.payload.pull_request,
+          comment: event.payload.comment,
+        })
+        break
+
+      case 'DiscussionEvent':
+        // 派发 github/discussion-{action} 事件
+        if (event.payload.action) {
+          (this.ctx.emit as any)(`github/discussion-${event.payload.action}`, {
+            ...eventData,
+            discussion: event.payload.discussion,
+          })
+        }
+        // 派发通用 github/discussion 事件
+        (this.ctx.emit as any)('github/discussion', {
+          ...eventData,
+          discussion: event.payload.discussion,
+        })
+        break
+
+      case 'DiscussionCommentEvent':
+        // 派发 github/discussion-comment 事件
+        (this.ctx.emit as any)('github/discussion-comment', {
+          ...eventData,
+          discussion: event.payload.discussion,
+          comment: event.payload.comment,
+        })
+        break
+    }
+
+    // 派发通用 github/event 事件（包含所有类型）
+    (this.ctx.emit as any)('github/event', eventData)
+  }
+
   // 处理 GitHub 事件并转换为 Koishi 会话
   async handleEvent(event: any, owner: string, repo: string) {
     // 忽略机器人自己产生的事件
@@ -219,7 +322,11 @@ export class GitHubBotWithEventHandling extends GitHubBot {
         }
       }
 
+      // 派发标准 Koishi 会话
       this.dispatch(session)
+
+      // 派发 GitHub 特殊事件
+      this.dispatchGitHubEvent(event, owner, repo)
     }
   }
 

@@ -85,6 +85,97 @@
 
 ---
 
+## GitHub 特殊事件
+
+除了标准的 Koishi 消息事件，本适配器还会派发 GitHub 特有的事件，方便其他插件监听特定的 GitHub 操作。
+
+### 事件列表
+
+#### Issue 相关事件
+
+* `github/issue` - 所有 Issue 事件
+* `github/issue-opened` - Issue 被创建
+* `github/issue-closed` - Issue 被关闭
+* `github/issue-reopened` - Issue 被重新打开
+* `github/issue-comment` - 所有 Issue 评论事件
+* `github/issue-comment-created` - Issue 评论被创建
+
+#### Pull Request 相关事件
+
+* `github/pull-request` - 所有 PR 事件
+* `github/pull-request-opened` - PR 被创建
+* `github/pull-request-closed` - PR 被关闭
+* `github/pull-request-reopened` - PR 被重新打开
+* `github/pull-request-review-comment` - PR 审查评论
+
+#### Discussion 相关事件
+
+* `github/discussion` - 所有 Discussion 事件
+* `github/discussion-created` - Discussion 被创建
+* `github/discussion-comment` - Discussion 评论
+
+#### 通用事件
+
+* `github/event` - 所有 GitHub 事件（包含上述所有类型）
+
+### 使用示例
+
+```typescript
+export function apply(ctx: Context) {
+  // 监听 Issue 被创建事件
+  ctx.on('github/issue-opened', (data) => {
+    const { owner, repo, issue, actor } = data
+    ctx.logger.info(`新 Issue: ${owner}/${repo}#${issue.number} - ${issue.title}`)
+    ctx.logger.info(`创建者: ${actor.login}`)
+  })
+
+  // 监听 PR 被创建事件
+  ctx.on('github/pull-request-opened', (data) => {
+    const { owner, repo, pullRequest, actor } = data
+    ctx.logger.info(`新 PR: ${owner}/${repo}#${pullRequest.number} - ${pullRequest.title}`)
+  })
+
+  // 监听所有 Issue 评论
+  ctx.on('github/issue-comment', (data) => {
+    const { owner, repo, issue, comment, action } = data
+    ctx.logger.info(`Issue 评论 (${action}): ${owner}/${repo}#${issue.number}`)
+    ctx.logger.info(`内容: ${comment.body}`)
+  })
+
+  // 监听所有 GitHub 事件
+  ctx.on('github/event', (data) => {
+    const { type, owner, repo, action } = data
+    ctx.logger.info(`GitHub 事件: ${type} - ${owner}/${repo} (${action})`)
+  })
+}
+```
+
+### 事件数据结构
+
+所有事件都包含以下基础字段：
+
+```typescript
+{
+  owner: string          // 仓库所有者
+  repo: string           // 仓库名称
+  repoKey: string        // 完整仓库标识 (owner/repo)
+  actor: object          // 触发事件的用户信息
+  payload: object        // 原始事件载荷
+  type: string           // 事件类型
+  action: string         // 事件动作 (opened, closed, created 等)
+  timestamp: number      // 事件时间戳
+}
+```
+
+根据不同的事件类型，还会包含额外的字段：
+
+* Issue 事件：`issue` 对象
+* PR 事件：`pullRequest` 对象
+* Discussion 事件：`discussion` 对象
+* 评论事件：`comment` 对象
+
+---
+
 ## 常见问题
 
 ### 为什么收不到消息？

@@ -31,11 +31,14 @@ export const Config: Schema<Config> = Schema.intersect([
         "owner": "koishi-shangxue-plugins",
         "repo": "koishi-plugin-adapter-github"
       }
-    ]).description('监听的仓库列表<br>-> 建议填入机器人创建的仓库 以确保权限完整'),
+    ]).description('监听的仓库列表<br>-> 请填入机器人创建的仓库 以确保权限完整'),
   }).description('基础设置'),
 
   Schema.object({
-    mode: Schema.union(['webhook', 'pull']).default('pull').description('通信模式'),
+    mode: Schema.union([
+      Schema.const('webhook').description('server'),
+      Schema.const('pull').description('polling')
+    ]).default('pull').description('通信模式<br>-> 相关接入方法 请参考文档'),
   }).description('通信模式选择'),
 
   Schema.union([
@@ -55,7 +58,7 @@ export const Config: Schema<Config> = Schema.intersect([
       Schema.union([
         Schema.object({
           useProxy: Schema.const(true).required().description('是否使用代理'),
-          proxyUrl: Schema.string().description('代理地址（支持 http/https 协议）').default("http://localhost:7897"),
+          proxyUrl: Schema.string().description('代理地址（仅支持 http/https 协议）').default("http://localhost:7897"),
         }),
         Schema.object({
           useProxy: Schema.const(false).description('是否使用代理'),
