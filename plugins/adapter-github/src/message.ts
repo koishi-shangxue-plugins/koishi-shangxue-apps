@@ -1,5 +1,32 @@
 import { h } from 'koishi'
+import { } from '@koishijs/assets'
 import { GitHubBot } from './bot'
+
+/**
+ * 使用 assets 服务转存非 HTTPS 协议的资源
+ */
+async function transformUrl(bot: GitHubBot, elementString: string): Promise<string | null> {
+  // 检查 assets 服务是否存在
+  if (!bot.ctx.assets) {
+    bot.logInfo('Assets 服务不可用，跳过资源转存')
+    return null
+  }
+
+  try {
+    const transformedContent = await bot.ctx.assets.transform(elementString)
+    // 从转存后的内容中提取 URL
+    const urlMatch = transformedContent.match(/src="([^"]+)"/)
+    if (urlMatch && urlMatch[1]) {
+      return urlMatch[1]
+    } else {
+      bot.logInfo(`无法从转存内容中提取 URL: ${transformedContent}`)
+      return null
+    }
+  } catch (error) {
+    bot.logError('资源转存失败:', error)
+    return null
+  }
+}
 
 /**
  * 将 Koishi 的 Fragment 转换为纯文本，用于发送到 GitHub
@@ -69,21 +96,73 @@ export async function encodeMessage(bot: GitHubBot, content: h.Fragment): Promis
         break
 
       case 'img':
-      case 'image':
-        result += `![image](${attrs.url || attrs.src})`
-        break
+      case 'image': {
+        let url = attrs.url || attrs.src
 
-      case 'audio':
-        result += `[音频](${attrs.url || attrs.src})`
-        break
+        if (!url.startsWith('http')) {
+          const transformedUrl = await transformUrl(bot, h.image(url).toString())
+          if (transformedUrl) {
+            url = transformedUrl
+          } else {
+            result += '[图片转存失败]'
+            break
+          }
+        }
 
-      case 'video':
-        result += `[视频](${attrs.url || attrs.src})`
+        result += `![image](${url})`
         break
+      }
 
-      case 'file':
-        result += `[文件](${attrs.url || attrs.src})`
+      case 'audio': {
+        let url = attrs.url || attrs.src
+
+        if (!url.startsWith('http')) {
+          const transformedUrl = await transformUrl(bot, h.audio(url).toString())
+          if (transformedUrl) {
+            url = transformedUrl
+          } else {
+            result += '[音频转存失败]'
+            break
+          }
+        }
+
+        result += `[音频](${url})`
         break
+      }
+
+      case 'video': {
+        let url = attrs.url || attrs.src
+
+        if (!url.startsWith('http')) {
+          const transformedUrl = await transformUrl(bot, h.video(url).toString())
+          if (transformedUrl) {
+            url = transformedUrl
+          } else {
+            result += '[视频转存失败]'
+            break
+          }
+        }
+
+        result += `[视频](${url})`
+        break
+      }
+
+      case 'file': {
+        let url = attrs.url || attrs.src
+
+        if (!url.startsWith('http')) {
+          const transformedUrl = await transformUrl(bot, h.file(url).toString())
+          if (transformedUrl) {
+            url = transformedUrl
+          } else {
+            result += '[文件转存失败]'
+            break
+          }
+        }
+
+        result += `[文件](${url})`
+        break
+      }
 
       case 'b':
       case 'strong':
