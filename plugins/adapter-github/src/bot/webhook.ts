@@ -1,6 +1,6 @@
 import * as crypto from 'node:crypto'
-import { GitHubBotWithUnsupported } from './unsupported'
-import { GitHubInternal } from './internal/internal'
+import { GitHubBotWithUnsupported } from './api/unsupported'
+import { GitHubInternal } from './api/internal'
 
 // 扩展 GitHubBot 类，添加 webhook 签名验证方法和 internal API
 export class GitHubBotComplete extends GitHubBotWithUnsupported {
