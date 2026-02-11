@@ -28,13 +28,8 @@ export function apply(ctx: Context) {
     ctx.logger.info(session)
   })
 
-  // ctx.platform("github").on('message', async (session) => {
-  //   ctx.logger.info(session)
-  //   // ctx.logger.info(session.quote?.elements)
-  // })
-  ctx.platform("github").on('github/event', (data) => {
-    const { type, owner, repo, action } = data
-    ctx.logger.info(`GitHub 事件: ${type} - ${owner}/${repo} (${action})`)
+  ctx.on('github/event', async (session) => {
+    ctx.logger.info(session)
   })
 
   // ctx.on('iirose/broadcast' as any, async (session, data) => {
@@ -101,57 +96,57 @@ export function apply(ctx: Context) {
       return
     })
 
-command
-  .subcommand('.rea')
-  .action(async ({ session }) => {
-    // 解析 channelId
-    const parts = session.channelId.split(':')
-    const [repoPrefix, type, numberStr] = parts
-    const [owner, repo] = repoPrefix.split('/')
-    const issueNumber = parseInt(numberStr)
+  command
+    .subcommand('.rea')
+    .action(async ({ session }) => {
+      // 解析 channelId
+      const parts = session.channelId.split(':')
+      const [repoPrefix, type, numberStr] = parts
+      const [owner, repo] = repoPrefix.split('/')
+      const issueNumber = parseInt(numberStr)
 
-    let reactionId: number
+      let reactionId: number
 
-    // 判断是评论还是 Issue/PR 本身
-    if (session.messageId !== 'issue' && session.messageId !== 'pull' && session.messageId !== 'discussion') {
-      // 这是一条评论
-      const commentId = parseInt(session.messageId)
+      // 判断是评论还是 Issue/PR 本身
+      if (session.messageId !== 'issue' && session.messageId !== 'pull' && session.messageId !== 'discussion') {
+        // 这是一条评论
+        const commentId = parseInt(session.messageId)
 
-      // 创建反应
-      reactionId = await session.bot.internal.createIssueCommentReaction(
-        owner, repo, commentId, '+1'
-      )
+        // 创建反应
+        reactionId = await session.bot.internal.createIssueCommentReaction(
+          owner, repo, commentId, '+1'
+        )
 
-      await session.send(`已添加反应 👍，反应 ID: ${reactionId}，5秒后自动删除...`)
+        await session.send(`已添加反应 👍，反应 ID: ${reactionId}，5秒后自动删除...`)
 
-      // 等待 5 秒
-      await new Promise(resolve => setTimeout(resolve, 5 * 1000))
+        // 等待 5 秒
+        await new Promise(resolve => setTimeout(resolve, 5 * 1000))
 
-      // 删除反应
-      await session.bot.internal.deleteIssueCommentReaction(
-        owner, repo, commentId, reactionId
-      )
+        // 删除反应
+        await session.bot.internal.deleteIssueCommentReaction(
+          owner, repo, commentId, reactionId
+        )
 
-      return `已删除反应 ID: ${reactionId}`
-    } else {
-      // 这是 Issue/PR 本身
-      reactionId = await session.bot.internal.createIssueReaction(
-        owner, repo, issueNumber, '+1'
-      )
+        return `已删除反应 ID: ${reactionId}`
+      } else {
+        // 这是 Issue/PR 本身
+        reactionId = await session.bot.internal.createIssueReaction(
+          owner, repo, issueNumber, '+1'
+        )
 
-      await session.send(`已添加反应 👍，反应 ID: ${reactionId}，5秒后自动删除...`)
+        await session.send(`已添加反应 👍，反应 ID: ${reactionId}，5秒后自动删除...`)
 
-      // 等待 5 秒
-      await new Promise(resolve => setTimeout(resolve, 5 * 1000))
+        // 等待 5 秒
+        await new Promise(resolve => setTimeout(resolve, 5 * 1000))
 
-      // 删除反应
-      await session.bot.internal.deleteIssueReaction(
-        owner, repo, issueNumber, reactionId
-      )
+        // 删除反应
+        await session.bot.internal.deleteIssueReaction(
+          owner, repo, issueNumber, reactionId
+        )
 
-      return `已删除反应 ID: ${reactionId}`
-    }
-  })
+        return `已删除反应 ID: ${reactionId}`
+      }
+    })
 
 
   command
@@ -512,8 +507,7 @@ command
     .action(async ({ session }) => {
       const aaa = await session.send(`你好哦`)
       ctx.logger.info(aaa)
-      const bbb = await session.send(h.image("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg"))
-      ctx.logger.info(bbb)
+
       return
     })
 
