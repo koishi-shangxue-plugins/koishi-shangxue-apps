@@ -33,6 +33,7 @@ class ScdnAssets extends Assets<ScdnAssets.Config> {
       const payload = new FormData()
       payload.append('image', new Blob([new Uint8Array(buffer)], { type }), filename)
       payload.append('outputFormat', 'auto')
+      payload.append('cdn_domain', 'default')
 
       this.logInfo(`开始上传文件: ${filename}, 类型: ${type}`)
 
@@ -41,9 +42,20 @@ class ScdnAssets extends Assets<ScdnAssets.Config> {
 
       this.logInfo(`API响应: ${JSON.stringify(response)}`)
 
-      // 解析响应
+      // 解析响应 - 新的响应结构
       if (response && typeof response === 'object') {
-        const data = response as { success?: boolean; data?: { url?: string } }
+        const data = response as {
+          success?: boolean;
+          data?: {
+            url?: string;
+            data?: {
+              filename?: string;
+              original_size?: number;
+              compressed_size?: number;
+              compression_ratio?: number;
+            }
+          }
+        }
 
         if (data.success && data.data && data.data.url) {
           const uploadedUrl = data.data.url
@@ -92,7 +104,7 @@ namespace ScdnAssets {
 
   export const usage = `
   ---
-  
+
   要使用本插件提供的 assets 服务，你需要先关闭默认开启的 assets-local 插件，然后开启本插件。
 
   本插件使用 img.scdn.io 图床服务，支持图片文件的上传和存储。
@@ -101,7 +113,7 @@ namespace ScdnAssets {
 
   本插件图床服务来自: <a href="https://img.scdn.io" target="_blank">https://img.scdn.io</a>
 
-  ---  
+  ---
   `
 }
 

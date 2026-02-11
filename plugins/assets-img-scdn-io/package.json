@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-assets-img-scdn-io",
   "description": "Serve assets on [img.scdn.io](https://img.scdn.io/)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
