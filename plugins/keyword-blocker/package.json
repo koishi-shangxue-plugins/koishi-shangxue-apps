@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-keyword-blocker",
-  "description": "keyword-blocker",
+  "description": "关键词屏蔽插件 - 支持消息级和指令级过滤",
   "version": "2.0.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -22,6 +22,15 @@
     "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
   "peerDependencies": {
-    "koishi": "4.18.9"
+    "@koishijs/plugin-console": "^5.11.0",
+    "koishi": "^4.16.0"
+  },
+  "devDependencies": {
+    "@koishijs/client": "^5.11.0",
+    "koishi": "^4.16.0"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "element-plus": "^2.13.0"
   }
 }

@@ -1,11 +1,37 @@
 import { Context, Schema } from 'koishi'
+import { resolve } from 'path'
 
-export const name = 'isolate'
+import { Console } from '@koishijs/console'
+import { } from '@koishijs/plugin-console'
+
+export const name = 'keyword-blocker'
 export const filter = false
 export const reusable = true
+export const inject = {
+  required: ['console'],
+}
 export const usage = `
 ---
+关键词屏蔽插件 - 支持消息级和指令级过滤
 `
+
+declare module 'koishi' {
+  interface Context {
+    console: Console
+  }
+}
+
+// 声明 Console 事件类型
+declare module '@koishijs/plugin-console' {
+  interface Events {
+    'keyword-blocker/config'(): Config
+    'keyword-blocker/update-config'(config: Partial<Config>): { success: boolean; message: string }
+    'keyword-blocker/commands'(): { commands: string[] }
+    'keyword-blocker/logs'(params: { page?: number; limit?: number; type?: 'message' | 'command'; userId?: string }): { total: number; logs: BlockLog[] }
+    'keyword-blocker/clear-logs'(): { success: boolean }
+    'keyword-blocker/stats'(): Stats
+  }
+}
 
 interface FilterRule {
   type: 'userId' | 'channelId' | 'guildId' | 'platform'
@@ -17,6 +43,24 @@ interface CommandRule {
   userId: string
   commands: string[]
   reason?: string
+}
+
+interface BlockLog {
+  timestamp: number
+  type: 'message' | 'command'
+  userId: string
+  channelId?: string
+  guildId?: string
+  platform?: string
+  content: string
+  reason: string
+}
+
+interface Stats {
+  todayMessageCount: number
+  todayCommandCount: number
+  topUsers: Array<{ userId: string; count: number }>
+  topCommands: Array<{ command: string; count: number }>
 }
 
 export interface Config {
@@ -156,7 +200,7 @@ function shouldFilterCommand(userId: string, commandName: string, config: Config
 }
 
 export function apply(ctx: Context, config: Config) {
-  ctx.logger.info('启用黑白名单过滤插件')
+  ctx.logger.info('启用关键词屏蔽插件')
   ctx.logger.info('消息过滤模式: %s，规则数: %d', config.filterMode,
     config.filterMode === 'blacklist' ? (config.blacklist?.length ?? 0) : (config.whitelist?.length ?? 0))
   ctx.logger.info('中间件重新注册间隔: %d ms', config.reregisterInterval)
@@ -164,6 +208,18 @@ export function apply(ctx: Context, config: Config) {
   if (config.enableCommandFilter) {
     ctx.logger.info('指令过滤已启用，模式: %s，规则数: %d', config.commandFilterMode,
       config.commandFilterMode === 'blacklist' ? (config.commandBlacklist?.length ?? 0) : (config.commandWhitelist?.length ?? 0))
+  }
+
+  // 日志存储
+  const blockLogs: BlockLog[] = []
+  const MAX_LOGS = 1000
+
+  // 添加日志
+  const addLog = (log: BlockLog) => {
+    blockLogs.unshift(log)
+    if (blockLogs.length > MAX_LOGS) {
+      blockLogs.pop()
+    }
   }
 
   // 标记插件是否已启用
@@ -195,6 +251,18 @@ export function apply(ctx: Context, config: Config) {
           const platform = session.platform || '未知'
           ctx.logger.info('屏蔽消息 - 用户:%s 频道:%s 群组:%s 平台:%s 内容:"%s"',
             userId, channelId, guildId, platform, messageContent)
+
+          // 添加到日志
+          addLog({
+            timestamp: Date.now(),
+            type: 'message',
+            userId,
+            channelId,
+            guildId,
+            platform,
+            content: messageContent,
+            reason: '匹配过滤规则'
+          })
         }
 
         // 清空消息内容，让后续插件无法获取实际内容
@@ -216,7 +284,7 @@ export function apply(ctx: Context, config: Config) {
   const startReregisterLoop = () => {
     // 立即注册一次
     registerMiddleware()
-    ctx.logger.info('黑白名单过滤中间件已注册，开始轮询重新注册（间隔 %d ms）', config.reregisterInterval)
+    ctx.logger.info('关键词屏蔽中间件已注册，开始轮询重新注册（间隔 %d ms）', config.reregisterInterval)
 
     // 设置定时器，不断重新注册
     reregisterTimer = setInterval(() => {
@@ -249,6 +317,18 @@ export function apply(ctx: Context, config: Config) {
       if (shouldBlock) {
         if (config.logBlocked) {
           ctx.logger.info('屏蔽指令 - 用户:%s 指令:%s', userId, commandName)
+
+          // 添加到日志
+          addLog({
+            timestamp: Date.now(),
+            type: 'command',
+            userId,
+            channelId: session.channelId,
+            guildId: session.guildId,
+            platform: session.platform,
+            content: commandName,
+            reason: '匹配指令过滤规则'
+          })
         }
 
         if (config.replyNoPermission) {
@@ -263,15 +343,130 @@ export function apply(ctx: Context, config: Config) {
     ctx.logger.info('指令级过滤钩子已注册')
   }
 
+  // HTTP API 路由
+  ctx.console.addEntry({
+    dev: resolve(__dirname, '../client/index.ts'),
+    prod: resolve(__dirname, '../dist'),
+  })
+
+  // 获取配置
+  ctx.console.addListener('keyword-blocker/config', () => {
+    return {
+      filterMode: config.filterMode,
+      blacklist: config.blacklist || [],
+      whitelist: config.whitelist || [],
+      enableCommandFilter: config.enableCommandFilter,
+      commandFilterMode: config.commandFilterMode,
+      commandBlacklist: config.commandBlacklist || [],
+      commandWhitelist: config.commandWhitelist || [],
+      reregisterInterval: config.reregisterInterval,
+      logBlocked: config.logBlocked,
+      replyNoPermission: config.replyNoPermission
+    }
+  })
+
+  // 更新配置
+  ctx.console.addListener('keyword-blocker/update-config', (newConfig) => {
+    try {
+      // 更新配置
+      Object.assign(config, newConfig)
+
+      // 重新启动中间件
+      if (reregisterTimer) {
+        clearInterval(reregisterTimer)
+      }
+      startReregisterLoop()
+
+      return { success: true, message: '配置已更新' }
+    } catch (error) {
+      ctx.logger.error('更新配置失败:', error)
+      return { success: false, message: error.message }
+    }
+  })
+
+  // 获取已注册指令列表
+  ctx.console.addListener('keyword-blocker/commands', () => {
+    const commands: string[] = []
+    ctx.root.$commander._commandList.forEach((cmd) => {
+      commands.push(cmd.name)
+    })
+    return { commands }
+  })
+
+  // 获取日志
+  ctx.console.addListener('keyword-blocker/logs', ({ page = 1, limit = 20, type, userId }) => {
+    let filteredLogs = blockLogs
+
+    if (type) {
+      filteredLogs = filteredLogs.filter(log => log.type === type)
+    }
+
+    if (userId) {
+      filteredLogs = filteredLogs.filter(log => log.userId === userId)
+    }
+
+    const start = (page - 1) * limit
+    const end = start + limit
+    const paginatedLogs = filteredLogs.slice(start, end)
+
+    return {
+      total: filteredLogs.length,
+      logs: paginatedLogs
+    }
+  })
+
+  // 清空日志
+  ctx.console.addListener('keyword-blocker/clear-logs', () => {
+    blockLogs.length = 0
+    return { success: true }
+  })
+
+  // 获取统计信息
+  ctx.console.addListener('keyword-blocker/stats', () => {
+    const now = Date.now()
+    const oneDayAgo = now - 24 * 60 * 60 * 1000
+
+    const todayLogs = blockLogs.filter(log => log.timestamp >= oneDayAgo)
+    const messageLogs = todayLogs.filter(log => log.type === 'message')
+    const commandLogs = todayLogs.filter(log => log.type === 'command')
+
+    // 统计最活跃的被屏蔽用户
+    const userCounts = new Map<string, number>()
+    todayLogs.forEach(log => {
+      userCounts.set(log.userId, (userCounts.get(log.userId) || 0) + 1)
+    })
+    const topUsers = Array.from(userCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([userId, count]) => ({ userId, count }))
+
+    // 统计最常被屏蔽的指令
+    const commandCounts = new Map<string, number>()
+    commandLogs.forEach(log => {
+      commandCounts.set(log.content, (commandCounts.get(log.content) || 0) + 1)
+    })
+    const topCommands = Array.from(commandCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([command, count]) => ({ command, count }))
+
+    return {
+      todayMessageCount: messageLogs.length,
+      todayCommandCount: commandLogs.length,
+      topUsers,
+      topCommands
+    }
+  })
+
   // 加载插件组内的插件（如果有的话）
   const parentConfig = ctx.scope.parent.config
-  const disabled = Object.keys(parentConfig).filter(key => key.startsWith('~') && !key.startsWith('~isolate:'))
+  const disabled = Object.keys(parentConfig).filter(key => key.startsWith('~') && !key.startsWith('~keyword-blocker:'))
 
   if (disabled.length > 0) {
     ctx.logger.info('检测到 %d 个插件组内的插件', disabled.length)
 
     // 创建隔离上下文用于加载插件
-    const isolateCtx = ctx.isolate('blacklist-isolate')
+    const isolateCtx = ctx.isolate('keyword-blocker-isolate')
     isolateCtx.scope[kRecord] = Object.create(null)
 
     // 在隔离上下文中加载插件
@@ -310,7 +505,7 @@ export function apply(ctx: Context, config: Config) {
       currentDispose = null
     }
 
-    ctx.logger.info('黑白名单过滤插件已禁用，轮询已停止，中间件已注销')
+    ctx.logger.info('关键词屏蔽插件已禁用，轮询已停止，中间件已注销')
   })
 }
 
