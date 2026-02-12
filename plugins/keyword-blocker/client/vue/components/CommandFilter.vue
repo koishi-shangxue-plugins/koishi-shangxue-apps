@@ -73,7 +73,7 @@
           <!-- 分页 -->
           <el-pagination v-if="filteredRules.length > pageSize" v-model:current-page="currentPage" :page-size="pageSize"
             :total="filteredRules.length" layout="total, prev, pager, next"
-            style="margin-top: 16px; justify-content: center" />
+            style="margin-top: 16px; display: flex; justify-content: center;" />
         </div>
       </div>
     </div>

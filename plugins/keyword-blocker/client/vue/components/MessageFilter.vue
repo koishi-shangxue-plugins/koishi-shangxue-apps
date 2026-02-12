@@ -23,7 +23,7 @@
         <el-input v-model="searchText" placeholder="搜索过滤值或原因" :prefix-icon="Search" clearable style="width: 300px" />
       </div>
 
-      <el-table :data="paginatedRules" style="width: 100%" empty-text="暂无规则" :max-height="500">
+      <el-table :data="paginatedRules" style="width: 100%" empty-text="暂无规则">
         <el-table-column label="类型" width="100" sortable :sort-method="sortByType">
           <template #default="{ row }">
             <el-tag :type="getTypeTagType(row.type)">{{ getTypeLabel(row.type) }}</el-tag>
@@ -42,7 +42,7 @@
       <!-- 分页 -->
       <el-pagination v-if="filteredRules.length > pageSize" v-model:current-page="currentPage" :page-size="pageSize"
         :total="filteredRules.length" layout="total, prev, pager, next"
-        style="margin-top: 16px; justify-content: center" />
+        style="margin-top: 16px; display: flex; justify-content: center;" />
     </div>
 
     <!-- 添加/编辑规则对话框 -->

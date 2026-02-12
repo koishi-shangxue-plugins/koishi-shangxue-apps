@@ -1,5 +1,5 @@
 <template>
-  <k-layout>
+  <div class="keyword-blocker-wrapper">
     <div class="keyword-blocker-container">
       <!-- Tab 切换 -->
       <el-tabs v-model="activeTab" class="tabs">
@@ -11,7 +11,7 @@
         </el-tab-pane>
       </el-tabs>
     </div>
-  </k-layout>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -72,6 +72,13 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+.keyword-blocker-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .keyword-blocker-container {
   padding: 20px;
   max-width: 1400px;
