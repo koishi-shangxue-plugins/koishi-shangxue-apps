@@ -30,9 +30,11 @@ interface FilterRule {
 }
 
 interface CommandRule {
-  userId: string
+  type: 'userId' | 'channelId' | 'guildId' | 'platform'
+  value: string
   commands: string[]
   reason?: string
+  replyNoPermission?: boolean
 }
 
 // WebUI 配置（存储在本地文件）
@@ -44,7 +46,6 @@ interface WebUIConfig {
   commandFilterMode: 'blacklist' | 'whitelist'
   commandBlacklist: CommandRule[]
   commandWhitelist: CommandRule[]
-  replyNoPermission: boolean
 }
 
 // Koishi 配置项（仅基础配置）
@@ -93,10 +94,15 @@ function getAllCommands(ctx: Context): string[] {
 }
 
 // 判断是否应该过滤指令
-function shouldFilterCommand(userId: string, commandName: string, webConfig: WebUIConfig): boolean {
+function shouldFilterCommand(session: any, commandName: string, webConfig: WebUIConfig): { shouldBlock: boolean; replyNoPermission: boolean } {
   if (!webConfig.enableCommandFilter) {
-    return false
+    return { shouldBlock: false, replyNoPermission: false }
   }
+
+  const userId = session.userId || session.event?.user?.id
+  const channelId = session.channelId || session.event?.channel?.id
+  const guildId = session.guildId || session.event?.guild?.id
+  const platform = session.platform
 
   // 通配符匹配函数
   const matchPattern = (pattern: string, text: string): boolean => {
@@ -107,31 +113,59 @@ function shouldFilterCommand(userId: string, commandName: string, webConfig: Web
     return regex.test(text)
   }
 
+  // 检查规则是否匹配
+  const matchesRule = (rule: CommandRule): boolean => {
+    switch (rule.type) {
+      case 'userId':
+        return userId && rule.value === userId
+      case 'channelId':
+        return channelId && rule.value === channelId
+      case 'guildId':
+        return guildId && rule.value === guildId
+      case 'platform':
+        return platform && rule.value === platform
+      default:
+        return false
+    }
+  }
+
   if (webConfig.commandFilterMode === 'blacklist') {
-    // 黑名单模式：如果用户在黑名单中且指令匹配，则屏蔽
-    return webConfig.commandBlacklist.some(rule => {
-      if (rule.userId !== userId) {
+    // 黑名单模式：如果匹配黑名单中的规则且指令匹配，则屏蔽
+    const matchedRule = webConfig.commandBlacklist.find(rule => {
+      if (!matchesRule(rule)) {
         return false
       }
       return rule.commands.some(pattern => matchPattern(pattern, commandName))
     })
+
+    if (matchedRule) {
+      return {
+        shouldBlock: true,
+        replyNoPermission: matchedRule.replyNoPermission !== undefined ? matchedRule.replyNoPermission : true
+      }
+    }
   }
 
   if (webConfig.commandFilterMode === 'whitelist') {
-    // 白名单模式：如果用户不在白名单中或指令不匹配，则屏蔽
-    const userRule = webConfig.commandWhitelist.find(rule => rule.userId === userId)
+    // 白名单模式：如果不匹配白名单中的规则或指令不匹配，则屏蔽
+    const matchedRule = webConfig.commandWhitelist.find(rule => matchesRule(rule))
 
-    if (!userRule) {
-      // 用户不在白名单中，屏蔽所有指令
-      return true
+    if (!matchedRule) {
+      // 不在白名单中，屏蔽所有指令
+      return { shouldBlock: true, replyNoPermission: true }
     }
 
-    // 用户在白名单中，检查指令是否匹配
-    const isAllowed = userRule.commands.some(pattern => matchPattern(pattern, commandName))
-    return !isAllowed
+    // 在白名单中，检查指令是否匹配
+    const isAllowed = matchedRule.commands.some(pattern => matchPattern(pattern, commandName))
+    if (!isAllowed) {
+      return {
+        shouldBlock: true,
+        replyNoPermission: matchedRule.replyNoPermission !== undefined ? matchedRule.replyNoPermission : true
+      }
+    }
   }
 
-  return false
+  return { shouldBlock: false, replyNoPermission: false }
 }
 
 // 判断是否应该过滤 session
@@ -201,8 +235,7 @@ export function apply(ctx: Context, config: Config) {
     enableCommandFilter: false,
     commandFilterMode: 'blacklist',
     commandBlacklist: [],
-    commandWhitelist: [],
-    replyNoPermission: true
+    commandWhitelist: []
   }
 
   // WebUI 配置（从文件加载）
@@ -313,20 +346,16 @@ export function apply(ctx: Context, config: Config) {
       return
     }
 
-    const userId = session.userId || session.event?.user?.id
-    if (!userId) {
-      return
-    }
-
     const commandName = command.name
-    const shouldBlock = shouldFilterCommand(userId, commandName, webConfig)
+    const { shouldBlock, replyNoPermission } = shouldFilterCommand(session, commandName, webConfig)
 
     if (shouldBlock) {
       if (config.logBlocked) {
+        const userId = session.userId || session.event?.user?.id || '未知'
         ctx.logger.info('屏蔽指令 - 用户:%s 指令:%s', userId, commandName)
       }
 
-      if (webConfig.replyNoPermission) {
+      if (replyNoPermission) {
         return '你没有权限使用此指令'
       }
 

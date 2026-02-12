@@ -16,6 +16,11 @@
         <el-input v-model="searchText" placeholder="搜索过滤值或原因" :prefix-icon="Search" style="width: 300px" clearable />
       </div>
 
+      <!-- 添加规则按钮 -->
+      <el-button type="primary" :icon="Plus" @click="showAddDialog = true" style="margin-bottom: 16px">
+        添加规则
+      </el-button>
+
       <el-table :data="filteredRules" style="width: 100%" :empty-text="emptyText">
         <el-table-column type="index" label="序号" width="60" />
         <el-table-column prop="type" label="过滤类型" width="150">
@@ -26,7 +31,7 @@
         <el-table-column prop="value" label="过滤值" min-width="200" />
         <el-table-column prop="reason" label="过滤原因" min-width="200">
           <template #default="{ row }">
-            <span style="color: #909399">{{ row.reason || '-' }}</span>
+            <span style="color: var(--fg1)">{{ row.reason || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">
@@ -42,9 +47,6 @@
         :page-sizes="[10, 20, 50]" :total="currentRules.length" layout="total, sizes, prev, pager, next, jumper"
         style="margin-top: 16px; justify-content: flex-end" />
     </div>
-
-    <!-- 添加规则按钮 -->
-    <el-button type="primary" :icon="Plus" circle size="large" class="add-button" @click="showAddDialog = true" />
 
     <!-- 添加/编辑规则对话框 -->
     <el-dialog v-model="showAddDialog" :title="editingIndex === -1 ? '添加规则' : '编辑规则'" width="500px">
@@ -132,7 +134,7 @@ const modeDescription = computed(() => {
 
 // 空状态文本
 const emptyText = computed(() => {
-  return searchText.value ? '没有找到匹配的规则' : '暂无规则，点击右下角按钮添加'
+  return searchText.value ? '没有找到匹配的规则' : '暂无规则，点击上方按钮添加'
 })
 
 // 获取类型标签颜色
@@ -254,13 +256,6 @@ watch(showAddDialog, (val) => {
         color: var(--fg0);
       }
     }
-  }
-
-  .add-button {
-    position: fixed;
-    right: 40px;
-    bottom: 40px;
-    z-index: 100;
   }
 }
 </style>

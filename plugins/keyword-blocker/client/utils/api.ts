@@ -7,9 +7,11 @@ export interface FilterRule {
 }
 
 export interface CommandRule {
-  userId: string
+  type: 'userId' | 'channelId' | 'guildId' | 'platform'
+  value: string
   commands: string[]
   reason?: string
+  replyNoPermission?: boolean
 }
 
 export interface WebUIConfig {
@@ -20,7 +22,6 @@ export interface WebUIConfig {
   commandFilterMode: 'blacklist' | 'whitelist'
   commandBlacklist: CommandRule[]
   commandWhitelist: CommandRule[]
-  replyNoPermission: boolean
 }
 
 // 获取配置

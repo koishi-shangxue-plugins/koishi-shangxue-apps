@@ -15,12 +15,17 @@
         <el-alert :title="modeDescription" type="info" :closable="false" show-icon style="margin-top: 12px" />
       </div>
 
-      <!-- 用户规则列表 -->
+      <!-- 规则列表 -->
       <div class="rules-section">
         <div class="section-header">
-          <h3>用户规则列表</h3>
-          <el-input v-model="searchText" placeholder="搜索用户 ID" :prefix-icon="Search" style="width: 300px" clearable />
+          <h3>规则列表</h3>
+          <el-input v-model="searchText" placeholder="搜索过滤值" :prefix-icon="Search" style="width: 300px" clearable />
         </div>
+
+        <!-- 添加按钮 -->
+        <el-button type="primary" :icon="Plus" @click="showAddDialog = true" style="margin-bottom: 16px">
+          添加规则
+        </el-button>
 
         <div v-if="filteredRules.length === 0" class="empty-state">
           <el-empty :description="emptyText" />
@@ -29,8 +34,11 @@
         <div v-else class="rules-cards">
           <el-card v-for="(rule, index) in filteredRules" :key="index" class="rule-card" shadow="hover">
             <div class="card-header">
-              <div class="user-info">
-                <div class="user-id">{{ rule.userId }}</div>
+              <div class="rule-info">
+                <div class="rule-type-value">
+                  <el-tag :type="getTypeTagType(rule.type)" size="large">{{ getTypeLabel(rule.type) }}</el-tag>
+                  <span class="value">{{ rule.value }}</span>
+                </div>
                 <div v-if="rule.reason" class="reason">{{ rule.reason }}</div>
               </div>
               <div class="card-actions">
@@ -52,6 +60,11 @@
               <el-alert v-if="rule.commands.some(c => c.includes('*'))" title="使用了通配符：* 匹配所有指令，admin.* 匹配所有 admin 开头的指令"
                 type="info" :closable="false" style="margin-top: 8px" />
             </div>
+            <div class="permission-section">
+              <el-checkbox v-model="rule.replyNoPermission">
+                当用户无权限时回复提示消息
+              </el-checkbox>
+            </div>
           </el-card>
         </div>
       </div>
@@ -61,15 +74,19 @@
       <el-empty description="请先启用指令级权限控制" />
     </div>
 
-    <!-- 添加规则按钮 -->
-    <el-button v-if="localConfig.enableCommandFilter" type="primary" :icon="Plus" circle size="large" class="add-button"
-      @click="showAddDialog = true" />
-
-    <!-- 添加/编辑用户规则对话框 -->
-    <el-dialog v-model="showAddDialog" :title="editingIndex === -1 ? '添加用户规则' : '编辑用户规则'" width="600px">
+    <!-- 添加/编辑规则对话框 -->
+    <el-dialog v-model="showAddDialog" :title="editingIndex === -1 ? '添加规则' : '编辑规则'" width="600px">
       <el-form :model="editingRule" label-width="100px">
-        <el-form-item label="用户 ID" required>
-          <el-input v-model="editingRule.userId" placeholder="请输入用户 ID" />
+        <el-form-item label="过滤类型" required>
+          <el-select v-model="editingRule.type" placeholder="请选择过滤类型" style="width: 100%">
+            <el-option label="用户 ID" value="userId" />
+            <el-option label="频道 ID" value="channelId" />
+            <el-option label="群组 ID" value="guildId" />
+            <el-option label="平台名称" value="platform" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="过滤值" required>
+          <el-input v-model="editingRule.value" :placeholder="getValuePlaceholder(editingRule.type)" />
         </el-form-item>
         <el-form-item label="指令列表" required>
           <div style="width: 100%">
@@ -77,19 +94,24 @@
               @close="editingRule.commands.splice(index, 1)" style="margin: 4px">
               {{ cmd }}
             </el-tag>
-            <el-input v-model="newCommand" placeholder="输入指令后按回车添加" style="width: 200px; margin-top: 8px"
+            <el-input v-model="newCommand" placeholder="输入指令名称后按回车" style="width: 100%; margin-top: 8px"
               @keyup.enter="addCommandToEditing">
               <template #append>
                 <el-button @click="addCommandToEditing">添加</el-button>
               </template>
             </el-input>
             <div style="margin-top: 8px">
-              <el-button link @click="showCommandSelector = true">从已注册指令中选择</el-button>
+              <el-button link @click="openCommandSelector">从已注册指令中选择</el-button>
             </div>
           </div>
         </el-form-item>
         <el-form-item label="限制原因">
           <el-input v-model="editingRule.reason" type="textarea" :rows="3" placeholder="请输入限制原因（可选）" />
+        </el-form-item>
+        <el-form-item label="权限提示">
+          <el-checkbox v-model="editingRule.replyNoPermission">
+            当用户无权限时回复提示消息
+          </el-checkbox>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -100,20 +122,22 @@
 
     <!-- 添加指令对话框 -->
     <el-dialog v-model="showAddCommandToRuleDialog" title="添加指令" width="400px">
-      <el-input v-model="newCommandForRule" placeholder="输入指令后按回车添加" @keyup.enter="confirmAddCommandToRule">
+      <el-input v-model="newCommandForRule" placeholder="输入指令名称后按回车" @keyup.enter="confirmAddCommandToRule">
         <template #append>
           <el-button @click="confirmAddCommandToRule">添加</el-button>
         </template>
       </el-input>
       <div style="margin-top: 12px">
-        <el-button link @click="showCommandSelector = true">从已注册指令中选择</el-button>
+        <el-button link @click="openCommandSelector">从已注册指令中选择</el-button>
       </div>
     </el-dialog>
 
     <!-- 指令选择器对话框 -->
     <el-dialog v-model="showCommandSelector" title="选择指令" width="600px">
-      <el-input v-model="commandSearchText" placeholder="搜索指令" :prefix-icon="Search" style="margin-bottom: 16px"
-        clearable />
+      <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
+        <el-checkbox v-model="selectAll" @change="handleSelectAllChange">全选</el-checkbox>
+        <el-input v-model="commandSearchText" placeholder="搜索指令" :prefix-icon="Search" style="flex: 1" clearable />
+      </div>
       <el-checkbox-group v-model="selectedCommands" style="max-height: 400px; overflow-y: auto">
         <div v-for="cmd in filteredCommands" :key="cmd" style="margin: 8px 0">
           <el-checkbox :value="cmd">{{ cmd }}</el-checkbox>
@@ -151,9 +175,11 @@ const searchText = ref('')
 const showAddDialog = ref(false)
 const editingIndex = ref(-1)
 const editingRule = ref<CommandRule>({
-  userId: '',
+  type: 'userId',
+  value: '',
   commands: [],
-  reason: ''
+  reason: '',
+  replyNoPermission: false
 })
 const newCommand = ref('')
 const showAddCommandToRuleDialog = ref(false)
@@ -161,6 +187,7 @@ const addingCommandToIndex = ref(-1)
 const newCommandForRule = ref('')
 const showCommandSelector = ref(false)
 const selectedCommands = ref<string[]>([])
+const selectAll = ref(false)
 const commandSearchText = ref('')
 const availableCommands = ref<string[]>([])
 
@@ -176,7 +203,7 @@ const filteredRules = computed(() => {
   let rules = currentRules.value
   if (searchText.value) {
     const search = searchText.value.toLowerCase()
-    rules = rules.filter(rule => rule.userId.toLowerCase().includes(search))
+    rules = rules.filter(rule => rule.value.toLowerCase().includes(search))
   }
   return rules
 })
@@ -193,14 +220,56 @@ const filteredCommands = computed(() => {
 // 模式描述
 const modeDescription = computed(() => {
   return localConfig.value.commandFilterMode === 'blacklist'
-    ? '黑名单模式：禁止指定用户使用指定指令'
-    : '白名单模式：只允许指定用户使用指定指令'
+    ? '黑名单模式：禁止指定对象使用指定指令'
+    : '白名单模式：只允许指定对象使用指定指令'
 })
 
 // 空状态文本
 const emptyText = computed(() => {
-  return searchText.value ? '没有找到匹配的用户规则' : '暂无用户规则，点击右下角按钮添加'
+  return searchText.value ? '没有找到匹配的规则' : '暂无规则'
 })
+
+// 获取类型标签类型
+const getTypeTagType = (type: string) => {
+  const typeMap: Record<string, any> = {
+    userId: 'primary',
+    channelId: 'success',
+    guildId: 'warning',
+    platform: 'info'
+  }
+  return typeMap[type] || 'info'
+}
+
+// 获取类型标签文本
+const getTypeLabel = (type: string) => {
+  const labelMap: Record<string, string> = {
+    userId: '用户',
+    channelId: '频道',
+    guildId: '群组',
+    platform: '平台'
+  }
+  return labelMap[type] || type
+}
+
+// 获取输入框占位符
+const getValuePlaceholder = (type: string) => {
+  const placeholderMap: Record<string, string> = {
+    userId: '请输入用户 ID',
+    channelId: '请输入频道 ID',
+    guildId: '请输入群组 ID',
+    platform: '请输入平台名称（如：onebot）'
+  }
+  return placeholderMap[type] || '请输入过滤值'
+}
+
+// 检查是否与消息级过滤冲突
+const checkConflictWithMessageFilter = (type: string, value: string): boolean => {
+  const messageFilters = localConfig.value.filterMode === 'blacklist'
+    ? localConfig.value.blacklist
+    : localConfig.value.whitelist
+
+  return messageFilters.some(filter => filter.type === type && filter.value === value)
+}
 
 // 加载已注册指令
 const loadCommands = async () => {
@@ -212,16 +281,50 @@ const loadCommands = async () => {
   }
 }
 
+// 打开指令选择器
+const openCommandSelector = () => {
+  selectedCommands.value = []
+  selectAll.value = false
+  showCommandSelector.value = true
+}
+
+// 处理全选变化
+const handleSelectAllChange = (checked: boolean) => {
+  if (checked) {
+    selectedCommands.value = [...filteredCommands.value]
+  } else {
+    selectedCommands.value = []
+  }
+}
+
+// 监听选中的指令变化，更新全选状态
+watch(selectedCommands, (newVal) => {
+  if (newVal.length === 0) {
+    selectAll.value = false
+  } else if (newVal.length === filteredCommands.value.length) {
+    selectAll.value = true
+  } else {
+    selectAll.value = false
+  }
+})
+
 // 编辑规则
 const editRule = (index: number) => {
   editingIndex.value = index
-  editingRule.value = { ...currentRules.value[index] }
+  const rule = currentRules.value[index]
+  editingRule.value = {
+    type: rule.type,
+    value: rule.value,
+    commands: [...rule.commands],
+    reason: rule.reason || '',
+    replyNoPermission: rule.replyNoPermission || false
+  }
   showAddDialog.value = true
 }
 
 // 删除规则
 const deleteRule = (index: number) => {
-  ElMessageBox.confirm('确定要删除这条用户规则吗？', '确认删除', {
+  ElMessageBox.confirm('确定要删除这条规则吗？', '确认删除', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
@@ -273,14 +376,59 @@ const addCommandToEditing = () => {
 }
 
 // 确认编辑
-const confirmEdit = () => {
-  if (!editingRule.value.userId) {
-    ElMessage.warning('请输入用户 ID')
+const confirmEdit = async () => {
+  if (!editingRule.value.type) {
+    ElMessage.warning('请选择过滤类型')
+    return
+  }
+  if (!editingRule.value.value.trim()) {
+    ElMessage.warning('请输入过滤值')
     return
   }
   if (editingRule.value.commands.length === 0) {
     ElMessage.warning('请至少添加一个指令')
     return
+  }
+
+  // 检查冲突（仅在添加新规则时检查）
+  if (editingIndex.value === -1) {
+    const hasConflict = checkConflictWithMessageFilter(editingRule.value.type, editingRule.value.value)
+    if (hasConflict) {
+      try {
+        await ElMessageBox.confirm(
+          `此${getTypeLabel(editingRule.value.type)}已经在【消息级过滤】中，是否删除原有记录？`,
+          '检测到冲突',
+          {
+            confirmButtonText: '删除并继续',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+
+        // 删除消息级过滤中的冲突记录
+        const newConfig = { ...localConfig.value }
+        const messageFilters = newConfig.filterMode === 'blacklist'
+          ? newConfig.blacklist
+          : newConfig.whitelist
+
+        const conflictIndex = messageFilters.findIndex(
+          filter => filter.type === editingRule.value.type && filter.value === editingRule.value.value
+        )
+
+        if (conflictIndex !== -1) {
+          messageFilters.splice(conflictIndex, 1)
+          if (newConfig.filterMode === 'blacklist') {
+            newConfig.blacklist = messageFilters
+          } else {
+            newConfig.whitelist = messageFilters
+          }
+          emit('update:modelValue', newConfig)
+        }
+      } catch {
+        // 用户取消
+        return
+      }
+    }
   }
 
   const rules = [...currentRules.value]
@@ -301,18 +449,28 @@ const confirmEdit = () => {
 
 // 确认选择指令
 const confirmSelectCommands = () => {
+  if (selectedCommands.value.length === 0) {
+    ElMessage.warning('请至少选择一个指令')
+    return
+  }
+
   if (showAddCommandToRuleDialog.value) {
     // 添加到现有规则
     const rules = [...currentRules.value]
-    rules[addingCommandToIndex.value].commands.push(...selectedCommands.value)
+    const existingCommands = new Set(rules[addingCommandToIndex.value].commands)
+    const newCommands = selectedCommands.value.filter(cmd => !existingCommands.has(cmd))
+    rules[addingCommandToIndex.value].commands.push(...newCommands)
     updateRules(rules)
     showAddCommandToRuleDialog.value = false
   } else {
     // 添加到编辑中的规则
-    editingRule.value.commands.push(...selectedCommands.value)
+    const existingCommands = new Set(editingRule.value.commands)
+    const newCommands = selectedCommands.value.filter(cmd => !existingCommands.has(cmd))
+    editingRule.value.commands.push(...newCommands)
   }
   showCommandSelector.value = false
   selectedCommands.value = []
+  selectAll.value = false
   ElMessage.success('添加成功')
 }
 
@@ -331,9 +489,11 @@ const updateRules = (rules: CommandRule[]) => {
 const resetEditingRule = () => {
   editingIndex.value = -1
   editingRule.value = {
-    userId: '',
+    type: 'userId',
+    value: '',
     commands: [],
-    reason: ''
+    reason: '',
+    replyNoPermission: false
   }
   newCommand.value = ''
 }
@@ -387,14 +547,20 @@ onMounted(() => {
             align-items: flex-start;
             margin-bottom: 16px;
 
-            .user-info {
+            .rule-info {
               flex: 1;
 
-              .user-id {
-                font-size: 18px;
-                font-weight: 600;
-                margin-bottom: 4px;
-                color: var(--fg0);
+              .rule-type-value {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 8px;
+
+                .value {
+                  font-size: 16px;
+                  font-weight: 600;
+                  color: var(--fg0);
+                }
               }
 
               .reason {
@@ -410,6 +576,8 @@ onMounted(() => {
           }
 
           .commands-section {
+            margin-bottom: 12px;
+
             .commands-label {
               font-size: 14px;
               font-weight: 500;
@@ -423,6 +591,12 @@ onMounted(() => {
               align-items: center;
             }
           }
+
+          .permission-section {
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            color: var(--fg1);
+          }
         }
       }
     }
@@ -430,13 +604,6 @@ onMounted(() => {
 
   .disabled-hint {
     padding: 40px 0;
-  }
-
-  .add-button {
-    position: fixed;
-    right: 40px;
-    bottom: 40px;
-    z-index: 100;
   }
 }
 </style>
