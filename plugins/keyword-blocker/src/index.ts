@@ -21,18 +21,6 @@ declare module 'koishi' {
   }
 }
 
-// 声明 Console 事件类型
-declare module '@koishijs/plugin-console' {
-  interface Events {
-    'keyword-blocker/config'(): Config
-    'keyword-blocker/update-config'(config: Partial<Config>): { success: boolean; message: string }
-    'keyword-blocker/commands'(): { commands: string[] }
-    'keyword-blocker/logs'(params: { page?: number; limit?: number; type?: 'message' | 'command'; userId?: string }): { total: number; logs: BlockLog[] }
-    'keyword-blocker/clear-logs'(): { success: boolean }
-    'keyword-blocker/stats'(): Stats
-  }
-}
-
 interface FilterRule {
   type: 'userId' | 'channelId' | 'guildId' | 'platform'
   value: string
@@ -63,103 +51,48 @@ interface Stats {
   topCommands: Array<{ command: string; count: number }>
 }
 
-export interface Config {
+// WebUI 配置（存储在内存中，通过 WebUI 管理）
+interface WebUIConfig {
   filterMode: 'blacklist' | 'whitelist'
-  blacklist?: FilterRule[]
-  whitelist?: FilterRule[]
-  logBlocked: boolean
-  reregisterInterval: number
+  blacklist: FilterRule[]
+  whitelist: FilterRule[]
   enableCommandFilter: boolean
-  commandFilterMode?: 'blacklist' | 'whitelist'
-  commandBlacklist?: CommandRule[]
-  commandWhitelist?: CommandRule[]
-  replyNoPermission?: boolean
+  commandFilterMode: 'blacklist' | 'whitelist'
+  commandBlacklist: CommandRule[]
+  commandWhitelist: CommandRule[]
+  replyNoPermission: boolean
 }
 
-export const Config: Schema<Config> = Schema.intersect([
-  Schema.object({
-    reregisterInterval: Schema.number().description('重新注册中间件的间隔时间（毫秒）。越小优先级越稳定，但性能开销越大。')
-      .default(100).min(50).max(5000),
-  }).description('基础配置'),
+// Koishi 配置项（仅基础配置）
+export interface Config {
+  reregisterInterval: number
+  logBlocked: boolean
+}
 
-  Schema.object({
-    filterMode: Schema.union(['blacklist', 'whitelist']).description('消息过滤模式').default('blacklist'),
-  }).description('消息级过滤'),
-  Schema.union([
-    Schema.object({
-      filterMode: Schema.const('blacklist'),
-      blacklist: Schema.array(Schema.object({
-        type: Schema.union([
-          Schema.const('userId').description('用户 ID'),
-          Schema.const('channelId').description('频道 ID'),
-          Schema.const('guildId').description('群组 ID'),
-          Schema.const('platform').description('平台名称'),
-        ]).description('过滤类型').role('radio').default('userId'),
-        value: Schema.string().description('过滤值').required(),
-        reason: Schema.string().description('过滤原因（备注）'),
-      })).role('table').description('消息黑名单规则').default([]),
-    }),
-    Schema.object({
-      filterMode: Schema.const('whitelist').required(),
-      whitelist: Schema.array(Schema.object({
-        type: Schema.union([
-          Schema.const('userId').description('用户 ID'),
-          Schema.const('channelId').description('频道 ID'),
-          Schema.const('guildId').description('群组 ID'),
-          Schema.const('platform').description('平台名称'),
-        ]).description('过滤类型').role('radio').default('userId'),
-        value: Schema.string().description('过滤值').required(),
-        reason: Schema.string().description('过滤原因（备注）'),
-      })).role('table').description('消息白名单规则').default([]),
-    }),
-  ]),
+export const Config: Schema<Config> = Schema.object({
+  reregisterInterval: Schema.number()
+    .description('重新注册中间件的间隔时间（毫秒）。越小优先级越稳定，但性能开销越大。')
+    .default(100).min(50).max(5000),
+  logBlocked: Schema.boolean()
+    .description('记录被屏蔽的消息和指令')
+    .default(false),
+})
 
-  Schema.object({
-    enableCommandFilter: Schema.boolean().description('启用指令级权限控制').default(false),
-  }).description('指令级过滤'),
-  Schema.union([
-    Schema.object({
-      enableCommandFilter: Schema.const(false).required(),
-    }),
-    Schema.intersect([
-      Schema.object({
-        enableCommandFilter: Schema.const(true).required(),
-        commandFilterMode: Schema.union(['blacklist', 'whitelist']).description('指令过滤模式').default('blacklist'),
-        replyNoPermission: Schema.boolean().description('回复"你没有权限使用此指令"').default(true),
-      }),
-      Schema.union([
-        Schema.object({
-          commandFilterMode: Schema.const('blacklist'),
-          commandBlacklist: Schema.array(Schema.object({
-            userId: Schema.string().description('用户 ID').required(),
-            commands: Schema.array(Schema.string()).description('禁止使用的指令列表（支持通配符 *）').role('table').default([]),
-            reason: Schema.string().description('限制原因（备注）'),
-          })).role('table').description('指令黑名单规则').default([]),
-        }),
-        Schema.object({
-          commandFilterMode: Schema.const('whitelist'),
-          commandWhitelist: Schema.array(Schema.object({
-            userId: Schema.string().description('用户 ID').required(),
-            commands: Schema.array(Schema.string()).description('允许使用的指令列表（支持通配符 *）').role('table').default([]),
-            reason: Schema.string().description('限制原因（备注）'),
-          })).role('table').description('指令白名单规则').default([]),
-        }),
-      ]),
-    ]),
-  ]),
-
-  Schema.object({
-    logBlocked: Schema.boolean().description('记录被屏蔽的消息和指令').default(false),
-  }).description('调试设置'),
-])
-
-
-
-const kRecord = Symbol.for('koishi.loader.record')
+// 声明 Console 事件类型
+declare module '@koishijs/plugin-console' {
+  interface Events {
+    'keyword-blocker/config'(): WebUIConfig & { reregisterInterval: number; logBlocked: boolean }
+    'keyword-blocker/update-config'(config: Partial<WebUIConfig>): { success: boolean; message: string }
+    'keyword-blocker/commands'(): { commands: string[] }
+    'keyword-blocker/logs'(params: { page?: number; limit?: number; type?: 'message' | 'command'; userId?: string }): { total: number; logs: BlockLog[] }
+    'keyword-blocker/clear-logs'(): { success: boolean }
+    'keyword-blocker/stats'(): Stats
+  }
+}
 
 // 判断是否应该过滤指令
-function shouldFilterCommand(userId: string, commandName: string, config: Config): boolean {
-  if (!config.enableCommandFilter) {
+function shouldFilterCommand(userId: string, commandName: string, webConfig: WebUIConfig): boolean {
+  if (!webConfig.enableCommandFilter) {
     return false
   }
 
@@ -172,9 +105,9 @@ function shouldFilterCommand(userId: string, commandName: string, config: Config
     return regex.test(text)
   }
 
-  if (config.commandFilterMode === 'blacklist') {
+  if (webConfig.commandFilterMode === 'blacklist') {
     // 黑名单模式：如果用户在黑名单中且指令匹配，则屏蔽
-    return (config.commandBlacklist || []).some(rule => {
+    return webConfig.commandBlacklist.some(rule => {
       if (rule.userId !== userId) {
         return false
       }
@@ -182,9 +115,9 @@ function shouldFilterCommand(userId: string, commandName: string, config: Config
     })
   }
 
-  if (config.commandFilterMode === 'whitelist') {
+  if (webConfig.commandFilterMode === 'whitelist') {
     // 白名单模式：如果用户不在白名单中或指令不匹配，则屏蔽
-    const userRule = (config.commandWhitelist || []).find(rule => rule.userId === userId)
+    const userRule = webConfig.commandWhitelist.find(rule => rule.userId === userId)
 
     if (!userRule) {
       // 用户不在白名单中，屏蔽所有指令
@@ -199,15 +132,71 @@ function shouldFilterCommand(userId: string, commandName: string, config: Config
   return false
 }
 
+// 判断是否应该过滤 session
+function shouldFilterSession(session: any, webConfig: WebUIConfig): boolean {
+  const userId = session.userId || session.event?.user?.id
+  const channelId = session.channelId || session.event?.channel?.id
+  const guildId = session.guildId || session.event?.guild?.id
+  const platform = session.platform
+
+  if (webConfig.filterMode === 'blacklist') {
+    // 黑名单模式：如果匹配黑名单中的任何规则，则屏蔽
+    return webConfig.blacklist.some(rule => {
+      switch (rule.type) {
+        case 'userId':
+          return userId && rule.value === userId
+        case 'channelId':
+          return channelId && rule.value === channelId
+        case 'guildId':
+          return guildId && rule.value === guildId
+        case 'platform':
+          return platform && rule.value === platform
+        default:
+          return false
+      }
+    })
+  }
+
+  if (webConfig.filterMode === 'whitelist') {
+    // 白名单模式：如果不匹配白名单中的任何规则，则屏蔽
+    // 如果白名单为空，则屏蔽所有
+    if (webConfig.whitelist.length === 0) {
+      return true
+    }
+
+    return !webConfig.whitelist.some(rule => {
+      switch (rule.type) {
+        case 'userId':
+          return userId && rule.value === userId
+        case 'channelId':
+          return channelId && rule.value === channelId
+        case 'guildId':
+          return guildId && rule.value === guildId
+        case 'platform':
+          return platform && rule.value === platform
+        default:
+          return false
+      }
+    })
+  }
+
+  return false
+}
+
 export function apply(ctx: Context, config: Config) {
   ctx.logger.info('启用关键词屏蔽插件')
-  ctx.logger.info('消息过滤模式: %s，规则数: %d', config.filterMode,
-    config.filterMode === 'blacklist' ? (config.blacklist?.length ?? 0) : (config.whitelist?.length ?? 0))
   ctx.logger.info('中间件重新注册间隔: %d ms', config.reregisterInterval)
 
-  if (config.enableCommandFilter) {
-    ctx.logger.info('指令过滤已启用，模式: %s，规则数: %d', config.commandFilterMode,
-      config.commandFilterMode === 'blacklist' ? (config.commandBlacklist?.length ?? 0) : (config.commandWhitelist?.length ?? 0))
+  // WebUI 配置（存储在内存中，通过 WebUI 管理）
+  let webConfig: WebUIConfig = {
+    filterMode: 'blacklist',
+    blacklist: [],
+    whitelist: [],
+    enableCommandFilter: false,
+    commandFilterMode: 'blacklist',
+    commandBlacklist: [],
+    commandWhitelist: [],
+    replyNoPermission: true
   }
 
   // 日志存储
@@ -241,7 +230,7 @@ export function apply(ctx: Context, config: Config) {
       }
 
       // 黑白名单过滤逻辑
-      if (shouldFilterSession(session, config)) {
+      if (shouldFilterSession(session, webConfig)) {
         // 根据配置决定是否输出日志
         if (config.logBlocked) {
           const messageContent = session.content || session.elements?.map(e => e.toString()).join('') || '[无内容]'
@@ -298,50 +287,46 @@ export function apply(ctx: Context, config: Config) {
   startReregisterLoop()
 
   // 注册指令级过滤
-  if (config.enableCommandFilter) {
-    ctx.before('command/execute', (argv) => {
-      const { session, command } = argv
+  ctx.before('command/execute', (argv) => {
+    const { session, command } = argv
 
-      if (!session || !command) {
-        return
+    if (!session || !command) {
+      return
+    }
+
+    const userId = session.userId || session.event?.user?.id
+    if (!userId) {
+      return
+    }
+
+    const commandName = command.name
+    const shouldBlock = shouldFilterCommand(userId, commandName, webConfig)
+
+    if (shouldBlock) {
+      if (config.logBlocked) {
+        ctx.logger.info('屏蔽指令 - 用户:%s 指令:%s', userId, commandName)
+
+        // 添加到日志
+        addLog({
+          timestamp: Date.now(),
+          type: 'command',
+          userId,
+          channelId: session.channelId,
+          guildId: session.guildId,
+          platform: session.platform,
+          content: commandName,
+          reason: '匹配指令过滤规则'
+        })
       }
 
-      const userId = session.userId || session.event?.user?.id
-      if (!userId) {
-        return
+      if (webConfig.replyNoPermission) {
+        return '你没有权限使用此指令'
       }
 
-      const commandName = command.name
-      const shouldBlock = shouldFilterCommand(userId, commandName, config)
-
-      if (shouldBlock) {
-        if (config.logBlocked) {
-          ctx.logger.info('屏蔽指令 - 用户:%s 指令:%s', userId, commandName)
-
-          // 添加到日志
-          addLog({
-            timestamp: Date.now(),
-            type: 'command',
-            userId,
-            channelId: session.channelId,
-            guildId: session.guildId,
-            platform: session.platform,
-            content: commandName,
-            reason: '匹配指令过滤规则'
-          })
-        }
-
-        if (config.replyNoPermission) {
-          return '你没有权限使用此指令'
-        }
-
-        // 不回复消息，静默拦截
-        return ''
-      }
-    })
-
-    ctx.logger.info('指令级过滤钩子已注册')
-  }
+      // 不回复消息，静默拦截
+      return ''
+    }
+  })
 
   // HTTP API 路由
   ctx.console.addEntry({
@@ -352,30 +337,26 @@ export function apply(ctx: Context, config: Config) {
   // 获取配置
   ctx.console.addListener('keyword-blocker/config', () => {
     return {
-      filterMode: config.filterMode,
-      blacklist: config.blacklist || [],
-      whitelist: config.whitelist || [],
-      enableCommandFilter: config.enableCommandFilter,
-      commandFilterMode: config.commandFilterMode,
-      commandBlacklist: config.commandBlacklist || [],
-      commandWhitelist: config.commandWhitelist || [],
+      ...webConfig,
       reregisterInterval: config.reregisterInterval,
-      logBlocked: config.logBlocked,
-      replyNoPermission: config.replyNoPermission
+      logBlocked: config.logBlocked
     }
   })
 
   // 更新配置
   ctx.console.addListener('keyword-blocker/update-config', (newConfig) => {
     try {
-      // 更新配置
-      Object.assign(config, newConfig)
+      // 更新 WebUI 配置
+      Object.assign(webConfig, newConfig)
 
-      // 重新启动中间件
-      if (reregisterTimer) {
-        clearInterval(reregisterTimer)
+      ctx.logger.info('配置已更新')
+      ctx.logger.info('消息过滤模式: %s，规则数: %d', webConfig.filterMode,
+        webConfig.filterMode === 'blacklist' ? webConfig.blacklist.length : webConfig.whitelist.length)
+
+      if (webConfig.enableCommandFilter) {
+        ctx.logger.info('指令过滤已启用，模式: %s，规则数: %d', webConfig.commandFilterMode,
+          webConfig.commandFilterMode === 'blacklist' ? webConfig.commandBlacklist.length : webConfig.commandWhitelist.length)
       }
-      startReregisterLoop()
 
       return { success: true, message: '配置已更新' }
     } catch (error) {
@@ -458,37 +439,6 @@ export function apply(ctx: Context, config: Config) {
     }
   })
 
-  // 加载插件组内的插件（如果有的话）
-  const parentConfig = ctx.scope.parent.config
-  const disabled = Object.keys(parentConfig).filter(key => key.startsWith('~') && !key.startsWith('~keyword-blocker:'))
-
-  if (disabled.length > 0) {
-    ctx.logger.info('检测到 %d 个插件组内的插件', disabled.length)
-
-    // 创建隔离上下文用于加载插件
-    const isolateCtx = ctx.isolate('keyword-blocker-isolate')
-    isolateCtx.scope[kRecord] = Object.create(null)
-
-    // 在隔离上下文中加载插件
-    disabled.forEach(key => {
-      ctx.logger.info('加载插件: %c', key.slice(1))
-      const reload = () => isolateCtx.loader.reload(isolateCtx, key.slice(1), isolateCtx.scope.parent.config[key]).then(fork => {
-        return ctx.scope.parent.scope[kRecord][key.slice(1)] = new Proxy(fork, {
-          get(target, prop) {
-            if (prop === 'dispose') {
-              return async () => {
-                await Promise.resolve()
-                return reload()
-              }
-            }
-            return Reflect.get(target, prop)
-          },
-        })
-      })
-      reload()
-    })
-  }
-
   // 当插件被禁用时，停止轮询并注销中间件
   ctx.on('dispose', () => {
     isActive = false
@@ -508,55 +458,3 @@ export function apply(ctx: Context, config: Config) {
     ctx.logger.info('关键词屏蔽插件已禁用，轮询已停止，中间件已注销')
   })
 }
-
-// 判断是否应该过滤 session
-function shouldFilterSession(session: any, config: Config): boolean {
-  const userId = session.userId || session.event?.user?.id
-  const channelId = session.channelId || session.event?.channel?.id
-  const guildId = session.guildId || session.event?.guild?.id
-  const platform = session.platform
-
-  if (config.filterMode === 'blacklist') {
-    // 黑名单模式：如果匹配黑名单中的任何规则，则屏蔽
-    return (config.blacklist || []).some(rule => {
-      switch (rule.type) {
-        case 'userId':
-          return userId && rule.value === userId
-        case 'channelId':
-          return channelId && rule.value === channelId
-        case 'guildId':
-          return guildId && rule.value === guildId
-        case 'platform':
-          return platform && rule.value === platform
-        default:
-          return false
-      }
-    })
-  }
-
-  if (config.filterMode === 'whitelist') {
-    // 白名单模式：如果不匹配白名单中的任何规则，则屏蔽
-    // 如果白名单为空，则屏蔽所有
-    if (config.whitelist.length === 0) {
-      return true
-    }
-
-    return !(config.whitelist || []).some(rule => {
-      switch (rule.type) {
-        case 'userId':
-          return userId && rule.value === userId
-        case 'channelId':
-          return channelId && rule.value === channelId
-        case 'guildId':
-          return guildId && rule.value === guildId
-        case 'platform':
-          return platform && rule.value === platform
-        default:
-          return false
-      }
-    })
-  }
-
-  return false
-}
-
