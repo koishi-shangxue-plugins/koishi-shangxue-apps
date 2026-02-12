@@ -28,9 +28,9 @@ export function apply(ctx: Context) {
     ctx.logger.info(session)
   })
 
-  ctx.on('github/event', async (session) => {
-    ctx.logger.info(session)
-  })
+  // ctx.on('github/event', async (session) => {
+  //   ctx.logger.info(session)
+  // })
 
   // ctx.on('iirose/broadcast' as any, async (session, data) => {
   //   ctx.logger.info(session, data)
