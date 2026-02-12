@@ -2,7 +2,7 @@
   <div class="message-filter">
     <!-- 模式切换 -->
     <div class="mode-selector">
-      <el-radio-group v-model="localConfig.filterMode">
+      <el-radio-group v-model="localConfig.filterMode" @change="emitChange">
         <el-radio value="blacklist">黑名单模式</el-radio>
         <el-radio value="whitelist">白名单模式</el-radio>
       </el-radio-group>
@@ -12,28 +12,22 @@
     <!-- 规则列表 -->
     <div class="rules-section">
       <div class="section-header">
-        <h3>过滤规则列表</h3>
-        <el-input v-model="searchText" placeholder="搜索过滤值或原因" :prefix-icon="Search" style="width: 300px" clearable />
+        <h3>规则列表</h3>
       </div>
 
-      <!-- 添加规则按钮 -->
+      <!-- 添加按钮 -->
       <el-button type="primary" :icon="Plus" @click="showAddDialog = true" style="margin-bottom: 16px">
         添加规则
       </el-button>
 
-      <el-table :data="filteredRules" style="width: 100%" :empty-text="emptyText">
-        <el-table-column type="index" label="序号" width="60" />
-        <el-table-column prop="type" label="过滤类型" width="150">
+      <el-table :data="currentRules" style="width: 100%" empty-text="暂无规则">
+        <el-table-column label="类型" width="100">
           <template #default="{ row }">
             <el-tag :type="getTypeTagType(row.type)">{{ getTypeLabel(row.type) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="value" label="过滤值" min-width="200" />
-        <el-table-column prop="reason" label="过滤原因" min-width="200">
-          <template #default="{ row }">
-            <span style="color: var(--fg1)">{{ row.reason || '-' }}</span>
-          </template>
-        </el-table-column>
+        <el-table-column prop="value" label="过滤值" min-width="150" />
+        <el-table-column prop="reason" label="原因" min-width="200" show-overflow-tooltip />
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row, $index }">
             <el-button link type="primary" @click="editRule($index)">编辑</el-button>
@@ -41,18 +35,13 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
-      <el-pagination v-if="currentRules.length > 0" v-model:current-page="currentPage" v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50]" :total="currentRules.length" layout="total, sizes, prev, pager, next, jumper"
-        style="margin-top: 16px; justify-content: flex-end" />
     </div>
 
     <!-- 添加/编辑规则对话框 -->
     <el-dialog v-model="showAddDialog" :title="editingIndex === -1 ? '添加规则' : '编辑规则'" width="500px">
       <el-form :model="editingRule" label-width="100px">
         <el-form-item label="过滤类型" required>
-          <el-select v-model="editingRule.type" placeholder="请选择过滤类型">
+          <el-select v-model="editingRule.type" placeholder="请选择过滤类型" style="width: 100%">
             <el-option label="用户 ID" value="userId" />
             <el-option label="频道 ID" value="channelId" />
             <el-option label="群组 ID" value="guildId" />
@@ -60,10 +49,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="过滤值" required>
-          <el-input v-model="editingRule.value" placeholder="请输入过滤值" />
+          <el-input v-model="editingRule.value" :placeholder="getValuePlaceholder(editingRule.type)" />
         </el-form-item>
-        <el-form-item label="过滤原因">
-          <el-input v-model="editingRule.reason" type="textarea" :rows="3" placeholder="请输入过滤原因（可选）" />
+        <el-form-item label="原因">
+          <el-input v-model="editingRule.reason" type="textarea" :rows="3" placeholder="请输入原因（可选）" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -77,7 +66,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus } from '@element-plus/icons-vue'
+import { Plus } from '@element-plus/icons-vue'
 import type { WebUIConfig, FilterRule } from '../../utils/api'
 
 const props = defineProps<{
@@ -93,9 +82,6 @@ const localConfig = computed({
   set: (value) => emit('update:modelValue', value)
 })
 
-const searchText = ref('')
-const currentPage = ref(1)
-const pageSize = ref(20)
 const showAddDialog = ref(false)
 const editingIndex = ref(-1)
 const editingRule = ref<FilterRule>({
@@ -111,20 +97,6 @@ const currentRules = computed(() => {
     : localConfig.value.whitelist
 })
 
-// 过滤后的规则列表
-const filteredRules = computed(() => {
-  let rules = currentRules.value
-  if (searchText.value) {
-    const search = searchText.value.toLowerCase()
-    rules = rules.filter(rule =>
-      rule.value.toLowerCase().includes(search) ||
-      rule.reason?.toLowerCase().includes(search)
-    )
-  }
-  const start = (currentPage.value - 1) * pageSize.value
-  return rules.slice(start, start + pageSize.value)
-})
-
 // 模式描述
 const modeDescription = computed(() => {
   return localConfig.value.filterMode === 'blacklist'
@@ -132,12 +104,7 @@ const modeDescription = computed(() => {
     : '白名单模式：只允许名单中的对象，其他屏蔽'
 })
 
-// 空状态文本
-const emptyText = computed(() => {
-  return searchText.value ? '没有找到匹配的规则' : '暂无规则，点击上方按钮添加'
-})
-
-// 获取类型标签颜色
+// 获取类型标签类型
 const getTypeTagType = (type: string) => {
   const typeMap: Record<string, any> = {
     userId: 'primary',
@@ -145,38 +112,110 @@ const getTypeTagType = (type: string) => {
     guildId: 'warning',
     platform: 'info'
   }
-  return typeMap[type] || ''
+  return typeMap[type] || 'info'
 }
 
 // 获取类型标签文本
 const getTypeLabel = (type: string) => {
   const labelMap: Record<string, string> = {
-    userId: '用户 ID',
-    channelId: '频道 ID',
-    guildId: '群组 ID',
-    platform: '平台名称'
+    userId: '用户',
+    channelId: '频道',
+    guildId: '群组',
+    platform: '平台'
   }
   return labelMap[type] || type
 }
 
+// 获取输入框占位符
+const getValuePlaceholder = (type: string) => {
+  const placeholderMap: Record<string, string> = {
+    userId: '请输入用户 ID',
+    channelId: '请输入频道 ID',
+    guildId: '请输入群组 ID',
+    platform: '请输入平台名称（如：onebot）'
+  }
+  return placeholderMap[type] || '请输入过滤值'
+}
+
+// 检查是否与指令级权限控制冲突
+const checkConflictWithCommandFilter = (type: string, value: string): boolean => {
+  if (!localConfig.value.enableCommandFilter) {
+    return false
+  }
+
+  const commandFilters = localConfig.value.commandFilterMode === 'blacklist'
+    ? localConfig.value.commandBlacklist
+    : localConfig.value.commandWhitelist
+
+  return commandFilters.some(filter => filter.type === type && filter.value === value)
+}
+
+// 触发变化事件
+const emitChange = () => {
+  emit('update:modelValue', localConfig.value)
+}
+
 // 编辑规则
-const editRule = (index: number) => {
-  const actualIndex = (currentPage.value - 1) * pageSize.value + index
-  editingIndex.value = actualIndex
-  editingRule.value = { ...currentRules.value[actualIndex] }
+const editRule = async (index: number) => {
+  const rule = currentRules.value[index]
+
+  // 检查冲突
+  const hasConflict = checkConflictWithCommandFilter(rule.type, rule.value)
+  if (hasConflict) {
+    try {
+      await ElMessageBox.confirm(
+        `此${getTypeLabel(rule.type)}已经在【指令级权限控制】中，是否删除原有记录？`,
+        '检测到冲突',
+        {
+          confirmButtonText: '删除并继续',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+
+      // 删除指令级权限控制中的冲突记录
+      const newConfig = { ...localConfig.value }
+      const commandFilters = newConfig.commandFilterMode === 'blacklist'
+        ? newConfig.commandBlacklist
+        : newConfig.commandWhitelist
+
+      const conflictIndex = commandFilters.findIndex(
+        filter => filter.type === rule.type && filter.value === rule.value
+      )
+
+      if (conflictIndex !== -1) {
+        commandFilters.splice(conflictIndex, 1)
+        if (newConfig.commandFilterMode === 'blacklist') {
+          newConfig.commandBlacklist = commandFilters
+        } else {
+          newConfig.commandWhitelist = commandFilters
+        }
+        emit('update:modelValue', newConfig)
+      }
+    } catch {
+      // 用户取消
+      return
+    }
+  }
+
+  editingIndex.value = index
+  editingRule.value = {
+    type: rule.type,
+    value: rule.value,
+    reason: rule.reason || ''
+  }
   showAddDialog.value = true
 }
 
 // 删除规则
 const deleteRule = (index: number) => {
-  const actualIndex = (currentPage.value - 1) * pageSize.value + index
   ElMessageBox.confirm('确定要删除这条规则吗？', '确认删除', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
     const rules = [...currentRules.value]
-    rules.splice(actualIndex, 1)
+    rules.splice(index, 1)
     updateRules(rules)
     ElMessage.success('删除成功')
   }).catch(() => {
@@ -185,10 +224,55 @@ const deleteRule = (index: number) => {
 }
 
 // 确认编辑
-const confirmEdit = () => {
-  if (!editingRule.value.value) {
+const confirmEdit = async () => {
+  if (!editingRule.value.type) {
+    ElMessage.warning('请选择过滤类型')
+    return
+  }
+  if (!editingRule.value.value.trim()) {
     ElMessage.warning('请输入过滤值')
     return
+  }
+
+  // 检查冲突（仅在添加新规则时检查）
+  if (editingIndex.value === -1) {
+    const hasConflict = checkConflictWithCommandFilter(editingRule.value.type, editingRule.value.value)
+    if (hasConflict) {
+      try {
+        await ElMessageBox.confirm(
+          `此${getTypeLabel(editingRule.value.type)}已经在【指令级权限控制】中，是否删除原有记录？`,
+          '检测到冲突',
+          {
+            confirmButtonText: '删除并继续',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+
+        // 删除指令级权限控制中的冲突记录
+        const newConfig = { ...localConfig.value }
+        const commandFilters = newConfig.commandFilterMode === 'blacklist'
+          ? newConfig.commandBlacklist
+          : newConfig.commandWhitelist
+
+        const conflictIndex = commandFilters.findIndex(
+          filter => filter.type === editingRule.value.type && filter.value === editingRule.value.value
+        )
+
+        if (conflictIndex !== -1) {
+          commandFilters.splice(conflictIndex, 1)
+          if (newConfig.commandFilterMode === 'blacklist') {
+            newConfig.commandBlacklist = commandFilters
+          } else {
+            newConfig.commandWhitelist = commandFilters
+          }
+          emit('update:modelValue', newConfig)
+        }
+      } catch {
+        // 用户取消
+        return
+      }
+    }
   }
 
   const rules = [...currentRules.value]

@@ -35,6 +35,7 @@ interface CommandRule {
   commands: string[]
   reason?: string
   replyNoPermission?: boolean
+  replyMessage?: string
 }
 
 // WebUI 配置（存储在本地文件）
@@ -94,9 +95,9 @@ function getAllCommands(ctx: Context): string[] {
 }
 
 // 判断是否应该过滤指令
-function shouldFilterCommand(session: any, commandName: string, webConfig: WebUIConfig): { shouldBlock: boolean; replyNoPermission: boolean } {
+function shouldFilterCommand(session: any, commandName: string, webConfig: WebUIConfig): { shouldBlock: boolean; replyNoPermission: boolean; replyMessage: string } {
   if (!webConfig.enableCommandFilter) {
-    return { shouldBlock: false, replyNoPermission: false }
+    return { shouldBlock: false, replyNoPermission: false, replyMessage: '' }
   }
 
   const userId = session.userId || session.event?.user?.id
@@ -141,7 +142,8 @@ function shouldFilterCommand(session: any, commandName: string, webConfig: WebUI
     if (matchedRule) {
       return {
         shouldBlock: true,
-        replyNoPermission: matchedRule.replyNoPermission !== undefined ? matchedRule.replyNoPermission : true
+        replyNoPermission: matchedRule.replyNoPermission !== undefined ? matchedRule.replyNoPermission : true,
+        replyMessage: matchedRule.replyMessage || '你没有权限使用此指令。'
       }
     }
   }
@@ -152,7 +154,7 @@ function shouldFilterCommand(session: any, commandName: string, webConfig: WebUI
 
     if (!matchedRule) {
       // 不在白名单中，屏蔽所有指令
-      return { shouldBlock: true, replyNoPermission: true }
+      return { shouldBlock: true, replyNoPermission: true, replyMessage: '你没有权限使用此指令。' }
     }
 
     // 在白名单中，检查指令是否匹配
@@ -160,12 +162,13 @@ function shouldFilterCommand(session: any, commandName: string, webConfig: WebUI
     if (!isAllowed) {
       return {
         shouldBlock: true,
-        replyNoPermission: matchedRule.replyNoPermission !== undefined ? matchedRule.replyNoPermission : true
+        replyNoPermission: matchedRule.replyNoPermission !== undefined ? matchedRule.replyNoPermission : true,
+        replyMessage: matchedRule.replyMessage || '你没有权限使用此指令。'
       }
     }
   }
 
-  return { shouldBlock: false, replyNoPermission: false }
+  return { shouldBlock: false, replyNoPermission: false, replyMessage: '' }
 }
 
 // 判断是否应该过滤 session
@@ -347,7 +350,7 @@ export function apply(ctx: Context, config: Config) {
     }
 
     const commandName = command.name
-    const { shouldBlock, replyNoPermission } = shouldFilterCommand(session, commandName, webConfig)
+    const { shouldBlock, replyNoPermission, replyMessage } = shouldFilterCommand(session, commandName, webConfig)
 
     if (shouldBlock) {
       if (config.logBlocked) {
@@ -356,7 +359,7 @@ export function apply(ctx: Context, config: Config) {
       }
 
       if (replyNoPermission) {
-        return '你没有权限使用此指令'
+        return replyMessage || '你没有权限使用此指令。'
       }
 
       // 不回复消息，静默拦截

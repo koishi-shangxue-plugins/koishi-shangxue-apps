@@ -86,6 +86,37 @@
     border-radius: 4px;
   }
 
+  // 提示框样式
+  .el-alert {
+    background-color: var(--bg1);
+    border-color: var(--border);
+
+    &.el-alert--info {
+      background-color: var(--bg1);
+      border-color: var(--border);
+
+      .el-alert__title,
+      .el-alert__description {
+        color: var(--fg0);
+      }
+    }
+
+    &.el-alert--success {
+      background-color: rgba(103, 194, 58, 0.1);
+      border-color: rgba(103, 194, 58, 0.3);
+    }
+
+    &.el-alert--warning {
+      background-color: rgba(230, 162, 60, 0.1);
+      border-color: rgba(230, 162, 60, 0.3);
+    }
+
+    &.el-alert--error {
+      background-color: rgba(245, 108, 108, 0.1);
+      border-color: rgba(245, 108, 108, 0.3);
+    }
+  }
+
   // 空状态样式
   .el-empty {
     padding: 40px 0;

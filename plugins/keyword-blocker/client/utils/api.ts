@@ -12,6 +12,7 @@ export interface CommandRule {
   commands: string[]
   reason?: string
   replyNoPermission?: boolean
+  replyMessage?: string
 }
 
 export interface WebUIConfig {

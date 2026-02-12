@@ -2,13 +2,13 @@
   <div class="command-filter">
     <!-- 启用开关 -->
     <div class="enable-section">
-      <el-switch v-model="localConfig.enableCommandFilter" size="large" active-text="启用指令级权限控制" />
+      <el-switch v-model="localConfig.enableCommandFilter" size="large" active-text="启用指令级权限控制" @change="emitChange" />
     </div>
 
     <div v-if="localConfig.enableCommandFilter" class="filter-content">
       <!-- 模式切换 -->
       <div class="mode-selector">
-        <el-radio-group v-model="localConfig.commandFilterMode">
+        <el-radio-group v-model="localConfig.commandFilterMode" @change="emitChange">
           <el-radio value="blacklist">黑名单模式</el-radio>
           <el-radio value="whitelist">白名单模式</el-radio>
         </el-radio-group>
@@ -49,21 +49,21 @@
             <div class="commands-section">
               <div class="commands-label">指令列表：</div>
               <div class="commands-tags">
-                <el-tag v-for="(cmd, cmdIndex) in rule.commands" :key="cmdIndex" closable
-                  @close="removeCommand(index, cmdIndex)" style="margin: 4px">
+                <el-tag v-for="(cmd, cmdIndex) in rule.commands" :key="cmdIndex" style="margin: 4px">
                   {{ cmd }}
                 </el-tag>
-                <el-button link type="primary" :icon="Plus" @click="showAddCommandDialog(index)">
-                  添加指令
-                </el-button>
               </div>
               <el-alert v-if="rule.commands.some(c => c.includes('*'))" title="使用了通配符：* 匹配所有指令，admin.* 匹配所有 admin 开头的指令"
                 type="info" :closable="false" style="margin-top: 8px" />
             </div>
             <div class="permission-section">
-              <el-checkbox v-model="rule.replyNoPermission">
-                当用户无权限时回复提示消息
-              </el-checkbox>
+              <div class="permission-status">
+                <span v-if="rule.replyNoPermission" class="enabled">✓ 回复权限提示</span>
+                <span v-else class="disabled">✗ 不回复权限提示</span>
+              </div>
+              <div v-if="rule.replyNoPermission && rule.replyMessage" class="permission-message">
+                提示语：{{ rule.replyMessage }}
+              </div>
             </div>
           </el-card>
         </div>
@@ -113,23 +113,14 @@
             当用户无权限时回复提示消息
           </el-checkbox>
         </el-form-item>
+        <el-form-item v-if="editingRule.replyNoPermission" label="提示语">
+          <el-input v-model="editingRule.replyMessage" placeholder="你没有权限使用此指令。" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showAddDialog = false">取消</el-button>
         <el-button type="primary" @click="confirmEdit">确定</el-button>
       </template>
-    </el-dialog>
-
-    <!-- 添加指令对话框 -->
-    <el-dialog v-model="showAddCommandToRuleDialog" title="添加指令" width="400px">
-      <el-input v-model="newCommandForRule" placeholder="输入指令名称后按回车" @keyup.enter="confirmAddCommandToRule">
-        <template #append>
-          <el-button @click="confirmAddCommandToRule">添加</el-button>
-        </template>
-      </el-input>
-      <div style="margin-top: 12px">
-        <el-button link @click="openCommandSelector">从已注册指令中选择</el-button>
-      </div>
     </el-dialog>
 
     <!-- 指令选择器对话框 -->
@@ -179,12 +170,10 @@ const editingRule = ref<CommandRule>({
   value: '',
   commands: [],
   reason: '',
-  replyNoPermission: false
+  replyNoPermission: false,
+  replyMessage: '你没有权限使用此指令。'
 })
 const newCommand = ref('')
-const showAddCommandToRuleDialog = ref(false)
-const addingCommandToIndex = ref(-1)
-const newCommandForRule = ref('')
 const showCommandSelector = ref(false)
 const selectedCommands = ref<string[]>([])
 const selectAll = ref(false)
@@ -271,6 +260,11 @@ const checkConflictWithMessageFilter = (type: string, value: string): boolean =>
   return messageFilters.some(filter => filter.type === type && filter.value === value)
 }
 
+// 触发变化事件
+const emitChange = () => {
+  emit('update:modelValue', localConfig.value)
+}
+
 // 加载已注册指令
 const loadCommands = async () => {
   try {
@@ -317,7 +311,8 @@ const editRule = (index: number) => {
     value: rule.value,
     commands: [...rule.commands],
     reason: rule.reason || '',
-    replyNoPermission: rule.replyNoPermission || false
+    replyNoPermission: rule.replyNoPermission || false,
+    replyMessage: rule.replyMessage || '你没有权限使用此指令。'
   }
   showAddDialog.value = true
 }
@@ -336,33 +331,6 @@ const deleteRule = (index: number) => {
   }).catch(() => {
     // 取消删除
   })
-}
-
-// 移除指令
-const removeCommand = (ruleIndex: number, cmdIndex: number) => {
-  const rules = [...currentRules.value]
-  rules[ruleIndex].commands.splice(cmdIndex, 1)
-  updateRules(rules)
-}
-
-// 显示添加指令对话框
-const showAddCommandDialog = (index: number) => {
-  addingCommandToIndex.value = index
-  newCommandForRule.value = ''
-  showAddCommandToRuleDialog.value = true
-}
-
-// 确认添加指令到规则
-const confirmAddCommandToRule = () => {
-  if (!newCommandForRule.value.trim()) {
-    ElMessage.warning('请输入指令')
-    return
-  }
-  const rules = [...currentRules.value]
-  rules[addingCommandToIndex.value].commands.push(newCommandForRule.value.trim())
-  updateRules(rules)
-  showAddCommandToRuleDialog.value = false
-  ElMessage.success('添加成功')
 }
 
 // 添加指令到编辑中的规则
@@ -454,20 +422,11 @@ const confirmSelectCommands = () => {
     return
   }
 
-  if (showAddCommandToRuleDialog.value) {
-    // 添加到现有规则
-    const rules = [...currentRules.value]
-    const existingCommands = new Set(rules[addingCommandToIndex.value].commands)
-    const newCommands = selectedCommands.value.filter(cmd => !existingCommands.has(cmd))
-    rules[addingCommandToIndex.value].commands.push(...newCommands)
-    updateRules(rules)
-    showAddCommandToRuleDialog.value = false
-  } else {
-    // 添加到编辑中的规则
-    const existingCommands = new Set(editingRule.value.commands)
-    const newCommands = selectedCommands.value.filter(cmd => !existingCommands.has(cmd))
-    editingRule.value.commands.push(...newCommands)
-  }
+  // 添加到编辑中的规则
+  const existingCommands = new Set(editingRule.value.commands)
+  const newCommands = selectedCommands.value.filter(cmd => !existingCommands.has(cmd))
+  editingRule.value.commands.push(...newCommands)
+
   showCommandSelector.value = false
   selectedCommands.value = []
   selectAll.value = false
@@ -493,7 +452,8 @@ const resetEditingRule = () => {
     value: '',
     commands: [],
     reason: '',
-    replyNoPermission: false
+    replyNoPermission: false,
+    replyMessage: '你没有权限使用此指令。'
   }
   newCommand.value = ''
 }
@@ -595,7 +555,26 @@ onMounted(() => {
           .permission-section {
             padding-top: 12px;
             border-top: 1px solid var(--border);
-            color: var(--fg1);
+
+            .permission-status {
+              font-size: 14px;
+              margin-bottom: 4px;
+
+              .enabled {
+                color: var(--el-color-success);
+                font-weight: 500;
+              }
+
+              .disabled {
+                color: var(--fg2);
+              }
+            }
+
+            .permission-message {
+              font-size: 13px;
+              color: var(--fg1);
+              margin-top: 4px;
+            }
           }
         }
       }
