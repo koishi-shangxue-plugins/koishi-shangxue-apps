@@ -27,7 +27,7 @@
       <el-table :data="paginatedRules" style="width: 100%" empty-text="暂无规则">
         <el-table-column label="类型" width="100" sortable :sort-method="sortByType">
           <template #default="{ row }">
-            <el-tag :type="getTypeTagType(row.type)">{{ getTypeLabel(row.type) }}</el-tag>
+            {{ getTypeLabel(row.type) }}
           </template>
         </el-table-column>
         <el-table-column prop="value" label="过滤值" min-width="150" sortable />

@@ -40,7 +40,7 @@
               <div class="card-header">
                 <div class="rule-info">
                   <div class="rule-type-value">
-                    <el-tag :type="getTypeTagType(rule.type)" size="large">{{ getTypeLabel(rule.type) }}</el-tag>
+                    <span class="type-text">{{ getTypeLabel(rule.type) }}</span>
                     <span class="value">{{ rule.value }}</span>
                   </div>
                   <div v-if="rule.reason" class="reason">{{ rule.reason }}</div>
@@ -548,6 +548,11 @@ onMounted(() => {
                 align-items: center;
                 gap: 12px;
                 margin-bottom: 8px;
+
+                .type-text {
+                  font-size: 14px;
+                  color: var(--fg1);
+                }
 
                 .value {
                   font-size: 16px;
