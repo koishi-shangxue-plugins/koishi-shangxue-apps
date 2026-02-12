@@ -101,7 +101,7 @@ const editingRule = ref<FilterRule>({
 // 搜索和分页
 const searchText = ref('')
 const currentPage = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(50)
 
 // 当前使用的规则列表
 const currentRules = computed(() => {

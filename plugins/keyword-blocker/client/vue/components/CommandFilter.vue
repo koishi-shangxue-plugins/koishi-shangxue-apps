@@ -172,7 +172,7 @@ const localConfig = computed({
 
 const searchText = ref('')
 const currentPage = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(20)
 const showAddDialog = ref(false)
 const editingIndex = ref(-1)
 const editingRule = ref<CommandRule>({
