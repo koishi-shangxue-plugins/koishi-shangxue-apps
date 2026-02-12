@@ -223,9 +223,6 @@ function shouldFilterSession(session: any, webConfig: WebUIConfig): boolean {
 }
 
 export function apply(ctx: Context, config: Config) {
-  ctx.logger.info('启用关键词屏蔽插件')
-  ctx.logger.info('中间件重新注册间隔: %d ms', config.reregisterInterval)
-
   // 配置文件路径
   const configDir = resolve(ctx.baseDir, 'data/keyword-blocker')
   const configPath = resolve(configDir, 'config.json')
@@ -250,9 +247,6 @@ export function apply(ctx: Context, config: Config) {
       if (existsSync(configPath)) {
         const data = await readFile(configPath, 'utf-8')
         webConfig = { ...defaultConfig, ...JSON.parse(data) }
-        ctx.logger.info('已加载配置文件')
-      } else {
-        ctx.logger.info('配置文件不存在，使用默认配置')
       }
     } catch (error) {
       ctx.logger.error('加载配置文件失败:', error)
@@ -268,7 +262,6 @@ export function apply(ctx: Context, config: Config) {
         await mkdir(configDir, { recursive: true })
       }
       await writeFile(configPath, JSON.stringify(webConfig, null, 2), 'utf-8')
-      ctx.logger.info('配置已保存到文件')
     } catch (error) {
       ctx.logger.error('保存配置文件失败:', error)
       throw error
@@ -328,7 +321,6 @@ export function apply(ctx: Context, config: Config) {
   const startReregisterLoop = () => {
     // 立即注册一次
     registerMiddleware()
-    ctx.logger.info('关键词屏蔽中间件已注册，开始轮询重新注册（间隔 %d ms）', config.reregisterInterval)
 
     // 设置定时器，不断重新注册
     reregisterTimer = setInterval(() => {
@@ -387,15 +379,6 @@ export function apply(ctx: Context, config: Config) {
     saveConfig().catch(error => {
       ctx.logger.error('保存配置文件失败:', error)
     })
-
-    ctx.logger.info('配置已更新')
-    ctx.logger.info('消息过滤模式: %s，规则数: %d', webConfig.filterMode,
-      webConfig.filterMode === 'blacklist' ? webConfig.blacklist.length : webConfig.whitelist.length)
-
-    if (webConfig.enableCommandFilter) {
-      ctx.logger.info('指令过滤已启用，模式: %s，规则数: %d', webConfig.commandFilterMode,
-        webConfig.commandFilterMode === 'blacklist' ? webConfig.commandBlacklist.length : webConfig.commandWhitelist.length)
-    }
   })
 
   // 获取已注册指令列表（包括子指令）
@@ -419,7 +402,5 @@ export function apply(ctx: Context, config: Config) {
       currentDispose()
       currentDispose = null
     }
-
-    ctx.logger.info('关键词屏蔽插件已禁用，轮询已停止，中间件已注销')
   })
 }
