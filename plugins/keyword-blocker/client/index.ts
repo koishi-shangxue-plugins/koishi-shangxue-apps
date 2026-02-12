@@ -6,9 +6,9 @@ import './icons'
 
 export default (ctx: Context) => {
   ctx.page({
-    name: 'keyword-blocker',
+    name: '屏蔽管理',
     path: '/keyword-blocker',
-    desc: '关键词屏蔽管理',
+    desc: '',
     authority: 4,
     icon: 'activity:blocker',
     component: defineComponent({

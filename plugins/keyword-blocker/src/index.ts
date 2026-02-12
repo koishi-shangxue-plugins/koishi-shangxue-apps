@@ -1,7 +1,7 @@
 import { Context, Schema, Command } from 'koishi'
-import { resolve } from 'path'
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { existsSync } from 'fs'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { existsSync } from 'node:fs'
 
 import { Console } from '@koishijs/console'
 import { } from '@koishijs/plugin-console'
@@ -14,8 +14,10 @@ export const inject = {
 }
 export const usage = `
 ---
-关键词屏蔽插件 - 支持消息级和指令级过滤
-`
+
+开启插件后，请前往侧边栏UI入口
+
+---`
 
 declare module 'koishi' {
   interface Context {
@@ -57,8 +59,8 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.object({
   reregisterInterval: Schema.number()
-    .description('重新注册中间件的间隔时间（毫秒）。越小优先级越稳定，但性能开销越大。')
-    .default(100).min(50).max(5000),
+    .description('重新注册中间件的间隔时间（毫秒）。<br>越小优先级越稳定，但性能开销越大。')
+    .default(500).min(100).max(5000),
   logBlocked: Schema.boolean()
     .description('调试模式：在控制台输出被屏蔽的消息和指令')
     .default(false),
