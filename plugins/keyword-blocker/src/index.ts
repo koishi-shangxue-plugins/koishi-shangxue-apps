@@ -276,7 +276,6 @@ export function apply(ctx: Context, config: Config) {
   // 标记插件是否已启用
   let isActive = true
   let currentDispose: (() => void) | null = null
-  let reregisterTimer: NodeJS.Timeout | null = null
 
   // 注册中间件的函数
   const registerMiddleware = () => {
@@ -324,8 +323,8 @@ export function apply(ctx: Context, config: Config) {
     // 立即注册一次
     registerMiddleware()
 
-    // 设置定时器，不断重新注册
-    reregisterTimer = setInterval(() => {
+    // 使用 ctx.setInterval 自动管理定时器生命周期
+    ctx.setInterval(() => {
       if (isActive) {
         registerMiddleware()
       }
@@ -389,15 +388,9 @@ export function apply(ctx: Context, config: Config) {
     return { commands }
   })
 
-  // 当插件被禁用时，停止轮询并注销中间件
+  // 当插件被禁用时，注销中间件
   ctx.on('dispose', () => {
     isActive = false
-
-    // 停止定时器
-    if (reregisterTimer) {
-      clearInterval(reregisterTimer)
-      reregisterTimer = null
-    }
 
     // 注销中间件
     if (currentDispose) {
