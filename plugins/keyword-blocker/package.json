@@ -1,40 +1,27 @@
 {
   "name": "koishi-plugin-keyword-blocker",
-  "description": "A plugin to block and unblock keywords",
-  "version": "1.6.0",
+  "description": "keyword-blocker",
+  "version": "2.0.0",
   "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
   "files": [
-    "lib"
+    "lib",
+    "dist",
+    "src",
+    "client"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
-  "bugs": {
-    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
-  },
   "keywords": [
     "chatbot",
     "koishi",
     "plugin",
-    "keyword",
-    "block",
-    "unblock"
+    "keyword-blocker"
   ],
-  "peerDependencies": {
-    "koishi": "^4.16.0"
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },
-  "koishi": {
-    "description": {
-      "zh": "用于屏蔽和取消屏蔽关键词的插件 官方bot也可以用诶。可以开启/关闭指令，或者拉黑某用户/频道 等。可以对指令进行黑白名单设置。",
-      "en": "A plugin to block and unblock keywords"
-    },
-    "services": {
-      "required": [
-        "database"
-      ]
-    },
-    "locales": [
-      "zh",
-      "en"
-    ]
+  "peerDependencies": {
+    "koishi": "4.18.9"
   }
 }

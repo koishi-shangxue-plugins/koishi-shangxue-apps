@@ -28,8 +28,8 @@ export function apply(ctx: Context) {
     ctx.logger.info(session)
   })
 
-  // ctx.on('github/event', async (session) => {
-  //   ctx.logger.info(session)
+  // ctx.on('message', async (session) => {
+  //   ctx.logger.info(session.content)
   // })
 
   // ctx.on('iirose/broadcast' as any, async (session, data) => {
