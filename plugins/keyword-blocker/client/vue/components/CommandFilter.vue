@@ -19,7 +19,7 @@
       <div class="rules-section">
         <div class="section-header">
           <h3>规则列表</h3>
-          <el-input v-model="searchText" placeholder="搜索过滤值" :prefix-icon="Search" style="width: 300px" clearable />
+          <el-input v-model="searchText" placeholder="搜索过滤值或原因" :prefix-icon="Search" style="width: 300px" clearable />
         </div>
 
         <!-- 添加按钮 -->
@@ -31,41 +31,49 @@
           <el-empty :description="emptyText" />
         </div>
 
-        <div v-else class="rules-cards">
-          <el-card v-for="(rule, index) in filteredRules" :key="index" class="rule-card" shadow="hover">
-            <div class="card-header">
-              <div class="rule-info">
-                <div class="rule-type-value">
-                  <el-tag :type="getTypeTagType(rule.type)" size="large">{{ getTypeLabel(rule.type) }}</el-tag>
-                  <span class="value">{{ rule.value }}</span>
+        <div v-else>
+          <div class="rules-cards">
+            <el-card v-for="rule in paginatedRules" :key="rule._originalIndex" class="rule-card" shadow="hover">
+              <div class="card-header">
+                <div class="rule-info">
+                  <div class="rule-type-value">
+                    <el-tag :type="getTypeTagType(rule.type)" size="large">{{ getTypeLabel(rule.type) }}</el-tag>
+                    <span class="value">{{ rule.value }}</span>
+                  </div>
+                  <div v-if="rule.reason" class="reason">{{ rule.reason }}</div>
                 </div>
-                <div v-if="rule.reason" class="reason">{{ rule.reason }}</div>
+                <div class="card-actions">
+                  <el-button link type="primary" @click="editRule(rule._originalIndex)">编辑</el-button>
+                  <el-button link type="danger" @click="deleteRule(rule._originalIndex)">删除</el-button>
+                </div>
               </div>
-              <div class="card-actions">
-                <el-button link type="primary" @click="editRule(index)">编辑</el-button>
-                <el-button link type="danger" @click="deleteRule(index)">删除</el-button>
+              <div class="commands-section">
+                <div class="commands-label">指令列表：</div>
+                <div class="commands-tags">
+                  <el-tag v-for="(cmd, cmdIndex) in rule.commands" :key="cmdIndex" style="margin: 4px">
+                    {{ cmd }}
+                  </el-tag>
+                </div>
+                <el-alert v-if="rule.commands.some(c => c.includes('*'))"
+                  title="使用了通配符：* 匹配所有指令，admin.* 匹配所有 admin 开头的指令" type="info" :closable="false"
+                  style="margin-top: 8px" />
               </div>
-            </div>
-            <div class="commands-section">
-              <div class="commands-label">指令列表：</div>
-              <div class="commands-tags">
-                <el-tag v-for="(cmd, cmdIndex) in rule.commands" :key="cmdIndex" style="margin: 4px">
-                  {{ cmd }}
-                </el-tag>
+              <div class="permission-section">
+                <div class="permission-status">
+                  <span v-if="rule.replyNoPermission" class="enabled">✓ 回复权限提示</span>
+                  <span v-else class="disabled">✗ 不回复权限提示</span>
+                </div>
+                <div v-if="rule.replyNoPermission && rule.replyMessage" class="permission-message">
+                  提示语：{{ rule.replyMessage }}
+                </div>
               </div>
-              <el-alert v-if="rule.commands.some(c => c.includes('*'))" title="使用了通配符：* 匹配所有指令，admin.* 匹配所有 admin 开头的指令"
-                type="info" :closable="false" style="margin-top: 8px" />
-            </div>
-            <div class="permission-section">
-              <div class="permission-status">
-                <span v-if="rule.replyNoPermission" class="enabled">✓ 回复权限提示</span>
-                <span v-else class="disabled">✗ 不回复权限提示</span>
-              </div>
-              <div v-if="rule.replyNoPermission && rule.replyMessage" class="permission-message">
-                提示语：{{ rule.replyMessage }}
-              </div>
-            </div>
-          </el-card>
+            </el-card>
+          </div>
+
+          <!-- 分页 -->
+          <el-pagination v-if="filteredRules.length > pageSize" v-model:current-page="currentPage" :page-size="pageSize"
+            :total="filteredRules.length" layout="total, prev, pager, next"
+            style="margin-top: 16px; justify-content: center" />
         </div>
       </div>
     </div>
@@ -163,6 +171,8 @@ const localConfig = computed({
 })
 
 const searchText = ref('')
+const currentPage = ref(1)
+const pageSize = ref(10)
 const showAddDialog = ref(false)
 const editingIndex = ref(-1)
 const editingRule = ref<CommandRule>({
@@ -187,14 +197,24 @@ const currentRules = computed(() => {
     : localConfig.value.commandWhitelist
 })
 
-// 过滤后的规则列表
+// 过滤后的规则列表（带原始索引）
 const filteredRules = computed(() => {
-  let rules = currentRules.value
+  let rules = currentRules.value.map((rule, index) => ({ ...rule, _originalIndex: index }))
   if (searchText.value) {
     const search = searchText.value.toLowerCase()
-    rules = rules.filter(rule => rule.value.toLowerCase().includes(search))
+    rules = rules.filter(rule =>
+      rule.value.toLowerCase().includes(search) ||
+      (rule.reason && rule.reason.toLowerCase().includes(search))
+    )
   }
   return rules
+})
+
+// 分页后的规则列表
+const paginatedRules = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredRules.value.slice(start, end)
 })
 
 // 过滤后的指令列表

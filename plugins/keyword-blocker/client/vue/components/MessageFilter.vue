@@ -15,26 +15,34 @@
         <h3>规则列表</h3>
       </div>
 
-      <!-- 添加按钮 -->
-      <el-button type="primary" :icon="Plus" @click="showAddDialog = true" style="margin-bottom: 16px">
-        添加规则
-      </el-button>
+      <!-- 添加按钮和搜索框 -->
+      <div class="toolbar">
+        <el-button type="primary" :icon="Plus" @click="showAddDialog = true">
+          添加规则
+        </el-button>
+        <el-input v-model="searchText" placeholder="搜索过滤值或原因" :prefix-icon="Search" clearable style="width: 300px" />
+      </div>
 
-      <el-table :data="currentRules" style="width: 100%" empty-text="暂无规则">
-        <el-table-column label="类型" width="100">
+      <el-table :data="paginatedRules" style="width: 100%" empty-text="暂无规则" :max-height="500">
+        <el-table-column label="类型" width="100" sortable :sort-method="sortByType">
           <template #default="{ row }">
             <el-tag :type="getTypeTagType(row.type)">{{ getTypeLabel(row.type) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="value" label="过滤值" min-width="150" />
+        <el-table-column prop="value" label="过滤值" min-width="150" sortable />
         <el-table-column prop="reason" label="原因" min-width="200" show-overflow-tooltip />
         <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row, $index }">
-            <el-button link type="primary" @click="editRule($index)">编辑</el-button>
-            <el-button link type="danger" @click="deleteRule($index)">删除</el-button>
+          <template #default="{ row }">
+            <el-button link type="primary" @click="editRule(row._originalIndex)">编辑</el-button>
+            <el-button link type="danger" @click="deleteRule(row._originalIndex)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- 分页 -->
+      <el-pagination v-if="filteredRules.length > pageSize" v-model:current-page="currentPage" :page-size="pageSize"
+        :total="filteredRules.length" layout="total, prev, pager, next"
+        style="margin-top: 16px; justify-content: center" />
     </div>
 
     <!-- 添加/编辑规则对话框 -->
@@ -66,7 +74,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Search } from '@element-plus/icons-vue'
 import type { WebUIConfig, FilterRule } from '../../utils/api'
 
 const props = defineProps<{
@@ -90,11 +98,38 @@ const editingRule = ref<FilterRule>({
   reason: ''
 })
 
+// 搜索和分页
+const searchText = ref('')
+const currentPage = ref(1)
+const pageSize = ref(20)
+
 // 当前使用的规则列表
 const currentRules = computed(() => {
   return localConfig.value.filterMode === 'blacklist'
     ? localConfig.value.blacklist
     : localConfig.value.whitelist
+})
+
+// 过滤后的规则列表（根据搜索文本）
+const filteredRules = computed(() => {
+  if (!searchText.value.trim()) {
+    return currentRules.value.map((rule, index) => ({ ...rule, _originalIndex: index }))
+  }
+
+  const search = searchText.value.toLowerCase()
+  return currentRules.value
+    .map((rule, index) => ({ ...rule, _originalIndex: index }))
+    .filter(rule =>
+      rule.value.toLowerCase().includes(search) ||
+      (rule.reason && rule.reason.toLowerCase().includes(search))
+    )
+})
+
+// 分页后的规则列表
+const paginatedRules = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredRules.value.slice(start, end)
 })
 
 // 模式描述
@@ -118,6 +153,12 @@ const getTypeLabel = (type: string) => {
     platform: '平台'
   }
   return labelMap[type] || type
+}
+
+// 类型排序方法
+const sortByType = (a: any, b: any) => {
+  const typeOrder = ['userId', 'channelId', 'guildId', 'platform']
+  return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type)
 }
 
 // 获取输入框占位符
@@ -292,6 +333,13 @@ watch(showAddDialog, (val) => {
         font-weight: 600;
         color: var(--fg0);
       }
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
     }
   }
 }
