@@ -101,7 +101,7 @@
               </template>
             </el-input>
             <div style="margin-top: 8px">
-              <el-button link @click="openCommandSelector">从已注册指令中选择</el-button>
+              <el-button type="primary" link @click="openCommandSelector">从已注册指令中选择</el-button>
             </div>
           </div>
         </el-form-item>
@@ -218,15 +218,9 @@ const emptyText = computed(() => {
   return searchText.value ? '没有找到匹配的规则' : '暂无规则'
 })
 
-// 获取类型标签类型
+// 获取类型标签类型（统一使用 primary）
 const getTypeTagType = (type: string) => {
-  const typeMap: Record<string, any> = {
-    userId: 'primary',
-    channelId: 'success',
-    guildId: 'warning',
-    platform: 'info'
-  }
-  return typeMap[type] || 'info'
+  return 'primary'
 }
 
 // 获取类型标签文本
@@ -549,6 +543,10 @@ onMounted(() => {
               display: flex;
               flex-wrap: wrap;
               align-items: center;
+
+              .el-tag {
+                font-size: 14px;
+              }
             }
           }
 

@@ -104,15 +104,9 @@ const modeDescription = computed(() => {
     : '白名单模式：只允许名单中的对象，其他屏蔽'
 })
 
-// 获取类型标签类型
+// 获取类型标签类型（统一使用 primary）
 const getTypeTagType = (type: string) => {
-  const typeMap: Record<string, any> = {
-    userId: 'primary',
-    channelId: 'success',
-    guildId: 'warning',
-    platform: 'info'
-  }
-  return typeMap[type] || 'info'
+  return 'primary'
 }
 
 // 获取类型标签文本
@@ -156,47 +150,8 @@ const emitChange = () => {
 }
 
 // 编辑规则
-const editRule = async (index: number) => {
+const editRule = (index: number) => {
   const rule = currentRules.value[index]
-
-  // 检查冲突
-  const hasConflict = checkConflictWithCommandFilter(rule.type, rule.value)
-  if (hasConflict) {
-    try {
-      await ElMessageBox.confirm(
-        `此${getTypeLabel(rule.type)}已经在【指令级权限控制】中，是否删除原有记录？`,
-        '检测到冲突',
-        {
-          confirmButtonText: '删除并继续',
-          cancelButtonText: '取消',
-          type: 'warning'
-        }
-      )
-
-      // 删除指令级权限控制中的冲突记录
-      const newConfig = { ...localConfig.value }
-      const commandFilters = newConfig.commandFilterMode === 'blacklist'
-        ? newConfig.commandBlacklist
-        : newConfig.commandWhitelist
-
-      const conflictIndex = commandFilters.findIndex(
-        filter => filter.type === rule.type && filter.value === rule.value
-      )
-
-      if (conflictIndex !== -1) {
-        commandFilters.splice(conflictIndex, 1)
-        if (newConfig.commandFilterMode === 'blacklist') {
-          newConfig.commandBlacklist = commandFilters
-        } else {
-          newConfig.commandWhitelist = commandFilters
-        }
-        emit('update:modelValue', newConfig)
-      }
-    } catch {
-      // 用户取消
-      return
-    }
-  }
 
   editingIndex.value = index
   editingRule.value = {
@@ -234,44 +189,42 @@ const confirmEdit = async () => {
     return
   }
 
-  // 检查冲突（仅在添加新规则时检查）
-  if (editingIndex.value === -1) {
-    const hasConflict = checkConflictWithCommandFilter(editingRule.value.type, editingRule.value.value)
-    if (hasConflict) {
-      try {
-        await ElMessageBox.confirm(
-          `此${getTypeLabel(editingRule.value.type)}已经在【指令级权限控制】中，是否删除原有记录？`,
-          '检测到冲突',
-          {
-            confirmButtonText: '删除并继续',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        )
-
-        // 删除指令级权限控制中的冲突记录
-        const newConfig = { ...localConfig.value }
-        const commandFilters = newConfig.commandFilterMode === 'blacklist'
-          ? newConfig.commandBlacklist
-          : newConfig.commandWhitelist
-
-        const conflictIndex = commandFilters.findIndex(
-          filter => filter.type === editingRule.value.type && filter.value === editingRule.value.value
-        )
-
-        if (conflictIndex !== -1) {
-          commandFilters.splice(conflictIndex, 1)
-          if (newConfig.commandFilterMode === 'blacklist') {
-            newConfig.commandBlacklist = commandFilters
-          } else {
-            newConfig.commandWhitelist = commandFilters
-          }
-          emit('update:modelValue', newConfig)
+  // 检查冲突（添加和编辑时都要检查）
+  const hasConflict = checkConflictWithCommandFilter(editingRule.value.type, editingRule.value.value)
+  if (hasConflict) {
+    try {
+      await ElMessageBox.confirm(
+        `此${getTypeLabel(editingRule.value.type)}已经在【指令级权限控制】中，是否删除原有记录？`,
+        '检测到冲突',
+        {
+          confirmButtonText: '删除并继续',
+          cancelButtonText: '取消',
+          type: 'warning'
         }
-      } catch {
-        // 用户取消
-        return
+      )
+
+      // 删除指令级权限控制中的冲突记录
+      const newConfig = { ...localConfig.value }
+      const commandFilters = newConfig.commandFilterMode === 'blacklist'
+        ? newConfig.commandBlacklist
+        : newConfig.commandWhitelist
+
+      const conflictIndex = commandFilters.findIndex(
+        filter => filter.type === editingRule.value.type && filter.value === editingRule.value.value
+      )
+
+      if (conflictIndex !== -1) {
+        commandFilters.splice(conflictIndex, 1)
+        if (newConfig.commandFilterMode === 'blacklist') {
+          newConfig.commandBlacklist = commandFilters
+        } else {
+          newConfig.commandWhitelist = commandFilters
+        }
+        emit('update:modelValue', newConfig)
       }
+    } catch {
+      // 用户取消
+      return
     }
   }
 

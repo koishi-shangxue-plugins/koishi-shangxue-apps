@@ -76,6 +76,7 @@ onMounted(() => {
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
+  min-height: 100%;
 
   .tabs {
     :deep(.el-tabs__content) {
