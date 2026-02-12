@@ -19,13 +19,16 @@
       <div class="rules-section">
         <div class="section-header">
           <h3>规则列表</h3>
-          <el-input v-model="searchText" placeholder="搜索过滤值或原因" :prefix-icon="Search" style="width: 300px" clearable />
         </div>
 
-        <!-- 添加按钮 -->
-        <el-button type="primary" :icon="Plus" @click="showAddDialog = true" style="margin-bottom: 16px">
-          添加规则
-        </el-button>
+        <!-- 工具栏 -->
+        <div class="toolbar">
+          <el-button type="primary" :icon="Plus" @click="showAddDialog = true">
+            添加规则
+          </el-button>
+          <el-input v-model="searchText" placeholder="搜索过滤值或原因" :prefix-icon="Search"
+            style="width: 300px; max-width: 100%" clearable />
+        </div>
 
         <div v-if="filteredRules.length === 0" class="empty-state">
           <el-empty :description="emptyText" />
@@ -497,9 +500,6 @@ onMounted(() => {
 
     .rules-section {
       .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         margin-bottom: 16px;
 
         h3 {
@@ -507,6 +507,25 @@ onMounted(() => {
           font-size: 18px;
           font-weight: 600;
           color: var(--fg0);
+        }
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+
+        @media (max-width: 768px) {
+          flex-direction: column;
+          align-items: stretch;
+
+          .el-input {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
         }
       }
 

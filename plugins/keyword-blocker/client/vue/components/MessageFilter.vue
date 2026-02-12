@@ -15,12 +15,13 @@
         <h3>规则列表</h3>
       </div>
 
-      <!-- 添加按钮和搜索框 -->
+      <!-- 工具栏 -->
       <div class="toolbar">
         <el-button type="primary" :icon="Plus" @click="showAddDialog = true">
           添加规则
         </el-button>
-        <el-input v-model="searchText" placeholder="搜索过滤值或原因" :prefix-icon="Search" clearable style="width: 300px" />
+        <el-input v-model="searchText" placeholder="搜索过滤值或原因" :prefix-icon="Search"
+          style="width: 300px; max-width: 100%" clearable />
       </div>
 
       <el-table :data="paginatedRules" style="width: 100%" empty-text="暂无规则">
@@ -339,7 +340,35 @@ watch(showAddDialog, (val) => {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 16px;
       margin-bottom: 16px;
+      flex-wrap: wrap;
+
+      @media (max-width: 768px) {
+        flex-direction: column;
+        align-items: stretch;
+
+        .el-input {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+      }
+    }
+  }
+
+  // 修复表格列重叠问题：为固定列添加不透明背景色
+  :deep(.el-table__fixed-right) {
+    background-color: var(--bg1);
+  }
+
+  :deep(.el-table__fixed-right .el-table__cell) {
+    background-color: var(--bg1) !important;
+  }
+
+  // 确保固定列的背景完全不透明
+  :deep(.el-table__body-wrapper .el-table__row .el-table__cell) {
+    &:last-child {
+      background-color: var(--bg1) !important;
     }
   }
 }
