@@ -10,7 +10,7 @@ export const name = 'keyword-blocker'
 export const filter = false
 export const reusable = true
 export const inject = {
-  required: ['console'],
+  required: ['console', 'logger'],
 }
 export const usage = `
 ---
@@ -60,7 +60,7 @@ export interface Config {
 export const Config: Schema<Config> = Schema.object({
   reregisterInterval: Schema.number()
     .description('重新注册中间件的间隔时间（毫秒）。<br>越小优先级越稳定，但性能开销越大。')
-    .default(500).min(100).max(5000),
+    .default(500).min(100).max(5000).step(1),
   logBlocked: Schema.boolean()
     .description('调试模式：在控制台输出被屏蔽的消息和指令')
     .default(false),

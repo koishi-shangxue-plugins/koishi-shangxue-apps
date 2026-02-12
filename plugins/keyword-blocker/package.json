@@ -17,9 +17,13 @@
     "plugin",
     "keyword-blocker"
   ],
-  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps",
   "bugs": {
     "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps.git"
   },
   "peerDependencies": {
     "@koishijs/plugin-console": "^5.11.0",
