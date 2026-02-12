@@ -12,62 +12,23 @@ export interface CommandRule {
   reason?: string
 }
 
-export interface Config {
+export interface WebUIConfig {
   filterMode: 'blacklist' | 'whitelist'
   blacklist: FilterRule[]
   whitelist: FilterRule[]
   enableCommandFilter: boolean
-  commandFilterMode?: 'blacklist' | 'whitelist'
+  commandFilterMode: 'blacklist' | 'whitelist'
   commandBlacklist: CommandRule[]
   commandWhitelist: CommandRule[]
-  reregisterInterval: number
-  logBlocked: boolean
-  replyNoPermission?: boolean
+  replyNoPermission: boolean
 }
 
-export interface BlockLog {
-  timestamp: number
-  type: 'message' | 'command'
-  userId: string
-  channelId?: string
-  guildId?: string
-  platform?: string
-  content: string
-  reason: string
-}
+// 获取配置
+export const getConfig = () => send<WebUIConfig>('keyword-blocker/config')
 
-export interface Stats {
-  todayMessageCount: number
-  todayCommandCount: number
-  topUsers: Array<{ userId: string; count: number }>
-  topCommands: Array<{ command: string; count: number }>
-}
+// 更新配置
+export const updateConfig = (config: Partial<WebUIConfig>) =>
+  send<void>('keyword-blocker/update-config', config)
 
-export async function getConfig(): Promise<Config> {
-  return await send('keyword-blocker/config')
-}
-
-export async function updateConfig(config: Partial<Config>): Promise<{ success: boolean; message: string }> {
-  return await send('keyword-blocker/update-config', config)
-}
-
-export async function getCommands(): Promise<{ commands: string[] }> {
-  return await send('keyword-blocker/commands')
-}
-
-export async function getLogs(params: {
-  page?: number
-  limit?: number
-  type?: 'message' | 'command'
-  userId?: string
-}): Promise<{ total: number; logs: BlockLog[] }> {
-  return await send('keyword-blocker/logs', params)
-}
-
-export async function clearLogs(): Promise<{ success: boolean }> {
-  return await send('keyword-blocker/clear-logs')
-}
-
-export async function getStats(): Promise<Stats> {
-  return await send('keyword-blocker/stats')
-}
+// 获取指令列表
+export const getCommands = () => send<{ commands: string[] }>('keyword-blocker/commands')

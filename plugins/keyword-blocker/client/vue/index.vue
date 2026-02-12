@@ -23,9 +23,6 @@
         <el-tab-pane label="系统设置" name="settings">
           <Settings v-model="config" />
         </el-tab-pane>
-        <el-tab-pane label="日志查看" name="logs">
-          <Logs />
-        </el-tab-pane>
       </el-tabs>
 
       <!-- 导入配置对话框 -->
@@ -48,11 +45,10 @@ import { Refresh, Download, Upload, Check, UploadFilled } from '@element-plus/ic
 import MessageFilter from './components/MessageFilter.vue'
 import CommandFilter from './components/CommandFilter.vue'
 import Settings from './components/Settings.vue'
-import Logs from './components/Logs.vue'
-import { getConfig, updateConfig, type Config } from '../utils/api'
+import { getConfig, updateConfig, type WebUIConfig } from '../utils/api'
 
 const activeTab = ref('message')
-const config = ref<Config>({
+const config = ref<WebUIConfig>({
   filterMode: 'blacklist',
   blacklist: [],
   whitelist: [],
@@ -60,8 +56,6 @@ const config = ref<Config>({
   commandFilterMode: 'blacklist',
   commandBlacklist: [],
   commandWhitelist: [],
-  reregisterInterval: 100,
-  logBlocked: false,
   replyNoPermission: true
 })
 const saving = ref(false)
@@ -88,12 +82,8 @@ const refreshData = () => {
 const saveConfig = async () => {
   saving.value = true
   try {
-    const result = await updateConfig(config.value)
-    if (result.success) {
-      ElMessage.success('保存成功')
-    } else {
-      ElMessage.error(result.message || '保存失败')
-    }
+    await updateConfig(config.value)
+    ElMessage.success('保存成功')
   } catch (error) {
     ElMessage.error('保存失败')
     console.error(error)

@@ -1,5 +1,7 @@
-import { Context, Schema } from 'koishi'
+import { Context, Schema, Command } from 'koishi'
 import { resolve } from 'path'
+import { readFile, writeFile, mkdir } from 'fs/promises'
+import { existsSync } from 'fs'
 
 import { Console } from '@koishijs/console'
 import { } from '@koishijs/plugin-console'
@@ -33,25 +35,7 @@ interface CommandRule {
   reason?: string
 }
 
-interface BlockLog {
-  timestamp: number
-  type: 'message' | 'command'
-  userId: string
-  channelId?: string
-  guildId?: string
-  platform?: string
-  content: string
-  reason: string
-}
-
-interface Stats {
-  todayMessageCount: number
-  todayCommandCount: number
-  topUsers: Array<{ userId: string; count: number }>
-  topCommands: Array<{ command: string; count: number }>
-}
-
-// WebUI 配置（存储在内存中，通过 WebUI 管理）
+// WebUI 配置（存储在本地文件）
 interface WebUIConfig {
   filterMode: 'blacklist' | 'whitelist'
   blacklist: FilterRule[]
@@ -74,20 +58,38 @@ export const Config: Schema<Config> = Schema.object({
     .description('重新注册中间件的间隔时间（毫秒）。越小优先级越稳定，但性能开销越大。')
     .default(100).min(50).max(5000),
   logBlocked: Schema.boolean()
-    .description('记录被屏蔽的消息和指令')
+    .description('调试模式：在控制台输出被屏蔽的消息和指令')
     .default(false),
 })
 
 // 声明 Console 事件类型
 declare module '@koishijs/plugin-console' {
   interface Events {
-    'keyword-blocker/config'(): WebUIConfig & { reregisterInterval: number; logBlocked: boolean }
-    'keyword-blocker/update-config'(config: Partial<WebUIConfig>): { success: boolean; message: string }
+    'keyword-blocker/config'(): WebUIConfig
+    'keyword-blocker/update-config'(config: Partial<WebUIConfig>): void
     'keyword-blocker/commands'(): { commands: string[] }
-    'keyword-blocker/logs'(params: { page?: number; limit?: number; type?: 'message' | 'command'; userId?: string }): { total: number; logs: BlockLog[] }
-    'keyword-blocker/clear-logs'(): { success: boolean }
-    'keyword-blocker/stats'(): Stats
   }
+}
+
+// 获取完整的指令列表（包括子指令）
+function getAllCommands(ctx: Context): string[] {
+  const commands = new Set<string>()
+
+  // 递归获取指令及其子指令
+  const addCommand = (cmd: Command) => {
+    commands.add(cmd.name)
+    // 遍历子指令
+    if (cmd.children) {
+      cmd.children.forEach(child => addCommand(child))
+    }
+  }
+
+  // 遍历所有顶层指令
+  ctx.root.$commander._commandList.forEach(cmd => {
+    addCommand(cmd)
+  })
+
+  return Array.from(commands).sort()
 }
 
 // 判断是否应该过滤指令
@@ -187,8 +189,12 @@ export function apply(ctx: Context, config: Config) {
   ctx.logger.info('启用关键词屏蔽插件')
   ctx.logger.info('中间件重新注册间隔: %d ms', config.reregisterInterval)
 
-  // WebUI 配置（存储在内存中，通过 WebUI 管理）
-  let webConfig: WebUIConfig = {
+  // 配置文件路径
+  const configDir = resolve(ctx.baseDir, 'data/keyword-blocker')
+  const configPath = resolve(configDir, 'config.json')
+
+  // 默认配置
+  const defaultConfig: WebUIConfig = {
     filterMode: 'blacklist',
     blacklist: [],
     whitelist: [],
@@ -199,17 +205,42 @@ export function apply(ctx: Context, config: Config) {
     replyNoPermission: true
   }
 
-  // 日志存储
-  const blockLogs: BlockLog[] = []
-  const MAX_LOGS = 1000
+  // WebUI 配置（从文件加载）
+  let webConfig: WebUIConfig = { ...defaultConfig }
 
-  // 添加日志
-  const addLog = (log: BlockLog) => {
-    blockLogs.unshift(log)
-    if (blockLogs.length > MAX_LOGS) {
-      blockLogs.pop()
+  // 加载配置文件
+  const loadConfig = async () => {
+    try {
+      if (existsSync(configPath)) {
+        const data = await readFile(configPath, 'utf-8')
+        webConfig = { ...defaultConfig, ...JSON.parse(data) }
+        ctx.logger.info('已加载配置文件')
+      } else {
+        ctx.logger.info('配置文件不存在，使用默认配置')
+      }
+    } catch (error) {
+      ctx.logger.error('加载配置文件失败:', error)
+      webConfig = { ...defaultConfig }
     }
   }
+
+  // 保存配置文件
+  const saveConfig = async () => {
+    try {
+      // 确保目录存在
+      if (!existsSync(configDir)) {
+        await mkdir(configDir, { recursive: true })
+      }
+      await writeFile(configPath, JSON.stringify(webConfig, null, 2), 'utf-8')
+      ctx.logger.info('配置已保存到文件')
+    } catch (error) {
+      ctx.logger.error('保存配置文件失败:', error)
+      throw error
+    }
+  }
+
+  // 启动时加载配置
+  loadConfig()
 
   // 标记插件是否已启用
   let isActive = true
@@ -240,18 +271,6 @@ export function apply(ctx: Context, config: Config) {
           const platform = session.platform || '未知'
           ctx.logger.info('屏蔽消息 - 用户:%s 频道:%s 群组:%s 平台:%s 内容:"%s"',
             userId, channelId, guildId, platform, messageContent)
-
-          // 添加到日志
-          addLog({
-            timestamp: Date.now(),
-            type: 'message',
-            userId,
-            channelId,
-            guildId,
-            platform,
-            content: messageContent,
-            reason: '匹配过滤规则'
-          })
         }
 
         // 清空消息内容，让后续插件无法获取实际内容
@@ -305,18 +324,6 @@ export function apply(ctx: Context, config: Config) {
     if (shouldBlock) {
       if (config.logBlocked) {
         ctx.logger.info('屏蔽指令 - 用户:%s 指令:%s', userId, commandName)
-
-        // 添加到日志
-        addLog({
-          timestamp: Date.now(),
-          type: 'command',
-          userId,
-          channelId: session.channelId,
-          guildId: session.guildId,
-          platform: session.platform,
-          content: commandName,
-          reason: '匹配指令过滤规则'
-        })
       }
 
       if (webConfig.replyNoPermission) {
@@ -336,107 +343,33 @@ export function apply(ctx: Context, config: Config) {
 
   // 获取配置
   ctx.console.addListener('keyword-blocker/config', () => {
-    return {
-      ...webConfig,
-      reregisterInterval: config.reregisterInterval,
-      logBlocked: config.logBlocked
-    }
+    return webConfig
   })
 
   // 更新配置
   ctx.console.addListener('keyword-blocker/update-config', (newConfig) => {
-    try {
-      // 更新 WebUI 配置
-      Object.assign(webConfig, newConfig)
+    // 更新 WebUI 配置
+    Object.assign(webConfig, newConfig)
 
-      ctx.logger.info('配置已更新')
-      ctx.logger.info('消息过滤模式: %s，规则数: %d', webConfig.filterMode,
-        webConfig.filterMode === 'blacklist' ? webConfig.blacklist.length : webConfig.whitelist.length)
+    // 异步保存到文件
+    saveConfig().catch(error => {
+      ctx.logger.error('保存配置文件失败:', error)
+    })
 
-      if (webConfig.enableCommandFilter) {
-        ctx.logger.info('指令过滤已启用，模式: %s，规则数: %d', webConfig.commandFilterMode,
-          webConfig.commandFilterMode === 'blacklist' ? webConfig.commandBlacklist.length : webConfig.commandWhitelist.length)
-      }
+    ctx.logger.info('配置已更新')
+    ctx.logger.info('消息过滤模式: %s，规则数: %d', webConfig.filterMode,
+      webConfig.filterMode === 'blacklist' ? webConfig.blacklist.length : webConfig.whitelist.length)
 
-      return { success: true, message: '配置已更新' }
-    } catch (error) {
-      ctx.logger.error('更新配置失败:', error)
-      return { success: false, message: error.message }
+    if (webConfig.enableCommandFilter) {
+      ctx.logger.info('指令过滤已启用，模式: %s，规则数: %d', webConfig.commandFilterMode,
+        webConfig.commandFilterMode === 'blacklist' ? webConfig.commandBlacklist.length : webConfig.commandWhitelist.length)
     }
   })
 
-  // 获取已注册指令列表
+  // 获取已注册指令列表（包括子指令）
   ctx.console.addListener('keyword-blocker/commands', () => {
-    const commands: string[] = []
-    ctx.root.$commander._commandList.forEach((cmd) => {
-      commands.push(cmd.name)
-    })
+    const commands = getAllCommands(ctx)
     return { commands }
-  })
-
-  // 获取日志
-  ctx.console.addListener('keyword-blocker/logs', ({ page = 1, limit = 20, type, userId }) => {
-    let filteredLogs = blockLogs
-
-    if (type) {
-      filteredLogs = filteredLogs.filter(log => log.type === type)
-    }
-
-    if (userId) {
-      filteredLogs = filteredLogs.filter(log => log.userId === userId)
-    }
-
-    const start = (page - 1) * limit
-    const end = start + limit
-    const paginatedLogs = filteredLogs.slice(start, end)
-
-    return {
-      total: filteredLogs.length,
-      logs: paginatedLogs
-    }
-  })
-
-  // 清空日志
-  ctx.console.addListener('keyword-blocker/clear-logs', () => {
-    blockLogs.length = 0
-    return { success: true }
-  })
-
-  // 获取统计信息
-  ctx.console.addListener('keyword-blocker/stats', () => {
-    const now = Date.now()
-    const oneDayAgo = now - 24 * 60 * 60 * 1000
-
-    const todayLogs = blockLogs.filter(log => log.timestamp >= oneDayAgo)
-    const messageLogs = todayLogs.filter(log => log.type === 'message')
-    const commandLogs = todayLogs.filter(log => log.type === 'command')
-
-    // 统计最活跃的被屏蔽用户
-    const userCounts = new Map<string, number>()
-    todayLogs.forEach(log => {
-      userCounts.set(log.userId, (userCounts.get(log.userId) || 0) + 1)
-    })
-    const topUsers = Array.from(userCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([userId, count]) => ({ userId, count }))
-
-    // 统计最常被屏蔽的指令
-    const commandCounts = new Map<string, number>()
-    commandLogs.forEach(log => {
-      commandCounts.set(log.content, (commandCounts.get(log.content) || 0) + 1)
-    })
-    const topCommands = Array.from(commandCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([command, count]) => ({ command, count }))
-
-    return {
-      todayMessageCount: messageLogs.length,
-      todayCommandCount: commandLogs.length,
-      topUsers,
-      topCommands
-    }
   })
 
   // 当插件被禁用时，停止轮询并注销中间件

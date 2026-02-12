@@ -131,15 +131,15 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
-import type { Config, CommandRule } from '../../utils/api'
+import type { WebUIConfig, CommandRule } from '../../utils/api'
 import { getCommands } from '../../utils/api'
 
 const props = defineProps<{
-  modelValue: Config
+  modelValue: WebUIConfig
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: Config]
+  'update:modelValue': [value: WebUIConfig]
 }>()
 
 const localConfig = computed({
@@ -372,6 +372,7 @@ onMounted(() => {
           margin: 0;
           font-size: 18px;
           font-weight: 600;
+          color: var(--fg0);
         }
       }
 
@@ -393,11 +394,12 @@ onMounted(() => {
                 font-size: 18px;
                 font-weight: 600;
                 margin-bottom: 4px;
+                color: var(--fg0);
               }
 
               .reason {
                 font-size: 14px;
-                color: #909399;
+                color: var(--fg1);
               }
             }
 
@@ -412,6 +414,7 @@ onMounted(() => {
               font-size: 14px;
               font-weight: 500;
               margin-bottom: 8px;
+              color: var(--fg0);
             }
 
             .commands-tags {
@@ -434,7 +437,6 @@ onMounted(() => {
     right: 40px;
     bottom: 40px;
     z-index: 100;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   }
 }
 </style>

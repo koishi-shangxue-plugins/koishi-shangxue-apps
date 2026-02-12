@@ -76,14 +76,14 @@
 import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
-import type { Config, FilterRule } from '../utils/api'
+import type { WebUIConfig, FilterRule } from '../../utils/api'
 
 const props = defineProps<{
-  modelValue: Config
+  modelValue: WebUIConfig
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: Config]
+  'update:modelValue': [value: WebUIConfig]
 }>()
 
 const localConfig = computed({
@@ -251,6 +251,7 @@ watch(showAddDialog, (val) => {
         margin: 0;
         font-size: 18px;
         font-weight: 600;
+        color: var(--fg0);
       }
     }
   }
@@ -260,7 +261,6 @@ watch(showAddDialog, (val) => {
     right: 40px;
     bottom: 40px;
     z-index: 100;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   }
 }
 </style>

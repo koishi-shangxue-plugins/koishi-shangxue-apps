@@ -4,21 +4,31 @@
     box-sizing: border-box;
   }
 
+  // 使用 Koishi 主题颜色变量
+  color: var(--fg0);
+  background-color: var(--bg0);
+
   // Element Plus 主题适配
   --el-color-primary: var(--k-color-primary, #409eff);
   --el-color-success: #67c23a;
   --el-color-warning: #e6a23c;
   --el-color-danger: #f56c6c;
-  --el-color-info: #909399;
+  --el-color-info: var(--fg1);
+  --el-text-color-primary: var(--fg0);
+  --el-text-color-regular: var(--fg1);
+  --el-text-color-secondary: var(--fg2);
+  --el-border-color: var(--border);
+  --el-bg-color: var(--bg1);
 
   // 卡片样式
   .el-card {
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: box-shadow 0.3s;
+    background-color: var(--bg1);
+    border-color: var(--border);
+    transition: all 0.3s;
 
     &:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+      border-color: var(--k-color-primary, #409eff);
     }
   }
 
@@ -36,9 +46,12 @@
   .el-table {
     border-radius: 8px;
     overflow: hidden;
+    background-color: var(--bg1);
+    color: var(--fg0);
 
     th {
-      background-color: var(--k-color-bg-light, #f5f7fa);
+      background-color: var(--bg2);
+      color: var(--fg0);
       font-weight: 600;
     }
 
@@ -51,10 +64,11 @@
   .el-dialog {
     border-radius: 8px;
     overflow: hidden;
+    background-color: var(--bg1);
 
     .el-dialog__header {
       padding: 20px 20px 10px;
-      border-bottom: 1px solid var(--k-color-border, #dcdfe6);
+      border-bottom: 1px solid var(--border);
     }
 
     .el-dialog__body {
@@ -63,7 +77,7 @@
 
     .el-dialog__footer {
       padding: 10px 20px 20px;
-      border-top: 1px solid var(--k-color-border, #dcdfe6);
+      border-top: 1px solid var(--border);
     }
   }
 
@@ -75,6 +89,7 @@
   // 空状态样式
   .el-empty {
     padding: 40px 0;
+    color: var(--fg1);
   }
 
   // 分页样式
@@ -88,17 +103,24 @@
   .el-upload-dragger {
     border-radius: 8px;
     transition: all 0.3s;
+    background-color: var(--bg1);
+    border-color: var(--border);
 
     &:hover {
       border-color: var(--el-color-primary);
     }
   }
 
-  // 滑块样式
-  .el-slider {
-    .el-slider__marks-text {
-      font-size: 12px;
-    }
+  // 输入框样式
+  .el-input {
+    --el-input-bg-color: var(--bg1);
+    --el-input-border-color: var(--border);
+    --el-input-text-color: var(--fg0);
+  }
+
+  // 选择器样式
+  .el-select {
+    --el-select-input-focus-border-color: var(--k-color-primary, #409eff);
   }
 
   // 响应式设计
