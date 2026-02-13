@@ -109,18 +109,12 @@
               </el-tag>
               <div v-if="editingRule.commands.length === 0"
                 style="padding: 8px; color: var(--fg2); text-align: center;">
-                暂无指令，请添加
+                暂无指令，请点击下方按钮选择
               </div>
             </div>
-            <el-input v-model="newCommand" placeholder="输入指令名称后按回车" style="width: 100%"
-              @keyup.enter="addCommandToEditing">
-              <template #append>
-                <el-button @click="addCommandToEditing">添加</el-button>
-              </template>
-            </el-input>
-            <div style="margin-top: 8px">
-              <el-button type="primary" link @click="openCommandSelector">从已注册指令中选择</el-button>
-            </div>
+            <el-button type="primary" @click="openCommandSelector" style="width: 100%">
+              从已注册指令中选择
+            </el-button>
           </div>
         </el-form-item>
         <el-form-item label="限制原因">
@@ -195,7 +189,6 @@ const editingRule = ref<CommandRule>({
   replyNoPermission: false,
   replyMessage: '你没有权限使用此指令。'
 })
-const newCommand = ref('')
 const showCommandSelector = ref(false)
 const selectedCommands = ref<string[]>([])
 const selectAll = ref(false)
@@ -303,8 +296,10 @@ const loadCommands = async () => {
 
 // 打开指令选择器
 const openCommandSelector = () => {
-  selectedCommands.value = []
-  selectAll.value = false
+  // 预选已添加的指令
+  selectedCommands.value = [...editingRule.value.commands]
+  // 更新全选状态
+  selectAll.value = selectedCommands.value.length === availableCommands.value.length
   showCommandSelector.value = true
 }
 
@@ -357,16 +352,6 @@ const deleteRule = (index: number) => {
   }).catch(() => {
     // 取消删除
   })
-}
-
-// 添加指令到编辑中的规则
-const addCommandToEditing = () => {
-  if (!newCommand.value.trim()) {
-    ElMessage.warning('请输入指令')
-    return
-  }
-  editingRule.value.commands.push(newCommand.value.trim())
-  newCommand.value = ''
 }
 
 // 确认编辑
@@ -453,15 +438,11 @@ const confirmSelectCommands = () => {
     return
   }
 
-  // 添加到编辑中的规则
-  const existingCommands = new Set(editingRule.value.commands)
-  const newCommands = selectedCommands.value.filter(cmd => !existingCommands.has(cmd))
-  editingRule.value.commands.push(...newCommands)
+  // 直接替换为选中的指令
+  editingRule.value.commands = [...selectedCommands.value]
 
   showCommandSelector.value = false
-  selectedCommands.value = []
-  selectAll.value = false
-  ElMessage.success('添加成功')
+  ElMessage.success('选择成功')
 }
 
 // 更新规则列表
@@ -486,7 +467,6 @@ const resetEditingRule = () => {
     replyNoPermission: false,
     replyMessage: '你没有权限使用此指令。'
   }
-  newCommand.value = ''
 }
 
 // 监听对话框关闭
