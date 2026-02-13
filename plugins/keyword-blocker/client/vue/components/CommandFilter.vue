@@ -101,11 +101,18 @@
         </el-form-item>
         <el-form-item label="指令列表" required>
           <div style="width: 100%">
-            <el-tag v-for="(cmd, index) in editingRule.commands" :key="index" closable
-              @close="editingRule.commands.splice(index, 1)" style="margin: 4px">
-              {{ cmd }}
-            </el-tag>
-            <el-input v-model="newCommand" placeholder="输入指令名称后按回车" style="width: 100%; margin-top: 8px"
+            <div
+              style="max-height: 200px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px;">
+              <el-tag v-for="(cmd, index) in editingRule.commands" :key="index" closable
+                @close="editingRule.commands.splice(index, 1)" style="margin: 4px">
+                {{ cmd }}
+              </el-tag>
+              <div v-if="editingRule.commands.length === 0"
+                style="padding: 8px; color: var(--fg2); text-align: center;">
+                暂无指令，请添加
+              </div>
+            </div>
+            <el-input v-model="newCommand" placeholder="输入指令名称后按回车" style="width: 100%"
               @keyup.enter="addCommandToEditing">
               <template #append>
                 <el-button @click="addCommandToEditing">添加</el-button>
