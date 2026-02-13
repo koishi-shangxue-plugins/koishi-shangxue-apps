@@ -140,11 +140,13 @@
         <el-checkbox v-model="selectAll" @change="handleSelectAllChange">全选</el-checkbox>
         <el-input v-model="commandSearchText" placeholder="搜索指令" :prefix-icon="Search" style="flex: 1" clearable />
       </div>
-      <el-checkbox-group v-model="selectedCommands" style="max-height: 400px; overflow-y: auto">
-        <div v-for="cmd in filteredCommands" :key="cmd" style="margin: 8px 0">
-          <el-checkbox :value="cmd">{{ cmd }}</el-checkbox>
-        </div>
-      </el-checkbox-group>
+      <div style="max-height: 400px; overflow-y: auto; padding-right: 8px;">
+        <el-checkbox-group v-model="selectedCommands">
+          <div v-for="cmd in filteredCommands" :key="cmd" style="margin: 8px 0">
+            <el-checkbox :value="cmd">{{ cmd }}</el-checkbox>
+          </div>
+        </el-checkbox-group>
+      </div>
       <template #footer>
         <el-button @click="showCommandSelector = false">取消</el-button>
         <el-button type="primary" @click="confirmSelectCommands">确定</el-button>
@@ -375,8 +377,13 @@ const confirmEdit = async () => {
     return
   }
 
-  // 检查冲突（仅在添加新规则时检查）
-  if (editingIndex.value === -1) {
+  // 检查是否修改了 type 或 value
+  const isValueChanged = editingIndex.value === -1 ||
+    (currentRules.value[editingIndex.value].type !== editingRule.value.type ||
+      currentRules.value[editingIndex.value].value !== editingRule.value.value)
+
+  // 检查冲突（添加新规则或修改了 type/value 时检查）
+  if (isValueChanged) {
     const hasConflict = checkConflictWithMessageFilter(editingRule.value.type, editingRule.value.value)
     if (hasConflict) {
       try {

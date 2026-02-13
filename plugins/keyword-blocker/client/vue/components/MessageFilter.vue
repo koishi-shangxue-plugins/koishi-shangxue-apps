@@ -231,42 +231,49 @@ const confirmEdit = async () => {
     return
   }
 
-  // 检查冲突（添加和编辑时都要检查）
-  const hasConflict = checkConflictWithCommandFilter(editingRule.value.type, editingRule.value.value)
-  if (hasConflict) {
-    try {
-      await ElMessageBox.confirm(
-        `此${getTypeLabel(editingRule.value.type)}已经在【指令级权限控制】中，是否删除原有记录？`,
-        '检测到冲突',
-        {
-          confirmButtonText: '删除并继续',
-          cancelButtonText: '取消',
-          type: 'warning'
+  // 检查是否修改了 type 或 value
+  const isValueChanged = editingIndex.value === -1 ||
+    (currentRules.value[editingIndex.value].type !== editingRule.value.type ||
+      currentRules.value[editingIndex.value].value !== editingRule.value.value)
+
+  // 检查冲突（添加新规则或修改了 type/value 时检查）
+  if (isValueChanged) {
+    const hasConflict = checkConflictWithCommandFilter(editingRule.value.type, editingRule.value.value)
+    if (hasConflict) {
+      try {
+        await ElMessageBox.confirm(
+          `此${getTypeLabel(editingRule.value.type)}已经在【指令级权限控制】中，是否删除原有记录？`,
+          '检测到冲突',
+          {
+            confirmButtonText: '删除并继续',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+
+        // 删除指令级权限控制中的冲突记录
+        const newConfig = { ...localConfig.value }
+        const commandFilters = newConfig.commandFilterMode === 'blacklist'
+          ? newConfig.commandBlacklist
+          : newConfig.commandWhitelist
+
+        const conflictIndex = commandFilters.findIndex(
+          filter => filter.type === editingRule.value.type && filter.value === editingRule.value.value
+        )
+
+        if (conflictIndex !== -1) {
+          commandFilters.splice(conflictIndex, 1)
+          if (newConfig.commandFilterMode === 'blacklist') {
+            newConfig.commandBlacklist = commandFilters
+          } else {
+            newConfig.commandWhitelist = commandFilters
+          }
+          emit('update:modelValue', newConfig)
         }
-      )
-
-      // 删除指令级权限控制中的冲突记录
-      const newConfig = { ...localConfig.value }
-      const commandFilters = newConfig.commandFilterMode === 'blacklist'
-        ? newConfig.commandBlacklist
-        : newConfig.commandWhitelist
-
-      const conflictIndex = commandFilters.findIndex(
-        filter => filter.type === editingRule.value.type && filter.value === editingRule.value.value
-      )
-
-      if (conflictIndex !== -1) {
-        commandFilters.splice(conflictIndex, 1)
-        if (newConfig.commandFilterMode === 'blacklist') {
-          newConfig.commandBlacklist = commandFilters
-        } else {
-          newConfig.commandWhitelist = commandFilters
-        }
-        emit('update:modelValue', newConfig)
+      } catch {
+        // 用户取消
+        return
       }
-    } catch {
-      // 用户取消
-      return
     }
   }
 
