@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-keyword-blocker",
   "description": "黑白名单屏蔽插件 - 支持消息级和指令级过滤",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -30,11 +30,9 @@
     "koishi": "^4.16.0"
   },
   "devDependencies": {
-    "@koishijs/client": "^5.11.0",
-    "koishi": "^4.16.0"
-  },
-  "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
-    "element-plus": "^2.13.0"
+    "@koishijs/client": "^5.11.0",
+    "element-plus": "^2.13.0",
+    "koishi": "^4.16.0"
   }
 }

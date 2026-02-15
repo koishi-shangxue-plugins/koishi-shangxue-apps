@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chat-patch",
   "description": "[<ruby>chat-patch<rp>（</rp><rt>点我预览效果</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/openplatform/71074dfc9e5256fc3333d8bd8478bec1af874046.png) 视奸小插件((bushi( (低性能警告)。手机端适配。灵感来自 chat 插件。",
-  "version": "2.4.4",
+  "version": "2.4.5",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -37,16 +37,16 @@
     "koishi": "^4.16.0"
   },
   "devDependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "@koishijs/client": "^5.11.0",
     "@types/mime-types": "^3.0.1",
     "autoprefixer": "^10.4.23",
+    "element-plus": "^2.13.0",
     "koishi": "^4.16.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17"
   },
   "dependencies": {
-    "@element-plus/icons-vue": "^2.3.2",
-    "element-plus": "^2.13.0",
     "mime-types": "^3.0.2"
   }
 }
