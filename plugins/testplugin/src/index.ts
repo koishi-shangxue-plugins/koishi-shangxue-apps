@@ -514,7 +514,7 @@ export function apply(ctx: Context) {
   command
     .subcommand('.图片')
     .action(async ({ session }) => {
-      const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/c91bb351c5fc283dfd9c95d0ec5d6c88.jpg")
+      const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg")
       ctx.logger.info(aaa)
       await session.send(aaa)
       return
