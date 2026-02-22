@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-preview-help",
   "description": "[<ruby>图片菜单渲染<rp>（</rp><rt>点我查看预览效果</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/openplatform/7cfeb33745f63bb290f4f50982d3a1d22aca644c.jpg) ",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -16,7 +16,7 @@
     "plugin",
     "图片菜单"
   ],
-  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps",
   "bugs": {
     "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
   },

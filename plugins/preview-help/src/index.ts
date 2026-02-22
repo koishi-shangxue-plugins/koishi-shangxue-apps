@@ -5,13 +5,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { readFile, writeFile, mkdir, readdir, unlink } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
-import { pathToFileURL } from 'node:url'
 
 export const name = 'preview-help'
 
 export const usage = `
 ---
-
 
 <a href="https://i0.hdslb.com/bfs/openplatform/7cfeb33745f63bb290f4f50982d3a1d22aca644c.jpg
 " target="_blank" referrerpolicy="no-referrer">点我预览 菜单效果图</a>
@@ -38,16 +36,16 @@ export const Config: Schema<Config> = Schema.object({
   commandName: Schema.string().default('preview-help').description('指令名称'),
   screenshotQuality: Schema.number().min(1).max(100).default(80).description('截图质量 (1-100, 仅对 jpeg 有效)'),
   excludeCommands: Schema.array(String).role('table').default([
-  "preview-help",
-  "command",
-  "help",
-  "timer",
-  "clear",
-  "user",
-  "channel",
-  "inspect",
-  "plugin"
-]).description('不希望在菜单中显示的指令列表'),
+    "preview-help",
+    "command",
+    "help",
+    "timer",
+    "clear",
+    "user",
+    "channel",
+    "inspect",
+    "plugin"
+  ]).description('不希望在菜单中显示的指令列表'),
 })
 
 /**
@@ -129,7 +127,8 @@ export function apply(ctx: Context, config: Config) {
 
       // 2. 检查缓存
       if (fs.existsSync(cachePath)) {
-        return h.image(pathToFileURL(cachePath).href)
+        const base64 = await toBase64(cachePath)
+        return h.image(base64)
       }
 
       // 3. 准备资源 (Base64)
@@ -235,15 +234,15 @@ export function apply(ctx: Context, config: Config) {
   <div class="title">✨ 指令菜单 ✨</div>
   <div class="container">
     ${visibleCommands.map(cmd => {
-      const desc = session.text([`commands.${cmd.name}.description`, ''], cmd.config['params'])
-      const hasDesc = desc && desc !== '暂无描述'
-      return `
+        const desc = session.text([`commands.${cmd.name}.description`, ''], cmd.config['params'])
+        const hasDesc = desc && desc !== '暂无描述'
+        return `
         <div class="card ${hasDesc ? 'has-desc' : 'no-desc'}">
           <div class="cmd-name">${cmd.displayName}</div>
           ${hasDesc ? `<div class="cmd-desc">${desc}</div>` : ''}
         </div>
       `
-    }).join('')}
+      }).join('')}
   </div>
 </body>
 </html>
@@ -275,7 +274,8 @@ export function apply(ctx: Context, config: Config) {
           logger.error('写入缓存失败:', e)
         }
 
-        return h.image(pathToFileURL(cachePath).href)
+        const base64 = await toBase64(cachePath)
+        return h.image(base64)
       } catch (err) {
         logger.error('渲染图片失败:', err)
         return '渲染图片时发生错误，请稍后再试。'
