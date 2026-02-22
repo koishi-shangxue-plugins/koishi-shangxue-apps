@@ -6,15 +6,10 @@
         <el-radio value="blacklist">黑名单模式</el-radio>
         <el-radio value="whitelist">白名单模式</el-radio>
       </el-radio-group>
-      <el-alert :title="modeDescription" type="info" :closable="false" show-icon style="margin-top: 12px" />
     </div>
 
     <!-- 规则列表 -->
     <div class="rules-section">
-      <div class="section-header">
-        <h3>规则列表</h3>
-      </div>
-
       <!-- 工具栏 -->
       <div class="toolbar">
         <el-button type="primary" :icon="Plus" @click="showAddDialog = true">
