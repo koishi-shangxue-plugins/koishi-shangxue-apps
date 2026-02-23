@@ -26,14 +26,13 @@ register_shortcut() {
     # 注册新的快捷指令（使用变量）
     echo "alias koimux=\"bash -c \\\"\\\$(curl -L $SCRIPT_SOURCE_URL)\\\"\"" >> "$shell_rc"
 
+    # 重新加载配置文件
+    source "$shell_rc"
+
     clear
     echo "=========================================="
-    echo "快捷指令 'koimux' 已注册！"
+    echo "快捷指令 'koimux' 已注册并生效！"
     echo "脚本源: $SCRIPT_SOURCE_URL"
-    echo ""
-    echo "请执行以下命令使其生效："
-    echo "  source ~/.bashrc"
-    echo "或重启终端"
     echo "=========================================="
     read -n 1 -s -r -p "按任意键继续..."
     echo
