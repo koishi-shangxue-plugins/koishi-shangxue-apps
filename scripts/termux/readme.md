@@ -4,12 +4,12 @@
 
 通过这个工具，你可以轻松安装依赖、创建和管理 Koishi 实例。
 
-现已加入 Koimux全家桶： -> https://github.com/initialencounter/koimux_bot/blob/master/script/koimuxTUI.sh
+现已加入 Koimux全家桶： -> <https://github.com/initialencounter/koimux_bot/blob/master/script/koimuxTUI.sh>
 
 > 使用以下指令以运行！
 
-```
- bash -c "$(curl -L https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh)"
+```bash
+bash -c "$(curl -L https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh)"
 ```
 
 > 本仓库是为了存放备份（？）
@@ -29,16 +29,18 @@
 1. **切换源**：
    - 打开 Zero Termux。
    - 按音量上键，进入 **Zero Termux 快捷交互菜单**。
-   - 依次选择【切换源】→【清华源】。
+   - 依次选择【常用功能】→【切换源】→【清华源】。
 
 2. **更新包管理器**：
    - 在 Termux 中运行以下命令：
+
      ```bash
-     apt update -y
+     pkg update -y
      ```
 
 3. **安装 Koishi Manager**：
    - 运行以下命令下载并运行脚本：
+
      ```bash
      bash -c "$(curl -L https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/scripts/termux/koimuxTUI.sh)"
      ```
@@ -48,10 +50,16 @@
 ## 使用步骤
 
 ### 1. 安装依赖
+
 - 在脚本的主菜单中，选择【1 安装依赖】。
-- 依次安装所有依赖项（x11-repo、tur-repo、libexpat、chromium、ffmpeg、nodejs-lts 等）。
+- 依次安装所有依赖项（x11-repo、tur-repo、libexpat、chromium、ffmpeg、nodejs 等）。
+
+> 注意 此步骤需要科学上网！
+
+- 安装完依赖后，选择【7 返回主菜单】
 
 ### 2. 创建 Koishi 实例
+
 - 在主菜单中，选择【2 创建 Koishi 实例】。
 - 推荐小白用户一路回车，使用默认选项。
 - 完成创建后，Koishi 会自动启动，并在浏览器中打开 Web UI。
@@ -59,6 +67,7 @@
 > **注意**：除非你需要多开实例，否则不要修改默认选项。如果多开实例，请确保实例目录名称唯一。
 
 ### 3. 实例目录
+
 - Koishi 实例默认存储在 `~/koishi/*/` 目录下。
 - 默认实例目录为 `~/koishi/koishi-app/`。
 
@@ -67,8 +76,12 @@
 ## 备份与恢复
 
 ### 首次创建后务必备份
+
 1. **结束所有进程**：
    - 多次按下 `Ctrl + C`，确保所有 Koishi 进程已结束。
+   > 如何按下`Ctrl + C`？
+   >
+   > 点击 `zerotermux` 底部的 `Ctrl` 按钮为高亮状态，然后键盘键入 `C`，即可。
 
 2. **备份实例**：
    - 按音量上键，进入 **Zero Termux 快捷交互菜单**。
@@ -80,8 +93,9 @@
 
 1. **运行脚本**：
    - 运行以下命令：
+
      ```bash
-     bash -c "$(curl -L https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/scripts/termux/koimuxTUI.sh)"
+     koimux
      ```
 
 2. **管理实例**：
