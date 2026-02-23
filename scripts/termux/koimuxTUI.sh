@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# 脚本源 URL
+SCRIPT_SOURCE_URL="${KOIMUX_SCRIPT_URL:-https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh}"
+
 # 初始化：切换到 HOME 目录
 cd "$HOME" || exit 1
 
@@ -43,15 +46,21 @@ register_shortcut() {
         shell_rc="$HOME/.bashrc"
     fi
 
-    if ! grep -q "alias koimux=" "$shell_rc" 2>/dev/null; then
-        echo 'alias koimux="bash -c \"\$(curl -L https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh)\""' >> "$shell_rc"
-        clear
-        echo "=========================================="
-        echo "快捷指令 'koimux' 已注册！"
-        echo "=========================================="
-        read -n 1 -s -r -p "按任意键继续..."
-        echo
+    # 删除旧的 koimux 别名（如果存在）
+    if grep -q "alias koimux=" "$shell_rc" 2>/dev/null; then
+        sed -i '/alias koimux=/d' "$shell_rc"
     fi
+
+    # 注册新的快捷指令
+    echo "alias koimux=\"bash -c \\\"\\\$(curl -L $SCRIPT_SOURCE_URL)\\\"\"" >> "$shell_rc"
+
+    clear
+    echo "=========================================="
+    echo "快捷指令 'koimux' 已注册！"
+    echo "脚本源: $SCRIPT_SOURCE_URL"
+    echo "=========================================="
+    read -n 1 -s -r -p "按任意键继续..."
+    echo
 }
 
 # 检查并安装 dialog 工具
