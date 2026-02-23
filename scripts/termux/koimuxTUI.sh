@@ -361,7 +361,7 @@ function show_script_info {
     echo "1. 设备真实架构: $REAL_ARCH"
     echo ""
 
-    # 2. 脚本源地址（从 shell 配置文件中读取）
+    # 2. 脚本源地址
     local shell_rc=""
     if [ -f "$HOME/.bashrc" ]; then
         shell_rc="$HOME/.bashrc"
