@@ -15,7 +15,7 @@ register_shortcut() {
     fi
 
     if ! grep -q "alias koimux=" "$shell_rc" 2>/dev/null; then
-        echo 'alias koimux="bash -c \"\$(curl -L https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh)\""' >> "$shell_rc"
+        echo 'alias koimux="bash -c \"\$(curl -L https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/scripts/termux/koimuxTUI.sh)\""' >> "$shell_rc"
         clear
         echo "=========================================="
         echo "快捷指令 'koimux' 已注册！"
