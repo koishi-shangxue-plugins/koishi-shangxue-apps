@@ -6,6 +6,42 @@ SCRIPT_SOURCE_URL="https://gitee.com/initencunter/koimux_bot/raw/master/script/k
 # 初始化：切换到 HOME 目录
 cd "$HOME" || exit 1
 
+# 自动注册快捷指令
+register_shortcut() {
+    local shell_rc=""
+    if [ -f "$HOME/.bashrc" ]; then
+        shell_rc="$HOME/.bashrc"
+    elif [ -f "$HOME/.zshrc" ]; then
+        shell_rc="$HOME/.zshrc"
+    else
+        shell_rc="$HOME/.bashrc"
+    fi
+
+    # 清除当前 shell 中的旧别名缓存
+    unalias koimux 2>/dev/null || true
+
+    # 删除配置文件中的旧别名
+    sed -i '/alias koimux=/d' "$shell_rc" 2>/dev/null || true
+
+    # 注册新的快捷指令（使用变量）
+    echo "alias koimux=\"bash -c \\\"\\\$(curl -L $SCRIPT_SOURCE_URL)\\\"\"" >> "$shell_rc"
+
+    clear
+    echo "=========================================="
+    echo "快捷指令 'koimux' 已注册！"
+    echo "脚本源: $SCRIPT_SOURCE_URL"
+    echo ""
+    echo "请执行以下命令使其生效："
+    echo "  source ~/.bashrc"
+    echo "或重启终端"
+    echo "=========================================="
+    read -n 1 -s -r -p "按任意键继续..."
+    echo
+}
+
+# 每次运行都注册快捷指令（覆写旧的）
+register_shortcut
+
 # 检测架构
 REAL_ARCH=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
 UNAME_ARCH=$(uname -m)
@@ -21,7 +57,7 @@ if [[ "$REAL_ARCH" == "x86_64" ]] || [[ "$REAL_ARCH" == "x86" ]]; then
     echo "此脚本不支持在该架构上运行。"
     echo ""
     echo "原因："
-    echo "  x86 架构的 Termux 在运行 Node.js时"
+    echo "  x86 架构的 Termux 在运行 Node.js 时"
     echo "  存在已知的兼容性问题。"
     echo ""
     echo "建议：使用 ARM64 (aarch64) 架构的真机设备"
@@ -35,34 +71,6 @@ if [[ "$REAL_ARCH" == "x86_64" ]] || [[ "$REAL_ARCH" == "x86" ]]; then
     exit 1
 fi
 
-# 自动注册快捷指令
-register_shortcut() {
-    local shell_rc=""
-    if [ -f "$HOME/.bashrc" ]; then
-        shell_rc="$HOME/.bashrc"
-    elif [ -f "$HOME/.zshrc" ]; then
-        shell_rc="$HOME/.zshrc"
-    else
-        shell_rc="$HOME/.bashrc"
-    fi
-
-    # 删除旧的 koimux 别名（如果存在）
-    if grep -q "alias koimux=" "$shell_rc" 2>/dev/null; then
-        sed -i '/alias koimux=/d' "$shell_rc"
-    fi
-
-    # 注册新的快捷指令
-    echo "alias koimux=\"bash -c \\\"\\\$(curl -L $SCRIPT_SOURCE_URL)\\\"\"" >> "$shell_rc"
-
-    clear
-    echo "=========================================="
-    echo "快捷指令 'koimux' 已注册！"
-    echo "脚本源: $SCRIPT_SOURCE_URL"
-    echo "=========================================="
-    read -n 1 -s -r -p "按任意键继续..."
-    echo
-}
-
 # 检查并安装 dialog 工具
 if ! command -v dialog &> /dev/null; then
     pkg install dialog -y
@@ -70,9 +78,6 @@ fi
 
 # 默认实例目录
 KOISHI_BASE_DIR="$HOME/koishi"
-
-# 每次运行都注册快捷指令（覆写旧的）
-register_shortcut
 
 # 日志函数
 log() {
