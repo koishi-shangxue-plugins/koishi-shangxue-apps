@@ -338,6 +338,47 @@ function koishi_control {
     done
 }
 
+# 查看当前脚本信息
+function show_script_info {
+    clear
+    echo "=========================================="
+    echo "        当前脚本信息"
+    echo "=========================================="
+    echo ""
+
+    # 1. 设备真实架构
+    REAL_ARCH=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
+    echo "1. 设备真实架构: $REAL_ARCH"
+    echo ""
+
+    # 2. 脚本源地址
+    SCRIPT_SOURCE="https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh"
+    echo "2. 脚本源地址:"
+    echo "   $SCRIPT_SOURCE"
+    echo ""
+
+    # 3. Node.js 和 npm 版本
+    echo "3. 环境版本信息:"
+    if command -v node &> /dev/null; then
+        NODE_VERSION=$(node -v 2>/dev/null || echo "未安装")
+        echo "   Node.js: $NODE_VERSION"
+    else
+        echo "   Node.js: 未安装"
+    fi
+
+    if command -v npm &> /dev/null; then
+        NPM_VERSION=$(npm -v 2>/dev/null || echo "未安装")
+        echo "   npm: $NPM_VERSION"
+    else
+        echo "   npm: 未安装"
+    fi
+
+    echo ""
+    echo "=========================================="
+
+    confirm_return
+}
+
 # 主菜单
 function main_menu {
     while true; do
@@ -347,7 +388,8 @@ function main_menu {
                         1 "安装依赖" \
                         2 "创建 Koishi 实例" \
                         3 "管理 Koishi 实例" \
-                        4 "退出" \
+                        4 "查看当前脚本信息" \
+                        5 "退出" \
                         3>&1 1>&2 2>&3)
 
         case $choice in
@@ -361,6 +403,9 @@ function main_menu {
                 koishi_control
                 ;;
             4)
+                show_script_info
+                ;;
+            5)
                 if dialog --clear --backtitle "Koishi Manager" \
                           --title "退出" \
                           --yesno "确定要退出吗？" 7 50; then
