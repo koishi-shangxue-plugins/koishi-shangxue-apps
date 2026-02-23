@@ -351,8 +351,20 @@ function show_script_info {
     echo "1. 设备真实架构: $REAL_ARCH"
     echo ""
 
-    # 2. 脚本源地址
-    SCRIPT_SOURCE="https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh"
+    # 2. 脚本源地址（从 shell 配置文件中读取）
+    local shell_rc=""
+    if [ -f "$HOME/.bashrc" ]; then
+        shell_rc="$HOME/.bashrc"
+    elif [ -f "$HOME/.zshrc" ]; then
+        shell_rc="$HOME/.zshrc"
+    fi
+
+    SCRIPT_SOURCE="未注册"
+    if [ -n "$shell_rc" ] && [ -f "$shell_rc" ]; then
+        SCRIPT_SOURCE=$(grep "alias koimux=" "$shell_rc" 2>/dev/null | sed -n 's/.*curl -L \([^)]*\).*/\1/p' | head -1)
+        [ -z "$SCRIPT_SOURCE" ] && SCRIPT_SOURCE="未注册"
+    fi
+
     echo "2. 脚本源地址:"
     echo "   $SCRIPT_SOURCE"
     echo ""
