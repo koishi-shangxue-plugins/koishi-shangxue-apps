@@ -3,6 +3,35 @@
 # 初始化：切换到 HOME 目录
 cd "$HOME" || exit 1
 
+# 检测架构
+REAL_ARCH=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
+UNAME_ARCH=$(uname -m)
+
+# 检测是否为 x86/x86_64 架构
+if [[ "$REAL_ARCH" == "x86_64" ]] || [[ "$REAL_ARCH" == "x86" ]]; then
+    clear
+    echo "=========================================="
+    echo "错误：不支持 x86/x86_64 架构"
+    echo "=========================================="
+    echo ""
+    echo "检测到您正在使用 x86/x86_64 架构的设备或模拟器。"
+    echo "此脚本不支持在该架构上运行。"
+    echo ""
+    echo "原因："
+    echo "  x86 架构的 Termux 在运行 Node.js时"
+    echo "  存在已知的兼容性问题。"
+    echo ""
+    echo "建议：使用 ARM64 (aarch64) 架构的真机设备"
+    echo ""
+    echo "检测到的架构信息："
+    echo "  真实架构: $REAL_ARCH"
+    echo "  系统报告: $UNAME_ARCH"
+    echo "=========================================="
+    echo ""
+    read -n 1 -s -r -p "按任意键退出..."
+    exit 1
+fi
+
 # 自动注册快捷指令
 register_shortcut() {
     local shell_rc=""
@@ -15,13 +44,10 @@ register_shortcut() {
     fi
 
     if ! grep -q "alias koimux=" "$shell_rc" 2>/dev/null; then
-        echo 'alias koimux="bash -c \"\$(curl -L https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/scripts/termux/koimuxTUI.sh)\""' >> "$shell_rc"
+        echo 'alias koimux="bash -c \"\$(curl -L https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh)\""' >> "$shell_rc"
         clear
         echo "=========================================="
         echo "快捷指令 'koimux' 已注册！"
-        echo "请执行以下命令使其生效："
-        echo "  source $shell_rc"
-        echo "或重启终端"
         echo "=========================================="
         read -n 1 -s -r -p "按任意键继续..."
         echo
@@ -300,7 +326,7 @@ function koishi_control {
                 ;;
             9)
                 delete_koishi_instance
-                return # 删除后返回主菜单, 避免继续循环
+                return
                 ;;
             0)
                 break
