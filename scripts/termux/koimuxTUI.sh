@@ -1,5 +1,33 @@
 #!/bin/bash
 
+# 初始化：切换到 HOME 目录
+cd "$HOME" || exit 1
+
+# 自动注册快捷指令
+register_shortcut() {
+    local shell_rc=""
+    if [ -f "$HOME/.bashrc" ]; then
+        shell_rc="$HOME/.bashrc"
+    elif [ -f "$HOME/.zshrc" ]; then
+        shell_rc="$HOME/.zshrc"
+    else
+        shell_rc="$HOME/.bashrc"
+    fi
+
+    if ! grep -q "alias koimux=" "$shell_rc" 2>/dev/null; then
+        echo 'alias koimux="bash -c \"\$(curl -L https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh)\""' >> "$shell_rc"
+        clear
+        echo "=========================================="
+        echo "快捷指令 'koimux' 已注册！"
+        echo "请执行以下命令使其生效："
+        echo "  source $shell_rc"
+        echo "或重启终端"
+        echo "=========================================="
+        read -n 1 -s -r -p "按任意键继续..."
+        echo
+    fi
+}
+
 # 检查并安装 dialog 工具
 if ! command -v dialog &> /dev/null; then
     pkg install dialog -y
@@ -7,6 +35,12 @@ fi
 
 # 默认实例目录
 KOISHI_BASE_DIR="$HOME/koishi"
+
+# 首次运行时注册快捷指令
+if [ ! -f "$HOME/.koimux_registered" ]; then
+    register_shortcut
+    touch "$HOME/.koimux_registered"
+fi
 
 # 日志函数
 log() {
@@ -60,6 +94,26 @@ function confirm_return {
     read -n 1 -s -r -p "再按 任意 键返回主菜单..."
     echo
     echo
+}
+
+# 快速关闭 auth 插件
+disable_auth_plugin() {
+    if ! KOISHI_APP_DIR=$(select_koishi_instance); then
+        return
+    fi
+
+    local config_file="$KOISHI_APP_DIR/koishi.yml"
+    if [ ! -f "$config_file" ]; then
+        dialog --msgbox "未找到 koishi.yml 文件！" 6 50
+        return
+    fi
+
+    # 匹配格式为 "    auth:随机字符:" 的行，在前面添加波浪线
+    if sed -i 's/^\(    \)auth:\([a-z0-9]\+\):$/\1~auth:\2:/' "$config_file" 2>/dev/null; then
+        dialog --msgbox "auth 插件已关闭！\n请重启 Koishi 实例生效。" 7 50
+    else
+        dialog --msgbox "关闭 auth 插件失败！" 6 50
+    fi
 }
 
 # 运行命令并展示输出 (切换到终端)
@@ -147,20 +201,6 @@ function install_dependencies {
                 echo "当前 npm 镜像源："
                 npm config get registry
 
-                # 安装 yarn
-                echo "正在安装 yarn..."
-                npm i -g yarn
-
-                # 设置 yarn 镜像 (兼容 Yarn 1.x 和 2+)
-                echo "设置 yarn 镜像源..."
-                yarn config set registry https://registry.npmmirror.com
-                yarn config set npmRegistryServer https://registry.npmmirror.com
-
-                # 查看 yarn 镜像
-                echo "当前 yarn 镜像源："
-                yarn config get registry 
-                yarn config get npmRegistryServer 
-
                 confirm_return
                 ;;
             7)
@@ -190,7 +230,7 @@ function create_koishi_instance {
     clear
     echo "正在创建 Koishi 实例，请按照提示进行操作..."
 
-    yarn create koishi
+    npm init koishi@latest
 
     # 退出脚本，不再返回 UI
     exit 0
@@ -221,44 +261,48 @@ function koishi_control {
         choice=$(dialog --clear --backtitle "Koishi Manager" \
                         --title "Koishi 控制" \
                         --menu "请选择一个操作：" 18 60 10 \
-                        1 "启动 Koishi (yarn start)" \
-                        2 "整理依赖 (yarn)" \
-                        3 "重装依赖 (rm -rf node_modules && yarn install)" \
-                        4 "升级全部依赖 (yarn up)" \
-                        5 "以开发模式启动 (yarn dev)" \
-                        6 "编译全部源码 (yarn build)" \
-                        7 "依赖去重 (yarn dedupe)" \
-                        8 "删除 Koishi 实例" \
-                        9 "返回主菜单" \
+                        1 "启动 Koishi (npm start)" \
+                        2 "整理依赖 (npm install)" \
+                        3 "重装依赖 (rm -rf node_modules && npm install)" \
+                        4 "升级全部依赖 (npm update)" \
+                        5 "以开发模式启动 (npm run dev)" \
+                        6 "编译全部源码 (npm run build)" \
+                        7 "依赖去重 (npm dedupe)" \
+                        8 "关闭 auth 插件" \
+                        9 "删除 Koishi 实例" \
+                        0 "返回主菜单" \
                         3>&1 1>&2 2>&3)
 
         case $choice in
             1)
-                run_command "yarn start" "$KOISHI_APP_DIR" "启动 Koishi"
+                run_command "npm start" "$KOISHI_APP_DIR" "启动 Koishi"
                 ;;
             2)
-                run_command "yarn" "$KOISHI_APP_DIR" "整理依赖"
+                run_command "npm install" "$KOISHI_APP_DIR" "整理依赖"
                 ;;
             3)
-                run_command "rm -rf node_modules && yarn install" "$KOISHI_APP_DIR" "重装依赖"
+                run_command "rm -rf node_modules && npm install" "$KOISHI_APP_DIR" "重装依赖"
                 ;;
             4)
-                run_command "yarn up" "$KOISHI_APP_DIR" "升级全部依赖"
+                run_command "npm update" "$KOISHI_APP_DIR" "升级全部依赖"
                 ;;
             5)
-                run_command "yarn dev" "$KOISHI_APP_DIR" "开发模式启动"
+                run_command "npm run dev" "$KOISHI_APP_DIR" "开发模式启动"
                 ;;
             6)
-                run_command "yarn build" "$KOISHI_APP_DIR" "编译全部源码"
+                run_command "npm run build" "$KOISHI_APP_DIR" "编译全部源码"
                 ;;
             7)
-                run_command "yarn dedupe" "$KOISHI_APP_DIR" "依赖去重"
+                run_command "npm dedupe" "$KOISHI_APP_DIR" "依赖去重"
                 ;;
             8)
+                disable_auth_plugin
+                ;;
+            9)
                 delete_koishi_instance
                 return # 删除后返回主菜单, 避免继续循环
                 ;;
-            9)
+            0)
                 break
                 ;;
             *)
