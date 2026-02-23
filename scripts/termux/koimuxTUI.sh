@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 脚本源 URL
-SCRIPT_SOURCE_URL="${KOIMUX_SCRIPT_URL:-https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh}"
+SCRIPT_SOURCE_URL="https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh"
 
 # 初始化：切换到 HOME 目录
 cd "$HOME" || exit 1
@@ -71,11 +71,8 @@ fi
 # 默认实例目录
 KOISHI_BASE_DIR="$HOME/koishi"
 
-# 首次运行时注册快捷指令
-if [ ! -f "$HOME/.koimux_registered" ]; then
-    register_shortcut
-    touch "$HOME/.koimux_registered"
-fi
+# 每次运行都注册快捷指令（覆写旧的）
+register_shortcut
 
 # 日志函数
 log() {
