@@ -56,17 +56,26 @@ export async function getGroupHeadshot(
   try {
     // 尝试通过 bot API 获取群组信息
     let avatarUrl: string | undefined;
+    let botPlatform: string | undefined;
 
     if (botId) {
-      const bot = ctx.bots[botId];
-      if (bot && typeof bot.getGuild === 'function') {
-        try {
-          const guild = await bot.getGuild(groupid);
-          avatarUrl = guild?.avatar;
-        } catch (error) {
-          ctx.logger.warn(`通过 bot API 获取群组 ${groupid} 信息失败:`, error);
+      const bot = Object.values(ctx.bots).find(b => b.selfId === botId || b.user?.id === botId);
+      if (bot) {
+        botPlatform = bot.platform;
+        if (typeof bot.getGuild === 'function') {
+          try {
+            const guild = await bot.getGuild(groupid);
+            avatarUrl = guild?.avatar;
+          } catch (error) {
+            ctx.logger.warn(`通过 bot API 获取群组 ${groupid} 信息失败:`, error);
+          }
         }
       }
+    }
+
+    // 如果是 onebot 平台且没有获取到头像，使用拼接的 URL
+    if (!avatarUrl && botPlatform === "onebot") {
+      avatarUrl = `http://p.qlogo.cn/gh/${groupid}/${groupid}/0`;
     }
 
     // 如果没有获取到头像 URL，跳过
@@ -90,28 +99,31 @@ export async function getGroupHeadshot(
 /**
  * 获取并保存机器人头像
  * @param ctx Koishi context
- * @param userid 用户ID (机器人ID)
+ * @param botId 机器人ID
  */
-export async function getBotHeadshot(ctx: Context, userid: string) {
+export async function getBotHeadshot(ctx: Context, botId: string) {
   const imgpath = path.join(ctx.baseDir, "data/steam-friend-status/img");
-  const filepath = path.join(imgpath, `bot${userid}.jpg`);
+  const filepath = path.join(imgpath, `bot${botId}.jpg`);
   try {
-    // 尝试通过 bot API 获取用户信息
+    // 直接获取机器人自己的头像
     let avatarUrl: string | undefined;
+    let botPlatform: string | undefined;
 
-    const bot = ctx.bots[userid];
-    if (bot && typeof bot.getUser === 'function') {
-      try {
-        const user = await bot.getUser(userid);
-        avatarUrl = user?.avatar;
-      } catch (error) {
-        ctx.logger.warn(`通过 bot API 获取用户 ${userid} 信息失败:`, error);
-      }
+    const bot = Object.values(ctx.bots).find(b => b.selfId === botId || b.user?.id === botId);
+    if (bot) {
+      botPlatform = bot.platform;
+      // 直接使用 bot.user.avatar 获取机器人头像
+      avatarUrl = bot.user?.avatar;
+    }
+
+    // 如果是 onebot 平台且没有获取到头像，使用拼接的 URL
+    if (!avatarUrl && botPlatform === "onebot") {
+      avatarUrl = `http://q.qlogo.cn/headimg_dl?dst_uin=${botId}&spec=640`;
     }
 
     // 如果没有获取到头像 URL，跳过
     if (!avatarUrl) {
-      ctx.logger.warn(`无法获取用户 ${userid} 的头像 URL`);
+      ctx.logger.warn(`无法获取机器人 ${botId} 的头像 URL`);
       return;
     }
 
@@ -123,7 +135,7 @@ export async function getBotHeadshot(ctx: Context, userid: string) {
     const userheadshot = await fetchArrayBuffer(ctx, avatarUrl, config);
     fs.writeFileSync(filepath, Buffer.from(userheadshot));
   } catch (error) {
-    ctx.logger.error(`获取机器人 ${userid} 头像失败:`, error);
+    ctx.logger.error(`获取机器人 ${botId} 头像失败:`, error);
   }
 }
 
