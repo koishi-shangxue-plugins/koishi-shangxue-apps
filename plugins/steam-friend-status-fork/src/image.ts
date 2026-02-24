@@ -49,8 +49,8 @@ export async function initHeadshots(ctx: Context) {
   ctx.logger.info(`数据库中共有 ${allSteamUsers.length} 个 Steam 用户`);
 
   if (allSteamUsers.length > 0) {
-    // Steam API 一次最多查询 100 个用户，需要分批处理
-    const batchSize = 100;
+    // Steam API 一次最多查询 100 个用户，分批处理以减少单次请求压力
+    const batchSize = 50;
     let totalProcessed = 0;
     let totalDownloaded = 0;
 
