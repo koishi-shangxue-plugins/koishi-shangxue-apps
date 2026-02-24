@@ -118,7 +118,7 @@ export const Config = Schema.intersect([
 
   Schema.object({
     databasemaxlength: Schema.number()
-      .default(100)
+      .default(500)
       .description(
         "数据表 允许绑定的数据条数上限<br>绑定达到上限时会提示：`该Bot已达到绑定玩家数量上限`",
       ),
@@ -217,7 +217,7 @@ export function apply(ctx: Context, config) {
       );
       await session.send(result);
       if (result === "绑定成功") {
-        await session.execute("更新steam");
+        await session.execute("steam-friend-status.更新steam");
         const steamId = getSteamId(steamid);
         if (steamId) {
           const profileData = await getSteamProfile(ctx, steamId);

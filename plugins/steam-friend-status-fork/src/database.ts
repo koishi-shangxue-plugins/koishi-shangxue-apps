@@ -32,7 +32,7 @@ export async function bindPlayer(
   }
 
   const database = await ctx.database.get("SteamUser", {});
-  if (database.length >= (ctx.config.databasemaxlength || 100)) {
+  if (database.length >= (ctx.config.databasemaxlength || 500)) {
     return "该Bot已达到绑定玩家数量上限";
   }
 
