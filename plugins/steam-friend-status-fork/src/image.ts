@@ -98,11 +98,6 @@ export async function getGroupHeadshot(
   const imgpath = path.join(ctx.baseDir, "data/steam-friend-status/img");
   const filepath = path.join(imgpath, `group${groupid}.jpg`);
 
-  // 如果本地已存在头像文件，跳过下载
-  if (fs.existsSync(filepath)) {
-    return;
-  }
-
   try {
     // 尝试通过 bot API 获取群组信息
     let avatarUrl: string | undefined;
