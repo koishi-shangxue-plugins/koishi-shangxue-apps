@@ -30,7 +30,7 @@ export async function initHeadshots(ctx: Context) {
     if (platforms.includes(channel.platform)) {
       botsToProcess.add(channel.assignee);
       if (channel.usingSteam) {
-        await getGroupHeadshot(ctx, channel.id);
+        await getGroupHeadshot(ctx, channel.id, channel.assignee);
       }
     }
   }
@@ -44,24 +44,43 @@ export async function initHeadshots(ctx: Context) {
  * 获取并保存群组头像
  * @param ctx Koishi context
  * @param groupid 群组ID
+ * @param botId 机器人ID
  */
 export async function getGroupHeadshot(
   ctx: Context,
   groupid: string,
+  botId?: string,
 ): Promise<void> {
   const imgpath = path.join(ctx.baseDir, "data/steam-friend-status/img");
   const filepath = path.join(imgpath, `group${groupid}.jpg`);
   try {
+    // 尝试通过 bot API 获取群组信息
+    let avatarUrl: string | undefined;
+
+    if (botId) {
+      const bot = ctx.bots[botId];
+      if (bot && typeof bot.getGuild === 'function') {
+        try {
+          const guild = await bot.getGuild(groupid);
+          avatarUrl = guild?.avatar;
+        } catch (error) {
+          ctx.logger.warn(`通过 bot API 获取群组 ${groupid} 信息失败:`, error);
+        }
+      }
+    }
+
+    // 如果没有获取到头像 URL，跳过
+    if (!avatarUrl) {
+      ctx.logger.warn(`无法获取群组 ${groupid} 的头像 URL`);
+      return;
+    }
+
     const config = {
       useProxy: ctx.config.useProxy,
       proxyUrl: ctx.config.proxyUrl,
       maxRetries: ctx.config.maxRetries
     };
-    const groupheadshot = await fetchArrayBuffer(
-      ctx,
-      `http://p.qlogo.cn/gh/${groupid}/${groupid}/0`,
-      config
-    );
+    const groupheadshot = await fetchArrayBuffer(ctx, avatarUrl, config);
     fs.writeFileSync(filepath, Buffer.from(groupheadshot));
   } catch (error) {
     ctx.logger.error(`获取群组 ${groupid} 头像失败:`, error);
@@ -77,16 +96,31 @@ export async function getBotHeadshot(ctx: Context, userid: string) {
   const imgpath = path.join(ctx.baseDir, "data/steam-friend-status/img");
   const filepath = path.join(imgpath, `bot${userid}.jpg`);
   try {
+    // 尝试通过 bot API 获取用户信息
+    let avatarUrl: string | undefined;
+
+    const bot = ctx.bots[userid];
+    if (bot && typeof bot.getUser === 'function') {
+      try {
+        const user = await bot.getUser(userid);
+        avatarUrl = user?.avatar;
+      } catch (error) {
+        ctx.logger.warn(`通过 bot API 获取用户 ${userid} 信息失败:`, error);
+      }
+    }
+
+    // 如果没有获取到头像 URL，跳过
+    if (!avatarUrl) {
+      ctx.logger.warn(`无法获取用户 ${userid} 的头像 URL`);
+      return;
+    }
+
     const config = {
       useProxy: ctx.config.useProxy,
       proxyUrl: ctx.config.proxyUrl,
       maxRetries: ctx.config.maxRetries
     };
-    const userheadshot = await fetchArrayBuffer(
-      ctx,
-      `http://q.qlogo.cn/headimg_dl?dst_uin=${userid}&spec=640`,
-      config
-    );
+    const userheadshot = await fetchArrayBuffer(ctx, avatarUrl, config);
     fs.writeFileSync(filepath, Buffer.from(userheadshot));
   } catch (error) {
     ctx.logger.error(`获取机器人 ${userid} 头像失败:`, error);
