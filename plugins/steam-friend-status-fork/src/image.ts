@@ -51,30 +51,42 @@ export async function getGroupHeadshot(
   groupid: string,
   botId?: string,
 ): Promise<void> {
+  // 如果 botId 为 undefined，跳过处理
+  if (!botId) {
+    return;
+  }
+
   const imgpath = path.join(ctx.baseDir, "data/steam-friend-status/img");
   const filepath = path.join(imgpath, `group${groupid}.jpg`);
+
+  // 如果本地已存在头像文件，跳过下载
+  if (fs.existsSync(filepath)) {
+    return;
+  }
+
   try {
     // 尝试通过 bot API 获取群组信息
     let avatarUrl: string | undefined;
     let botPlatform: string | undefined;
 
-    if (botId) {
-      const bot = Object.values(ctx.bots).find(b => b.selfId === botId || b.user?.id === botId);
-      if (bot) {
-        botPlatform = bot.platform;
-        if (typeof bot.getGuild === 'function') {
-          try {
-            const guild = await bot.getGuild(groupid);
-            avatarUrl = guild?.avatar;
-          } catch (error) {
-            ctx.logger.warn(`通过 bot API 获取群组 ${groupid} 信息失败:`, error);
-          }
-        }
+    const bot = Object.values(ctx.bots).find(b => b.selfId === botId || b.user?.id === botId);
+    if (!bot) {
+      // 机器人不在线或不存在，跳过（可能是数据库中的旧数据）
+      return;
+    }
+
+    botPlatform = bot.platform;
+    if (typeof bot.getGuild === 'function') {
+      try {
+        const guild = await bot.getGuild(groupid);
+        avatarUrl = guild?.avatar;
+      } catch (error) {
+        ctx.logger.warn(`通过 bot API 获取群组 ${groupid} 信息失败:`, error);
       }
     }
 
     // 如果是 onebot 平台且没有获取到头像，使用拼接的 URL
-    if (!avatarUrl && botPlatform === "onebot") {
+    if (!avatarUrl && botPlatform == "onebot") {
       avatarUrl = `http://p.qlogo.cn/gh/${groupid}/${groupid}/0`;
     }
 
