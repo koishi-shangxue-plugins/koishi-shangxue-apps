@@ -55,7 +55,7 @@ export async function initHeadshots(ctx: Context) {
 
         // 如果本地不存在头像，下载
         if (!fs.existsSync(localAvatarPath)) {
-          ctx.logger.info(`下载用户 ${player.personaname} (${player.steamid}) 的头像...`);
+         // ctx.logger.info(`下载用户 ${player.personaname} (${player.steamid}) 的头像...`);
           await downloadAvatar(ctx, player.avatarmedium, player.steamid);
         }
       }
