@@ -32,3 +32,4 @@ plugins/*/tsconfig.tsbuildinfo
 plugins/*/node_modules/*
 plugins/dialogue-webui/keyword-dialogue/*
 plugins/universal-translation/lib/*
+plugins/steam-friend-status-fork/temp.html
