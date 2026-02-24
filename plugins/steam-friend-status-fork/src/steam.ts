@@ -1,6 +1,7 @@
 // src/steam.ts
 import { Context } from "koishi";
 import { SteamUserInfo, SteamUser } from "./types";
+import { fetchJson } from "./fetch";
 
 // 从配置文件或默认值中获取常量
 const STEAM_ID_OFFSET = 76561197960265728;
@@ -37,7 +38,12 @@ export async function getSteamUserInfo(
 ): Promise<SteamUserInfo> {
   const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${steamid}`;
   try {
-    const response = await ctx.http.get(requestUrl);
+    const config = {
+      useProxy: ctx.config.useProxy,
+      proxyUrl: ctx.config.proxyUrl,
+      maxRetries: ctx.config.maxRetries
+    };
+    const response = await fetchJson<SteamUserInfo>(ctx, requestUrl, config);
     if (
       !response ||
       !response.response ||
@@ -45,7 +51,7 @@ export async function getSteamUserInfo(
     ) {
       return undefined;
     }
-    return response as SteamUserInfo;
+    return response;
   } catch (error) {
     ctx.logger.error("获取 Steam 用户信息时出错:", error);
     return undefined;
@@ -70,7 +76,12 @@ export async function getSteamUserInfoByDatabase(
   try {
     const steamIds = steamusers.map((user) => user.steamId);
     const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${steamIds.join(",")}`;
-    const response = await ctx.http.get(requestUrl);
+    const config = {
+      useProxy: ctx.config.useProxy,
+      proxyUrl: ctx.config.proxyUrl,
+      maxRetries: ctx.config.maxRetries
+    };
+    const response = await fetchJson<SteamUserInfo>(ctx, requestUrl, config);
     if (
       !response ||
       !response.response ||
@@ -79,7 +90,7 @@ export async function getSteamUserInfoByDatabase(
       ctx.logger.warn("在 API 响应中没有找到玩家数据。");
       return undefined;
     }
-    return response as SteamUserInfo;
+    return response;
   } catch (error) {
     ctx.logger.error("批量获取 Steam 用户信息时出错:", error);
     return undefined;
@@ -173,8 +184,13 @@ export async function getRecentlyPlayedGames(
 ): Promise<RecentlyPlayedGamesInfo> {
   const url = `http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json`;
   try {
-    const response = await ctx.http.get(url);
-    if (response && response.response.games) {
+    const config = {
+      useProxy: ctx.config.useProxy,
+      proxyUrl: ctx.config.proxyUrl,
+      maxRetries: ctx.config.maxRetries
+    };
+    const response = await fetchJson<any>(ctx, url, config);
+    if (response && response.response && response.response.games) {
       return response.response;
     }
     return { total_count: 0, games: [] };

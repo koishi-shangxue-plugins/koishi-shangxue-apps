@@ -6,7 +6,7 @@ import {
   getSteamProfile,
   getSteamId,
 } from "./steam";
-import { bindPlayer, unbindPlayer, unbindAll } from "./database";
+import { bindPlayer, unbindPlayer, unbindAll, downloadAvatar } from "./database";
 import {
   getFriendStatusImg,
   initHeadshots,
@@ -76,6 +76,20 @@ export const Config = Schema.intersect([
       .default(true)
       .description("播报时附带图片"),
   }).description("基础设置"),
+
+  Schema.object({
+    useProxy: Schema.boolean()
+      .default(false)
+      .description("是否使用代理"),
+    proxyUrl: Schema.string()
+      .default("http://localhost:7897")
+      .description("代理地址（仅支持 http/https 协议）"),
+    maxRetries: Schema.number()
+      .default(3)
+      .min(1)
+      .step(1)
+      .description("网络请求最大重试次数"),
+  }).description("网络设置"),
 
   Schema.object({
     showcardmode: Schema.union([
@@ -471,16 +485,10 @@ export function apply(ctx: Context, config) {
     const userdata = await getSteamUserInfoByDatabase(ctx, allUserData, apiKey);
     if (!userdata) return;
 
-    const imgpath = path.join(ctx.baseDir, `data/${name}/img`);
     for (const player of userdata.response.players) {
-      try {
-        const headshot = await ctx.http.get(player.avatarmedium, {
-          responseType: "arraybuffer",
-        });
-        const filepath = path.join(imgpath, `steamuser${player.steamid}.jpg`);
-        fs.writeFileSync(filepath, Buffer.from(headshot));
-      } catch (error) {
-        ctx.logger.error(`更新头像失败 (SteamID: ${player.steamid}):`, error);
+      const success = await downloadAvatar(ctx, player.avatarmedium, player.steamid);
+      if (!success) {
+        ctx.logger.error(`更新头像失败 (SteamID: ${player.steamid})`);
       }
     }
   }

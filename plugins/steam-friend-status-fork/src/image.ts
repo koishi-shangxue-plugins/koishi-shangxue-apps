@@ -1,6 +1,8 @@
 // src/image.ts
 import { Context, h } from "koishi";
 import { SteamUserInfo } from "./types";
+import { fetchArrayBuffer } from "./fetch";
+import { downloadAvatar } from "./database";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as URL from "node:url";
@@ -50,9 +52,15 @@ export async function getGroupHeadshot(
   const imgpath = path.join(ctx.baseDir, "data/steam-friend-status/img");
   const filepath = path.join(imgpath, `group${groupid}.jpg`);
   try {
-    const groupheadshot = await ctx.http.get(
+    const config = {
+      useProxy: ctx.config.useProxy,
+      proxyUrl: ctx.config.proxyUrl,
+      maxRetries: ctx.config.maxRetries
+    };
+    const groupheadshot = await fetchArrayBuffer(
+      ctx,
       `http://p.qlogo.cn/gh/${groupid}/${groupid}/0`,
-      { responseType: "arraybuffer" },
+      config
     );
     fs.writeFileSync(filepath, Buffer.from(groupheadshot));
   } catch (error) {
@@ -69,9 +77,15 @@ export async function getBotHeadshot(ctx: Context, userid: string) {
   const imgpath = path.join(ctx.baseDir, "data/steam-friend-status/img");
   const filepath = path.join(imgpath, `bot${userid}.jpg`);
   try {
-    const userheadshot = await ctx.http.get(
+    const config = {
+      useProxy: ctx.config.useProxy,
+      proxyUrl: ctx.config.proxyUrl,
+      maxRetries: ctx.config.maxRetries
+    };
+    const userheadshot = await fetchArrayBuffer(
+      ctx,
       `http://q.qlogo.cn/headimg_dl?dst_uin=${userid}&spec=640`,
-      { responseType: "arraybuffer" },
+      config
     );
     fs.writeFileSync(filepath, Buffer.from(userheadshot));
   } catch (error) {
@@ -430,23 +444,40 @@ export async function getGameChangeImg(
 
   // 1. 获取头像并转换为 Base64
   let avatarBase64 = "";
-  try {
-    const avatarBuffer = await ctx.http.get(playerInfo.avatarmedium, {
-      responseType: "arraybuffer",
-    });
-    avatarBase64 = `data:image/jpeg;base64,${Buffer.from(avatarBuffer).toString("base64")}`;
-  } catch (error) {
-    ctx.logger.error("下载播报头像失败:", error);
-    // 使用本地未知头像作为备选
-    const unknownAvatarPath = path.resolve(
-      __dirname,
-      "..",
-      "data",
-      "res",
-      "unknown_avatar.jpg",
-    );
-    const unknownAvatarBase64 = fs.readFileSync(unknownAvatarPath, "base64");
-    avatarBase64 = `data:image/jpeg;base64,${unknownAvatarBase64}`;
+  const localAvatarPath = path.join(
+    ctx.baseDir,
+    'data',
+    'steam-friend-status',
+    'img',
+    `steamuser${playerInfo.steamid}.jpg`
+  );
+
+  // 检查本地是否有头像文件
+  if (fs.existsSync(localAvatarPath)) {
+    // 使用本地头像
+    const localAvatarBase64 = fs.readFileSync(localAvatarPath, "base64");
+    avatarBase64 = `data:image/jpeg;base64,${localAvatarBase64}`;
+  } else {
+    // 本地没有头像，尝试下载
+    ctx.logger.info(`本地未找到用户 ${playerInfo.steamid} 的头像，尝试下载...`);
+    const downloadSuccess = await downloadAvatar(ctx, playerInfo.avatarmedium, playerInfo.steamid);
+
+    if (downloadSuccess && fs.existsSync(localAvatarPath)) {
+      const localAvatarBase64 = fs.readFileSync(localAvatarPath, "base64");
+      avatarBase64 = `data:image/jpeg;base64,${localAvatarBase64}`;
+    } else {
+      // 下载失败，使用默认头像
+      ctx.logger.warn(`下载用户 ${playerInfo.steamid} 头像失败，使用默认头像`);
+      const unknownAvatarPath = path.resolve(
+        __dirname,
+        "..",
+        "data",
+        "res",
+        "unknown_avatar.jpg",
+      );
+      const unknownAvatarBase64 = fs.readFileSync(unknownAvatarPath, "base64");
+      avatarBase64 = `data:image/jpeg;base64,${unknownAvatarBase64}`;
+    }
   }
 
   // 2. 根据状态确定文本和样式

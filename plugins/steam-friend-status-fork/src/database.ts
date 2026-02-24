@@ -3,6 +3,7 @@ import { Context, Session } from "koishi";
 import { SteamUser } from "./types";
 import { getSteamId, getSteamUserInfo } from "./steam";
 import { deleteUserNickname, deleteAllUserNicknames } from "./userdata";
+import { fetchArrayBuffer } from "./fetch";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -186,18 +187,26 @@ export async function unbindAll(
  * @param ctx Koishi context
  * @param url 头像URL
  * @param steamId Steam64 ID
+ * @returns 返回是否下载成功
  */
-async function downloadAvatar(ctx: Context, url: string, steamId: string) {
+export async function downloadAvatar(ctx: Context, url: string, steamId: string): Promise<boolean> {
   const resourcePath = path.join(ctx.baseDir, 'data', 'steam-friend-status', 'img');
   if (!fs.existsSync(resourcePath)) {
     fs.mkdirSync(resourcePath, { recursive: true });
   }
   const filepath = path.join(resourcePath, `steamuser${steamId}.jpg`);
   try {
-    const headshot = await ctx.http.get(url, { responseType: "arraybuffer" });
+    const config = {
+      useProxy: ctx.config.useProxy,
+      proxyUrl: ctx.config.proxyUrl,
+      maxRetries: ctx.config.maxRetries
+    };
+    const headshot = await fetchArrayBuffer(ctx, url, config);
     fs.writeFileSync(filepath, Buffer.from(headshot));
+    return true;
   } catch (error) {
     ctx.logger.error("下载头像出错:", error);
+    return false;
   }
 }
 
