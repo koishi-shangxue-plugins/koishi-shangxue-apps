@@ -90,6 +90,11 @@ export async function bindPlayer(
   } else {
     const effectGroups = [...userDataInDatabase[0].effectGroups, channelid];
     await ctx.database.set("SteamUser", { userId: userid }, { effectGroups });
+    // 确保头像已下载
+    const avatarPath = path.join(ctx.baseDir, 'data', 'steam-friend-status', 'img', `steamuser${playerData.steamid}.jpg`);
+    if (!fs.existsSync(avatarPath)) {
+      await downloadAvatar(ctx, playerData.avatarmedium, playerData.steamid);
+    }
     return "绑定成功";
   }
 }
