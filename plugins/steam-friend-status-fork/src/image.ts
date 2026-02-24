@@ -43,24 +43,28 @@ export async function initHeadshots(ctx: Context) {
 
   // 获取所有 Steam 用户头像
   ctx.logger.info('开始初始化 Steam 用户头像...');
-  const allSteamUsers = await ctx.database.get("SteamUser", {});
+  // 使用 select 方法获取所有记录，不受默认限制
+  const allSteamUsers = await ctx.database.select("SteamUser").execute();
+
+  ctx.logger.info(`数据库中共有 ${allSteamUsers.length} 个 Steam 用户`);
 
   if (allSteamUsers.length > 0) {
     // 批量获取用户信息
     const steamUserInfo = await getSteamUserInfoByDatabase(ctx, allSteamUsers, ctx.config.SteamApiKey);
 
     if (steamUserInfo && steamUserInfo.response && steamUserInfo.response.players) {
+      let downloadedCount = 0;
       for (const player of steamUserInfo.response.players) {
         const localAvatarPath = path.join(imgpath, `steamuser${player.steamid}.jpg`);
 
         // 如果本地不存在头像，下载
         if (!fs.existsSync(localAvatarPath)) {
-         // ctx.logger.info(`下载用户 ${player.personaname} (${player.steamid}) 的头像...`);
           await downloadAvatar(ctx, player.avatarmedium, player.steamid);
+          downloadedCount++;
         }
       }
 
-      ctx.logger.info(`Steam 用户头像初始化完成，共处理 ${steamUserInfo.response.players.length} 个用户`);
+      ctx.logger.info(`Steam 用户头像初始化完成，共处理 ${steamUserInfo.response.players.length} 个用户，下载了 ${downloadedCount} 个新头像`);
     }
   }
 }
