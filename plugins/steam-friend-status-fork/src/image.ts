@@ -3,6 +3,7 @@ import { Context, h } from "koishi";
 import { SteamUserInfo } from "./types";
 import { fetchArrayBuffer } from "./fetch";
 import { downloadAvatar } from "./database";
+import { getSteamUserInfoByDatabase } from "./steam";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as URL from "node:url";
@@ -25,6 +26,7 @@ export async function initHeadshots(ctx: Context) {
   const channels = await ctx.database.get("channel", {});
   const botsToProcess = new Set<string>();
 
+  // 获取群组和机器人头像
   for (const channel of channels) {
     const platforms = ["onebot", "red", "chronocat"];
     if (platforms.includes(channel.platform)) {
@@ -37,6 +39,29 @@ export async function initHeadshots(ctx: Context) {
 
   for (const botId of botsToProcess) {
     await getBotHeadshot(ctx, botId);
+  }
+
+  // 获取所有 Steam 用户头像
+  ctx.logger.info('开始初始化 Steam 用户头像...');
+  const allSteamUsers = await ctx.database.get("SteamUser", {});
+
+  if (allSteamUsers.length > 0) {
+    // 批量获取用户信息
+    const steamUserInfo = await getSteamUserInfoByDatabase(ctx, allSteamUsers, ctx.config.SteamApiKey);
+
+    if (steamUserInfo && steamUserInfo.response && steamUserInfo.response.players) {
+      for (const player of steamUserInfo.response.players) {
+        const localAvatarPath = path.join(imgpath, `steamuser${player.steamid}.jpg`);
+
+        // 如果本地不存在头像，下载
+        if (!fs.existsSync(localAvatarPath)) {
+          ctx.logger.info(`下载用户 ${player.personaname} (${player.steamid}) 的头像...`);
+          await downloadAvatar(ctx, player.avatarmedium, player.steamid);
+        }
+      }
+
+      ctx.logger.info(`Steam 用户头像初始化完成，共处理 ${steamUserInfo.response.players.length} 个用户`);
+    }
   }
 }
 
