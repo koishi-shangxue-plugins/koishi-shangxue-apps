@@ -110,11 +110,14 @@ export async function getBotHeadshot(ctx: Context, botId: string) {
     let botPlatform: string | undefined;
 
     const bot = Object.values(ctx.bots).find(b => b.selfId === botId || b.user?.id === botId);
-    if (bot) {
-      botPlatform = bot.platform;
-      // 直接使用 bot.user.avatar 获取机器人头像
-      avatarUrl = bot.user?.avatar;
+    if (!bot) {
+      // 机器人不在线或不存在，跳过（可能是数据库中的旧数据）
+      return;
     }
+
+    botPlatform = bot.platform;
+    // 直接使用 bot.user.avatar 获取机器人头像
+    avatarUrl = bot.user?.avatar;
 
     // 如果是 onebot 平台且没有获取到头像，使用拼接的 URL
     if (!avatarUrl && botPlatform === "onebot") {

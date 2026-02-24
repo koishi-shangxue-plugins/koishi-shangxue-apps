@@ -35,8 +35,8 @@ export const usage = `
 
 <h4>🔗 账号管理</h4>
 <ul>
-  <li><code>steam-friend-status.绑定steam <steamid></code> - 绑定自己的 Steam 账号（steamid 可以是好友码或 SteamID）</li>
-  <li><code>steam-friend-status.绑定steam <steamid> @用户</code> - 为其他用户绑定 Steam 账号</li>
+  <li><code>steam-friend-status.绑定steam 123456789</code> - 绑定自己的 Steam 账号（steamid 可以是好友码或 SteamID）</li>
+  <li><code>steam-friend-status.绑定steam 123456789 @用户</code> - 为其他用户绑定 Steam 账号</li>
   <li><code>steam-friend-status.解绑steam</code> - 解绑自己的 Steam 账号</li>
   <li><code>steam-friend-status.解绑steam @用户</code> - 为其他用户解绑 Steam 账号</li>
   <li><code>steam-friend-status.解绑全部steam</code> - 解绑当前频道所有用户的 Steam 账号</li>
@@ -186,7 +186,7 @@ export function apply(ctx: Context, config) {
     )
     .usage("steamid参数 可以是好友码 也可以是steamID")
     .example("绑定steam 123456789")
-    .example("绑定steam 76561197960265728")
+    .example("绑定steam 123456789 @用户")
     .action(async ({ session }, steamid, user) => {
       if (!steamid) {
         return "缺少 steamid 参数。";
