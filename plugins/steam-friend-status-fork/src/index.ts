@@ -222,7 +222,7 @@ export function apply(ctx: Context, config) {
         if (steamId) {
           const profileData = await getSteamProfile(ctx, steamId);
           if (profileData) {
-            const profileImg = await getSteamProfileImg(ctx, profileData);
+            const profileImg = await getSteamProfileImg(ctx, profileData, steamId);
             await session.send(profileImg);
           }
         }
@@ -384,7 +384,7 @@ export function apply(ctx: Context, config) {
       // 获取并发送 Steam 个人主页图片
       const profileData = await getSteamProfile(ctx, steamID);
       if (profileData) {
-        const profileImg = await getSteamProfileImg(ctx, profileData);
+        const profileImg = await getSteamProfileImg(ctx, profileData, steamID);
         await session.send(profileImg);
       } else {
         ctx.logger.warn(`无法获取 Steam 个人主页信息: ${steamID}`);

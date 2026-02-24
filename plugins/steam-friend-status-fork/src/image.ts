@@ -385,6 +385,7 @@ import { SteamProfile } from "./types";
 export async function getSteamProfileImg(
   ctx: Context,
   profileData: SteamProfile,
+  steamId: string,
 ) {
   const templatePath = path.resolve(__dirname, '..', 'data', 'html', 'steamProfile.html');
   let htmlContent = fs.readFileSync(templatePath, "utf8");
@@ -399,13 +400,53 @@ export async function getSteamProfileImg(
   );
   const backgroundBase64 = fs.readFileSync(backgroundPath, "base64");
 
+  // 读取本地头像并转换为 Base64
+  let avatarBase64 = "";
+  const localAvatarPath = path.join(
+    ctx.baseDir,
+    'data',
+    'steam-friend-status',
+    'img',
+    `steamuser${steamId}.jpg`
+  );
+
+  try {
+    if (fs.existsSync(localAvatarPath)) {
+      const localAvatarBuffer = fs.readFileSync(localAvatarPath);
+      avatarBase64 = `data:image/jpeg;base64,${localAvatarBuffer.toString("base64")}`;
+    } else {
+      // 使用默认头像
+      const unknownAvatarPath = path.resolve(
+        __dirname,
+        "..",
+        "data",
+        "res",
+        "unknown_avatar.jpg",
+      );
+      const unknownAvatarBuffer = fs.readFileSync(unknownAvatarPath);
+      avatarBase64 = `data:image/jpeg;base64,${unknownAvatarBuffer.toString("base64")}`;
+    }
+  } catch (error) {
+    ctx.logger.error("读取 Steam 个人资料头像失败:", error);
+    // 使用默认头像
+    const unknownAvatarPath = path.resolve(
+      __dirname,
+      "..",
+      "data",
+      "res",
+      "unknown_avatar.jpg",
+    );
+    const unknownAvatarBuffer = fs.readFileSync(unknownAvatarPath);
+    avatarBase64 = `data:image/jpeg;base64,${unknownAvatarBuffer.toString("base64")}`;
+  }
+
   // 替换基础信息
   htmlContent = htmlContent
     .replace(
       "{{background}}",
       `data:image/png;base64,${backgroundBase64}`,
     )
-    .replace("{{avatar}}", profileData.avatar)
+    .replace("{{avatar}}", avatarBase64)
     .replace("{{name}}", profileData.name)
     .replace("{{level}}", profileData.level)
     .replace("{{status}}", profileData.status);
