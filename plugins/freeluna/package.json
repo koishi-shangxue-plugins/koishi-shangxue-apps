@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-freeluna",
-  "description": "freeluna",
+  "description": "FreeLuna - 免费 LLM API 服务，动态加载免费 API 配置，无需频繁更新插件",
   "version": "0.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -8,14 +8,18 @@
     "lib",
     "dist",
     "src",
-    "client"
+    "client",
+    "templates",
+    "public"
   ],
   "license": "MIT",
   "keywords": [
     "chatbot",
     "koishi",
     "plugin",
-    "freeluna"
+    "freeluna",
+    "llm",
+    "free-api"
   ],
   "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps",
   "bugs": {
@@ -25,7 +29,18 @@
     "type": "git",
     "url": "git+https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps.git"
   },
+  "koishi": {
+    "service": {
+      "required": [
+        "server"
+      ]
+    }
+  },
   "peerDependencies": {
-    "koishi": "4.18.9"
+    "koishi": "^4.16.0"
+  },
+  "devDependencies": {
+    "@koishijs/plugin-server": "^3.2.7",
+    "koishi": "^4.16.0"
   }
 }

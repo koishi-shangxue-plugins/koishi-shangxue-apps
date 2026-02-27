@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FreeLuna - 免费 LLM API 服务</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 50%,
+          #0f3460 100%
+        );
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        color: #e0e0e0;
+      }
+
+      .container {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 40px;
+        max-width: 700px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .header h1 {
+        font-size: 36px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #a78bfa, #60a5fa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 8px;
+      }
+
+      .header p {
+        color: #9ca3af;
+        font-size: 15px;
+      }
+
+      .info-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .info-card h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #a78bfa;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 12px;
+      }
+
+      .info-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+
+      .info-row:last-child {
+        margin-bottom: 0;
+      }
+
+      .info-label {
+        color: #9ca3af;
+        font-size: 13px;
+        min-width: 100px;
+        flex-shrink: 0;
+      }
+
+      .info-value {
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        color: #e0e0e0;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 4px 10px;
+        border-radius: 6px;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .copy-btn {
+        background: rgba(167, 139, 250, 0.2);
+        border: 1px solid rgba(167, 139, 250, 0.3);
+        color: #a78bfa;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex-shrink: 0;
+      }
+
+      .copy-btn:hover {
+        background: rgba(167, 139, 250, 0.3);
+      }
+
+      .models-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 4px;
+      }
+
+      .model-tag {
+        background: rgba(96, 165, 250, 0.15);
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        color: #60a5fa;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-family: "Courier New", monospace;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+      }
+
+      .status-badge.loading {
+        background: rgba(251, 191, 36, 0.15);
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        color: #fbbf24;
+      }
+
+      .status-badge.ok {
+        background: rgba(52, 211, 153, 0.15);
+        border: 1px solid rgba(52, 211, 153, 0.3);
+        color: #34d399;
+      }
+
+      .status-badge.error {
+        background: rgba(248, 113, 113, 0.15);
+        border: 1px solid rgba(248, 113, 113, 0.3);
+        color: #f87171;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 1.5s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+
+      .status-badge.ok .dot,
+      .status-badge.error .dot {
+        animation: none;
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 24px;
+        color: #6b7280;
+        font-size: 12px;
+      }
+
+      .footer a {
+        color: #a78bfa;
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🌙 FreeLuna</h1>
+        <p>免费 LLM API 服务 · 由 Koishi 驱动</p>
+      </div>
+
+      <!-- API 接入信息 -->
+      <div class="info-card">
+        <h3>📡 API 接入信息</h3>
+        <div class="info-row">
+          <span class="info-label">API 地址</span>
+          <span class="info-value" id="api-url">{{apiBaseUrl}}</span>
+          <button class="copy-btn" onclick="copyText('api-url')">复制</button>
+        </div>
+        <div class="info-row">
+          <span class="info-label">对话端点</span>
+          <span class="info-value" id="chat-url">{{chatUrl}}</span>
+          <button class="copy-btn" onclick="copyText('chat-url')">复制</button>
+        </div>
+        <div class="info-row">
+          <span class="info-label">模型列表</span>
+          <span class="info-value" id="models-url">{{modelsUrl}}</span>
+          <button class="copy-btn" onclick="copyText('models-url')">
+            复制
+          </button>
+        </div>
+      </div>
+
+      <!-- 服务状态 -->
+      <div class="info-card">
+        <h3>⚡ 服务状态</h3>
+        <div class="info-row">
+          <span class="info-label">配置状态</span>
+          <span class="status-badge loading" id="config-status">
+            <span class="dot"></span>
+            <span>加载中...</span>
+          </span>
+        </div>
+        <div class="info-row" id="version-row" style="display: none">
+          <span class="info-label">配置版本</span>
+          <span class="info-value" id="config-version">-</span>
+        </div>
+        <div class="info-row" id="updated-row" style="display: none">
+          <span class="info-label">更新时间</span>
+          <span class="info-value" id="config-updated">-</span>
+        </div>
+      </div>
+
+      <!-- 可用模型 -->
+      <div class="info-card">
+        <h3>🤖 可用模型</h3>
+        <div class="models-list" id="models-list">
+          <span style="color: #6b7280; font-size: 13px">加载中...</span>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>
+          由
+          <a
+            href="https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps"
+            target="_blank"
+          >
+            koishi-shangxue-apps
+          </a>
+          提供支持 · 免费使用，无需注册
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // 复制文本到剪贴板
+      function copyText(elementId) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        navigator.clipboard.writeText(el.textContent || "").then(() => {
+          const btn = el.nextElementSibling;
+          if (btn) {
+            const orig = btn.textContent;
+            btn.textContent = "已复制!";
+            setTimeout(() => {
+              btn.textContent = orig;
+            }, 1500);
+          }
+        });
+      }
+
+      // 从 /freeluna/v1/models 加载模型列表，展示状态
+      async function loadModels() {
+        const statusEl = document.getElementById("config-status");
+        const modelsListEl = document.getElementById("models-list");
+        const versionRow = document.getElementById("version-row");
+        const updatedRow = document.getElementById("updated-row");
+        const versionEl = document.getElementById("config-version");
+        const updatedEl = document.getElementById("config-updated");
+
+        try {
+          const res = await fetch("{{modelsUrl}}");
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const data = await res.json();
+
+          // 更新状态
+          statusEl.className = "status-badge ok";
+          statusEl.innerHTML = '<span class="dot"></span><span>正常运行</span>';
+
+          // 展示模型列表
+          if (data.data && data.data.length > 0) {
+            modelsListEl.innerHTML = data.data
+              .map((m) => '<span class="model-tag">' + m.id + "</span>")
+              .join("");
+          } else {
+            modelsListEl.innerHTML =
+              '<span style="color:#6b7280;font-size:13px">暂无可用模型</span>';
+          }
+
+          // 展示版本信息（如果有）
+          if (data.version) {
+            versionRow.style.display = "flex";
+            versionEl.textContent = data.version;
+          }
+          if (data.updatedAt) {
+            updatedRow.style.display = "flex";
+            updatedEl.textContent = data.updatedAt;
+          }
+        } catch (e) {
+          statusEl.className = "status-badge error";
+          statusEl.innerHTML =
+            '<span class="dot"></span><span>加载失败: ' + e.message + "</span>";
+          modelsListEl.innerHTML =
+            '<span style="color:#f87171;font-size:13px">无法获取模型列表</span>';
+        }
+      }
+
+      loadModels();
+    </script>
+  </body>
+</html>
