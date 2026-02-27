@@ -5,13 +5,13 @@
     {
       "name": "chatjimmy-llama3",
       "description": "ChatJimmy.ai - 免费 Llama 3.1 8B",
-      "jsUrl": "https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/plugins/freeluna/public/providers/chatjimmy.js",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/chatjimmy.js",
       "localJsPath": "providers/chatjimmy.js"
     },
     {
       "name": "ecylt-gpt4o-mini",
       "description": "ecylt.top - 免费 GPT-4o-mini",
-      "jsUrl": "https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/plugins/freeluna/public/providers/ecylt.js",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/ecylt.js",
       "localJsPath": "providers/ecylt.js"
     }
   ]
