@@ -1,5 +1,6 @@
 /**
  * chatjimmy.ai 提供商适配器
+ * https://chatjimmy.ai
  *
  * API 端点: https://chatjimmy.ai/api/chat
  * 模型: llama3.1-8B（免费）

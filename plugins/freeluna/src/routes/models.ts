@@ -28,7 +28,7 @@ export function registerModelRoutes(ctx: Context, config: Config) {
     logInfo('/models 提供商数量:', providers.length)
 
     const modelList = providers.map(p => ({
-      id: p.name,
+      id: `freeluna-${p.name}`,
       object: 'model',
       created: Math.floor(Date.now() / 1000),
       owned_by: 'freeluna',

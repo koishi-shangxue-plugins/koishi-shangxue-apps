@@ -92,11 +92,14 @@ export function registerChatRoute(ctx: Context, config: Config) {
       }
 
 
-      const requestedModel = body.model || index.providers[0].name
-      let provider = await findProvider(requestedModel, config)
+      const rawModel = body.model || `freeluna-${index.providers[0].name}`
+      const providerName = rawModel.startsWith('freeluna-')
+        ? rawModel.slice('freeluna-'.length)
+        : rawModel
+      let provider = await findProvider(providerName, config)
 
       if (!provider) {
-        logInfo(`模型 "${requestedModel}" 未找到，使用默认提供商:`, index.providers[0].name)
+        logInfo(`模型 "${rawModel}" 未找到，使用默认提供商:`, index.providers[0].name)
         provider = await findProvider(index.providers[0].name, config)
       }
 
