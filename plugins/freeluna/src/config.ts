@@ -38,5 +38,5 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
       .default(false)
       .description('启用调试日志模式（包含请求/响应详情）')
       .experimental(),
-  }).description('日志设置'),
+  }).description('调试日志设置'),
 ])
