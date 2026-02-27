@@ -4,24 +4,16 @@ import vm from 'node:vm'
 import type { Config, ProviderIndex, ProviderEntry, ProviderModule, LoadedProvider } from './types'
 import { logInfo, logDebug, loggerError } from './logger'
 
-// 提供商注册表（启动时加载一次，永久缓存）
 let indexCache: ProviderIndex | null = null
 
-// 已加载的提供商模块（启动时加载一次，永久缓存，key: provider name）
 const moduleCache = new Map<string, ProviderModule>()
 
-/**
- * 清除所有缓存（插件卸载/重启时调用）
- */
 export function clearConfigCache() {
   indexCache = null
   moduleCache.clear()
   logInfo('[freeluna] 所有缓存已清除')
 }
 
-/**
- * 从远程 URL 拉取文本内容
- */
 async function fetchRemoteText(url: string): Promise<string> {
   logInfo('[freeluna] 远程拉取:', url)
   const res = await fetch(url, {
@@ -32,21 +24,14 @@ async function fetchRemoteText(url: string): Promise<string> {
   return res.text()
 }
 
-/**
- * 从本地 public/ 目录读取文件（相对路径）
- */
 function readLocalFile(relPath: string): string {
   const localPath = resolve(__dirname, '../public', relPath)
   logInfo('[freeluna] 本地调试，读取:', localPath)
   return readFileSync(localPath, 'utf-8')
 }
 
-/**
- * 加载提供商注册表（index.json）
- * 插件启动时调用一次，结果永久缓存直到插件卸载
- */
 export async function loadProviderIndex(config: Config): Promise<ProviderIndex | null> {
-  // 已有缓存直接返回
+  
   if (indexCache) {
     logDebug('[freeluna] 使用缓存的注册表')
     return indexCache
@@ -69,10 +54,6 @@ export async function loadProviderIndex(config: Config): Promise<ProviderIndex |
   }
 }
 
-/**
- * 在 vm 沙箱中执行提供商 JS，返回其 module.exports
- * JS 文件应使用 CommonJS 风格：module.exports = { name, chat }
- */
 function executeProviderJs(jsCode: string, providerName: string): ProviderModule {
   const moduleObj = { exports: {} as ProviderModule }
   const sandbox = {
@@ -100,13 +81,8 @@ function executeProviderJs(jsCode: string, providerName: string): ProviderModule
   return mod
 }
 
-/**
- * 加载单个提供商的 JS 模块
- * 本地调试时优先使用 entry.localJsPath（相对于 public/），否则使用 entry.jsUrl
- * 结果永久缓存直到插件卸载
- */
 async function loadProviderModule(entry: ProviderEntry, config: Config): Promise<ProviderModule> {
-  // 已有缓存直接返回
+  
   const cached = moduleCache.get(entry.name)
   if (cached) {
     logDebug('[freeluna] 使用缓存的提供商模块:', entry.name)
@@ -116,7 +92,7 @@ async function loadProviderModule(entry: ProviderEntry, config: Config): Promise
   let jsCode: string
 
   if (config.localDebug) {
-    // 本地调试：优先用 localJsPath，没有则报错提示
+    
     const localPath = entry.localJsPath
     if (!localPath) {
       throw new Error(
@@ -126,7 +102,7 @@ async function loadProviderModule(entry: ProviderEntry, config: Config): Promise
     }
     jsCode = readLocalFile(localPath)
   } else {
-    // 生产模式：使用远程 jsUrl
+    
     jsCode = await fetchRemoteText(entry.jsUrl)
   }
 
@@ -137,9 +113,6 @@ async function loadProviderModule(entry: ProviderEntry, config: Config): Promise
   return mod
 }
 
-/**
- * 按名称查找并加载单个提供商模块
- */
 export async function findProvider(name: string, config: Config): Promise<LoadedProvider | null> {
   const index = await loadProviderIndex(config)
   if (!index) return null
@@ -156,10 +129,6 @@ export async function findProvider(name: string, config: Config): Promise<Loaded
   }
 }
 
-/**
- * 加载所有提供商模块（注册表 + 各 JS）
- * 通常在插件启动时调用，预热缓存
- */
 export async function loadAllProviders(config: Config): Promise<LoadedProvider[]> {
   const index = await loadProviderIndex(config)
   if (!index || index.providers.length === 0) return []
