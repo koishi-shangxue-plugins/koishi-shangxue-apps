@@ -11,7 +11,7 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
       .default('/freeluna')
       .description('插件基础路由前缀，所有路由都挂载在此路径下'),
     remoteIndexUrl: Schema.string()
-      .default('https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/plugins/freeluna/public/index.json')
+      .default('https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/index.json')
       .description('远程提供商注册表 URL（JSON 格式）<br>插件启动时加载一次，重启插件可刷新'),
     apiKeys: Schema.array(Schema.object({
       token: Schema.string().description('API Key 令牌'),
