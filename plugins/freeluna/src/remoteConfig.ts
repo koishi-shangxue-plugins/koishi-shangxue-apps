@@ -1,17 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import vm from 'node:vm'
-import type { Config, ProviderIndex, ProviderEntry, ProviderModule, LoadedProvider, CacheEntry } from './types'
+import type { Config, ProviderIndex, ProviderEntry, ProviderModule, LoadedProvider } from './types'
 import { logInfo, logDebug, loggerError } from './logger'
 
-// 提供商注册表缓存
-let indexCache: CacheEntry<ProviderIndex> | null = null
+// 提供商注册表（启动时加载一次，永久缓存）
+let indexCache: ProviderIndex | null = null
 
-// 已加载的提供商模块缓存（key: provider name）
-const moduleCache = new Map<string, CacheEntry<ProviderModule>>()
+// 已加载的提供商模块（启动时加载一次，永久缓存，key: provider name）
+const moduleCache = new Map<string, ProviderModule>()
 
 /**
- * 清除所有缓存（插件卸载时调用）
+ * 清除所有缓存（插件卸载/重启时调用）
  */
 export function clearConfigCache() {
   indexCache = null
@@ -43,16 +43,16 @@ function readLocalFile(relPath: string): string {
 
 /**
  * 加载提供商注册表（index.json）
+ * 插件启动时调用一次，结果永久缓存直到插件卸载
  */
 export async function loadProviderIndex(config: Config): Promise<ProviderIndex | null> {
-  // 检查缓存
-  if (indexCache && config.cacheTtl > 0 && Date.now() < indexCache.expireAt) {
+  // 已有缓存直接返回
+  if (indexCache) {
     logDebug('[freeluna] 使用缓存的注册表')
-    return indexCache.data
+    return indexCache
   }
 
   try {
-    // 本地调试模式读本地文件，否则拉取远程
     const text = config.localDebug
       ? readLocalFile('index.json')
       : await fetchRemoteText(config.remoteIndexUrl)
@@ -60,17 +60,11 @@ export async function loadProviderIndex(config: Config): Promise<ProviderIndex |
     const parsed = JSON.parse(text) as ProviderIndex
     logInfo('[freeluna] 注册表加载成功，提供商数量:', parsed.providers?.length ?? 0)
 
-    if (config.cacheTtl > 0) {
-      indexCache = { data: parsed, expireAt: Date.now() + config.cacheTtl * 1000 }
-    }
+    indexCache = parsed
     return parsed
   } catch (err) {
     loggerError('[freeluna] 加载注册表失败:', err instanceof Error ? err.message : err)
-    // 降级使用过期缓存
-    if (indexCache) {
-      logInfo('[freeluna] 降级使用过期注册表缓存')
-      return indexCache.data
-    }
+    loggerError('[freeluna] 如遇问题请重启插件重新加载配置')
     return null
   }
 }
@@ -109,13 +103,14 @@ function executeProviderJs(jsCode: string, providerName: string): ProviderModule
 /**
  * 加载单个提供商的 JS 模块
  * 本地调试时优先使用 entry.localJsPath（相对于 public/），否则使用 entry.jsUrl
+ * 结果永久缓存直到插件卸载
  */
 async function loadProviderModule(entry: ProviderEntry, config: Config): Promise<ProviderModule> {
-  // 检查模块缓存
+  // 已有缓存直接返回
   const cached = moduleCache.get(entry.name)
-  if (cached && config.cacheTtl > 0 && Date.now() < cached.expireAt) {
+  if (cached) {
     logDebug('[freeluna] 使用缓存的提供商模块:', entry.name)
-    return cached.data
+    return cached
   }
 
   let jsCode: string
@@ -138,9 +133,7 @@ async function loadProviderModule(entry: ProviderEntry, config: Config): Promise
   logDebug('[freeluna] 执行提供商 JS:', entry.name, '代码长度:', jsCode.length)
   const mod = executeProviderJs(jsCode, entry.name)
 
-  if (config.cacheTtl > 0) {
-    moduleCache.set(entry.name, { data: mod, expireAt: Date.now() + config.cacheTtl * 1000 })
-  }
+  moduleCache.set(entry.name, mod)
   return mod
 }
 
@@ -165,6 +158,7 @@ export async function findProvider(name: string, config: Config): Promise<Loaded
 
 /**
  * 加载所有提供商模块（注册表 + 各 JS）
+ * 通常在插件启动时调用，预热缓存
  */
 export async function loadAllProviders(config: Config): Promise<LoadedProvider[]> {
   const index = await loadProviderIndex(config)

@@ -12,16 +12,12 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
       .description('插件基础路由前缀，所有路由都挂载在此路径下'),
     remoteIndexUrl: Schema.string()
       .default('https://raw.githubusercontent.com/koishi-shangxue-plugins/koishi-shangxue-apps/main/plugins/freeluna/public/index.json')
-      .description('远程提供商注册表 URL（JSON 格式），列出所有可用的免费 API 提供商'),
+      .description('远程提供商注册表 URL（JSON 格式）<br>插件启动时加载一次，重启插件可刷新'),
     apiKeys: Schema.array(Schema.object({
       token: Schema.string().description('API Key 令牌'),
     })).role('table')
       .default(defaultApiKeys)
       .description('API Key 列表<br>只有携带有效 Key（Bearer Token）的请求才会被处理'),
-    cacheTtl: Schema.number()
-      .default(300)
-      .min(0)
-      .description('提供商列表缓存时间（秒），0 表示不缓存'),
   }).description('基础设置'),
 
   Schema.object({
@@ -38,5 +34,5 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
       .default(false)
       .description('启用调试日志模式（包含请求/响应详情）')
       .experimental(),
-  }).description('调试日志设置'),
+  }).description('日志设置'),
 ])

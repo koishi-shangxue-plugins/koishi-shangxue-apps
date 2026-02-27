@@ -18,8 +18,6 @@ export interface Config {
   apiKeys: ApiKeyEntry[]
   /** 本地调试模式：使用本地 public/ 目录而非远程 URL */
   localDebug: boolean
-  /** 配置缓存时间（秒），0 表示不缓存 */
-  cacheTtl: number
   /** 详细日志输出 */
   loggerInfo: boolean
   /** 调试日志模式 */
