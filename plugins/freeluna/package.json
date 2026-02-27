@@ -9,7 +9,6 @@
     "dist",
     "src",
     "client",
-    "templates",
     "public"
   ],
   "license": "MIT",

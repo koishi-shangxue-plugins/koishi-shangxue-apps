@@ -26,7 +26,6 @@ async function fetchRemoteText(url: string): Promise<string> {
 
 function readLocalFile(relPath: string): string {
   const localPath = resolve(__dirname, '../public', relPath)
-  logInfo('本地调试，读取:', localPath)
   return readFileSync(localPath, 'utf-8')
 }
 
@@ -106,7 +105,6 @@ async function loadProviderModule(entry: ProviderEntry, config: Config): Promise
     jsCode = await fetchRemoteText(entry.jsUrl)
   }
 
-  logDebug('执行提供商 JS:', entry.name, '代码长度:', jsCode.length)
   const mod = executeProviderJs(jsCode, entry.name)
 
   moduleCache.set(entry.name, mod)
@@ -138,7 +136,6 @@ export async function loadAllProviders(config: Config): Promise<LoadedProvider[]
     try {
       const mod = await loadProviderModule(entry, config)
       results.push({ entry, module: mod })
-      logInfo('提供商加载成功:', entry.name)
     } catch (err) {
       loggerError(`提供商 "${entry.name}" 加载失败:`, err instanceof Error ? err.message : err)
     }

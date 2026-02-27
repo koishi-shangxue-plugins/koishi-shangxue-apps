@@ -6,7 +6,6 @@ import type { Config as ConfigType } from './types'
 import { ConfigSchema } from './config'
 import { initLogger, loggerInfo } from './logger'
 import { clearConfigCache, loadAllProviders } from './remoteConfig'
-import { registerPageRoute } from './routes/page'
 import { registerModelRoutes } from './routes/models'
 import { registerChatRoute } from './routes/chat'
 
@@ -54,7 +53,6 @@ export function apply(ctx: Context, config: ConfigType) {
     initLogger(ctx, config)
 
 
-    registerPageRoute(ctx, config)
     registerModelRoutes(ctx, config)
     registerChatRoute(ctx, config)
 
