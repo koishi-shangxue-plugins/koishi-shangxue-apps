@@ -21,16 +21,16 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
   }).description('基础设置'),
 
   Schema.object({
-    localDebug: Schema.boolean()
+    localDebug: Schema.boolean().experimental()
       .default(false)
       .description('本地调试模式：启用后从本地 public/ 目录加载提供商配置和 JS，而非远程 URL'),
   }).description('调试设置'),
 
   Schema.object({
-    loggerInfo: Schema.boolean()
+    loggerInfo: Schema.boolean().experimental()
       .default(false)
       .description('启用详细日志输出'),
-    loggerDebug: Schema.boolean()
+    loggerDebug: Schema.boolean().experimental()
       .default(false)
       .description('启用调试日志模式（包含请求/响应详情）')
       .experimental(),
