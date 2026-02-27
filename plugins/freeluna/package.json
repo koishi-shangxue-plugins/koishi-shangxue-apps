@@ -1,14 +1,12 @@
 {
   "name": "koishi-plugin-freeluna",
-  "description": "FreeLuna - 免费 LLM API 服务，动态加载免费 API 配置，无需频繁更新插件",
-  "version": "0.0.1",
+  "description": "FreeLuna - 免费 LLM API 服务，动态加载免费 API 配置。",
+  "version": "0.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "dist",
     "src",
-    "client",
     "public"
   ],
   "license": "MIT",
