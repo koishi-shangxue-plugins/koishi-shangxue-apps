@@ -1,5 +1,0 @@
-$inner:
-    - {}
-    - $desc: 'Adapter Configuration'
-      platform: 'Adapter platform name'
-      loggerinfo: 'Logger debug mode'

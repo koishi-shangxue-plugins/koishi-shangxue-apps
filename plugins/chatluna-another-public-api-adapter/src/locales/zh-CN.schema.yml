@@ -1,5 +1,0 @@
-$inner:
-    - {}
-    - $desc: 适配器配置
-      platform: 设置适配器平台名称。
-      loggerinfo: 日志调试模式
