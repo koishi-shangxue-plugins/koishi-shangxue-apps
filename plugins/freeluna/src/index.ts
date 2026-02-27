@@ -30,24 +30,24 @@ export const Config = ConfigSchema
 
 export function apply(ctx: Context, config: ConfigType) {
   ctx.on('ready', async () => {
-    
+
     initLogger(ctx, config)
 
-    
+
     registerPageRoute(ctx, config)
     registerModelRoutes(ctx, config)
     registerChatRoute(ctx, config)
 
-    loggerInfo(`[freeluna] 服务已启动：http://localhost:${ctx.server.port}${config.basePath}/openai-compatible/v1/chat/completions`)
+    loggerInfo(`服务已启动：http://localhost:${ctx.server.port}${config.basePath}/openai-compatible/v1/chat/completions`)
 
-    
+
     const providers = await loadAllProviders(config)
     if (providers.length === 0) {
-      loggerInfo('[freeluna] 警告：未能加载任何提供商，请检查配置后重启插件')
+      loggerInfo('警告：未能加载任何提供商，请检查配置后重启插件')
     }
   })
 
-  
+
   ctx.on('dispose', () => {
     clearConfigCache()
   })

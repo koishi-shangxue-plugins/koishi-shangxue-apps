@@ -5,7 +5,7 @@ export function createStreamResponse(content: string, model: string): string {
   const created = Math.floor(Date.now() / 1000)
   const chunks: object[] = []
 
-  
+
   chunks.push({
     id,
     object: 'chat.completion.chunk',
@@ -18,7 +18,7 @@ export function createStreamResponse(content: string, model: string): string {
     }],
   })
 
-  
+
   for (const char of content) {
     chunks.push({
       id,
@@ -33,7 +33,7 @@ export function createStreamResponse(content: string, model: string): string {
     })
   }
 
-  
+
   chunks.push({
     id,
     object: 'chat.completion.chunk',

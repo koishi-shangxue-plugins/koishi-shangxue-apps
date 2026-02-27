@@ -17,9 +17,9 @@ export function registerPageRoute(ctx: Context, config: Config) {
     const chatUrl = `${protocol}://${host}${base}/openai-compatible/v1/chat/completions`
     const modelsUrl = `${protocol}://${host}${base}/v1/models`
 
-    logInfo('[freeluna] 页面请求，apiBaseUrl:', apiBaseUrl)
+    logInfo('页面请求，apiBaseUrl:', apiBaseUrl)
 
-    
+
     const html = htmlTemplate
       .replace(/\{\{apiBaseUrl\}\}/g, apiBaseUrl)
       .replace(/\{\{chatUrl\}\}/g, chatUrl)

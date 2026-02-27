@@ -11,11 +11,11 @@ const moduleCache = new Map<string, ProviderModule>()
 export function clearConfigCache() {
   indexCache = null
   moduleCache.clear()
-  logInfo('[freeluna] 所有缓存已清除')
+  logInfo('所有缓存已清除')
 }
 
 async function fetchRemoteText(url: string): Promise<string> {
-  logInfo('[freeluna] 远程拉取:', url)
+  logInfo('远程拉取:', url)
   const res = await fetch(url, {
     headers: { 'Accept': '*/*' },
     signal: AbortSignal.timeout(15000),
@@ -26,14 +26,14 @@ async function fetchRemoteText(url: string): Promise<string> {
 
 function readLocalFile(relPath: string): string {
   const localPath = resolve(__dirname, '../public', relPath)
-  logInfo('[freeluna] 本地调试，读取:', localPath)
+  logInfo('本地调试，读取:', localPath)
   return readFileSync(localPath, 'utf-8')
 }
 
 export async function loadProviderIndex(config: Config): Promise<ProviderIndex | null> {
-  
+
   if (indexCache) {
-    logDebug('[freeluna] 使用缓存的注册表')
+    logDebug('使用缓存的注册表')
     return indexCache
   }
 
@@ -43,13 +43,13 @@ export async function loadProviderIndex(config: Config): Promise<ProviderIndex |
       : await fetchRemoteText(config.remoteIndexUrl)
 
     const parsed = JSON.parse(text) as ProviderIndex
-    logInfo('[freeluna] 注册表加载成功，提供商数量:', parsed.providers?.length ?? 0)
+    logInfo('注册表加载成功，提供商数量:', parsed.providers?.length ?? 0)
 
     indexCache = parsed
     return parsed
   } catch (err) {
-    loggerError('[freeluna] 加载注册表失败:', err instanceof Error ? err.message : err)
-    loggerError('[freeluna] 如遇问题请重启插件重新加载配置')
+    loggerError('加载注册表失败:', err instanceof Error ? err.message : err)
+    loggerError('如遇问题请重启插件重新加载配置')
     return null
   }
 }
@@ -82,17 +82,17 @@ function executeProviderJs(jsCode: string, providerName: string): ProviderModule
 }
 
 async function loadProviderModule(entry: ProviderEntry, config: Config): Promise<ProviderModule> {
-  
+
   const cached = moduleCache.get(entry.name)
   if (cached) {
-    logDebug('[freeluna] 使用缓存的提供商模块:', entry.name)
+    logDebug('使用缓存的提供商模块:', entry.name)
     return cached
   }
 
   let jsCode: string
 
   if (config.localDebug) {
-    
+
     const localPath = entry.localJsPath
     if (!localPath) {
       throw new Error(
@@ -102,11 +102,11 @@ async function loadProviderModule(entry: ProviderEntry, config: Config): Promise
     }
     jsCode = readLocalFile(localPath)
   } else {
-    
+
     jsCode = await fetchRemoteText(entry.jsUrl)
   }
 
-  logDebug('[freeluna] 执行提供商 JS:', entry.name, '代码长度:', jsCode.length)
+  logDebug('执行提供商 JS:', entry.name, '代码长度:', jsCode.length)
   const mod = executeProviderJs(jsCode, entry.name)
 
   moduleCache.set(entry.name, mod)
@@ -124,7 +124,7 @@ export async function findProvider(name: string, config: Config): Promise<Loaded
     const mod = await loadProviderModule(entry, config)
     return { entry, module: mod }
   } catch (err) {
-    loggerError(`[freeluna] 提供商 "${name}" 加载失败:`, err instanceof Error ? err.message : err)
+    loggerError(`提供商 "${name}" 加载失败:`, err instanceof Error ? err.message : err)
     return null
   }
 }
@@ -138,9 +138,9 @@ export async function loadAllProviders(config: Config): Promise<LoadedProvider[]
     try {
       const mod = await loadProviderModule(entry, config)
       results.push({ entry, module: mod })
-      logInfo('[freeluna] 提供商加载成功:', entry.name)
+      logInfo('提供商加载成功:', entry.name)
     } catch (err) {
-      loggerError(`[freeluna] 提供商 "${entry.name}" 加载失败:`, err instanceof Error ? err.message : err)
+      loggerError(`提供商 "${entry.name}" 加载失败:`, err instanceof Error ? err.message : err)
     }
   }
   return results

@@ -18,32 +18,32 @@ export function registerChatRoute(ctx: Context, config: Config) {
   const base = config.basePath
   const chatPath = `${base}/openai-compatible/v1/chat/completions`
 
-  
+
   ctx.server.options(chatPath, async (koaCtx) => {
     setCorsHeaders(koaCtx)
     koaCtx.status = 204
     koaCtx.body = ''
   })
 
-  
+
   ctx.server.get(chatPath, async (koaCtx) => {
     setCorsHeaders(koaCtx)
     koaCtx.status = 405
     koaCtx.body = { error: { message: 'Method Not Allowed', type: 'invalid_request_error' } }
   })
 
-  
+
   ctx.server.post(chatPath, async (koaCtx) => {
     setCorsHeaders(koaCtx)
     const startTime = Date.now()
 
     try {
-      
+
       const authHeader = koaCtx.headers.authorization
       const providedToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
 
       if (!providedToken) {
-        loggerError('[freeluna] 请求未携带 Authorization 头')
+        loggerError('请求未携带 Authorization 头')
         koaCtx.status = 401
         koaCtx.body = {
           error: {
@@ -56,7 +56,7 @@ export function registerChatRoute(ctx: Context, config: Config) {
 
       const validKey = config.apiKeys?.find(k => k.token === providedToken)
       if (!validKey) {
-        loggerError('[freeluna] Token 验证失败，提供的 Token:', providedToken)
+        loggerError('Token 验证失败，提供的 Token:', providedToken)
         koaCtx.status = 401
         koaCtx.body = {
           error: {
@@ -67,10 +67,10 @@ export function registerChatRoute(ctx: Context, config: Config) {
         return
       }
 
-      
+
       const body = (koaCtx.request as unknown as { body: unknown }).body as ChatCompletionRequest
 
-      logDebug('[freeluna] 收到对话请求，model:', body?.model, 'stream:', body?.stream, 'messages:', body?.messages?.length)
+      logDebug('收到对话请求，model:', body?.model, 'stream:', body?.stream, 'messages:', body?.messages?.length)
 
       if (!body || !body.messages || !Array.isArray(body.messages)) {
         koaCtx.status = 400
@@ -80,10 +80,10 @@ export function registerChatRoute(ctx: Context, config: Config) {
         return
       }
 
-      
+
       const index = await loadProviderIndex(config)
       if (!index || index.providers.length === 0) {
-        loggerError('[freeluna] 注册表为空或加载失败')
+        loggerError('注册表为空或加载失败')
         koaCtx.status = 503
         koaCtx.body = {
           error: { message: '暂无可用的免费 API 提供商，请稍后重试', type: 'service_unavailable' },
@@ -91,17 +91,17 @@ export function registerChatRoute(ctx: Context, config: Config) {
         return
       }
 
-      
+
       const requestedModel = body.model || index.providers[0].name
       let provider = await findProvider(requestedModel, config)
 
       if (!provider) {
-        logInfo(`[freeluna] 模型 "${requestedModel}" 未找到，使用默认提供商:`, index.providers[0].name)
+        logInfo(`模型 "${requestedModel}" 未找到，使用默认提供商:`, index.providers[0].name)
         provider = await findProvider(index.providers[0].name, config)
       }
 
       if (!provider) {
-        loggerError('[freeluna] 无法加载任何提供商模块')
+        loggerError('无法加载任何提供商模块')
         koaCtx.status = 503
         koaCtx.body = {
           error: { message: '提供商模块加载失败，请稍后重试', type: 'service_unavailable' },
@@ -109,9 +109,9 @@ export function registerChatRoute(ctx: Context, config: Config) {
         return
       }
 
-      logInfo(`[freeluna] 使用提供商: ${provider.entry.name}`)
+      logInfo(`使用提供商: ${provider.entry.name}`)
 
-      
+
       const options: ChatOptions = {
         model: body.model,
         temperature: body.temperature,
@@ -122,27 +122,27 @@ export function registerChatRoute(ctx: Context, config: Config) {
       const replyText = await provider.module.chat(body.messages, options)
       const elapsed = Date.now() - startTime
 
-      logInfo(`[freeluna] 提供商响应成功，耗时: ${elapsed}ms，回复长度: ${replyText.length}`)
-      logDebug('[freeluna] 回复内容:', replyText.substring(0, 200))
+      logInfo(`提供商响应成功，耗时: ${elapsed}ms，回复长度: ${replyText.length}`)
+      logDebug('回复内容:', replyText.substring(0, 200))
 
-      
+
       const isStream = body.stream === true
 
       if (isStream) {
-        
+
         koaCtx.status = 200
         koaCtx.set('Content-Type', 'text/event-stream')
         koaCtx.set('Cache-Control', 'no-cache')
         koaCtx.set('Connection', 'keep-alive')
         koaCtx.body = createStreamResponse(replyText, provider.entry.name)
       } else {
-        
+
         koaCtx.status = 200
         koaCtx.body = buildChatResponse(replyText, provider.entry.name)
       }
     } catch (err) {
       const elapsed = Date.now() - startTime
-      loggerError(`[freeluna] 处理对话请求出错 (耗时: ${elapsed}ms):`, err instanceof Error ? err.message : err)
+      loggerError(`处理对话请求出错 (耗时: ${elapsed}ms):`, err instanceof Error ? err.message : err)
 
       koaCtx.status = 500
       koaCtx.body = {

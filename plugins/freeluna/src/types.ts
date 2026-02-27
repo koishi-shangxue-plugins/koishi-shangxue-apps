@@ -1,51 +1,51 @@
 
 
 export interface ApiKeyEntry {
-  
+
   token: string
 }
 
 export interface Config {
-  
+
   basePath: string
-  
+
   remoteIndexUrl: string
-  
+
   apiKeys: ApiKeyEntry[]
-  
+
   localDebug: boolean
-  
+
   loggerInfo: boolean
-  
+
   loggerDebug: boolean
 }
 
 export interface ProviderEntry {
-  
+
   name: string
-  
+
   description?: string
-  
+
   jsUrl: string
-  
+
   localJsPath?: string
 }
 
 export interface ProviderIndex {
-  
+
   version?: string
-  
+
   updatedAt?: string
-  
+
   providers: ProviderEntry[]
 }
 
 export interface ProviderModule {
-  
+
   name: string
-  
+
   description?: string
-  
+
   chat: (
     messages: ChatMessage[],
     options?: ChatOptions,

@@ -16,16 +16,16 @@ function setCorsHeaders(koaCtx: any) {
 export function registerModelRoutes(ctx: Context, config: Config) {
   const base = config.basePath
 
-  
+
   async function handleModels(koaCtx: any) {
     setCorsHeaders(koaCtx)
-    logInfo('[freeluna] /models 请求来源:', koaCtx.ip, '路径:', koaCtx.path, '| UA:', koaCtx.headers['user-agent'] ?? '-')
-    logDebug('[freeluna] /models 请求头:', JSON.stringify(koaCtx.headers, null, 2))
+    logInfo('/models 请求来源:', koaCtx.ip, '路径:', koaCtx.path, '| UA:', koaCtx.headers['user-agent'] ?? '-')
+    logDebug('/models 请求头:', JSON.stringify(koaCtx.headers, null, 2))
 
     const index = await loadProviderIndex(config)
     const providers = index?.providers ?? []
 
-    logInfo('[freeluna] /models 提供商数量:', providers.length)
+    logInfo('/models 提供商数量:', providers.length)
 
     const modelList = providers.map(p => ({
       id: p.name,
@@ -39,7 +39,7 @@ export function registerModelRoutes(ctx: Context, config: Config) {
       data: modelList,
     }
 
-    logDebug('[freeluna] /models 响应:', JSON.stringify(responseBody, null, 2))
+    logDebug('/models 响应:', JSON.stringify(responseBody, null, 2))
     koaCtx.body = responseBody
   }
 
