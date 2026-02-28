@@ -35,40 +35,41 @@ export const Config: Schema<Config> = Schema.intersect([
 ])
 
 export function apply(ctx: Context, config: Config) {
-  // 日志输出函数
-  function logInfo(...args: any[]) {
-    if (config.loggerinfo) {
-      (ctx.logger.info as (...args: any[]) => void)(...args);
+  ctx.on("ready", async () => {
+    // 日志输出函数
+    function logInfo(...args: any[]) {
+      if (config.loggerinfo) {
+        (ctx.logger.info as (...args: any[]) => void)(...args);
+      }
     }
-  }
 
-  // 如果没有数据库服务，无需处理
-  if (!ctx.database) {
-    ctx.logger.warn('数据库服务未启用，插件无法工作');
-    return;
-  }
+    // 在 observeChannel 之后、assignee 检查之前触发
+    ctx.on('attach-channel', (session: Session) => {
 
-  // 在 observeChannel 之后、assignee 检查之前触发
-  ctx.on('attach-channel', (session: Session) => {
-    // 只处理群组消息
-    if (session.isDirect) return;
+      // 如果没有数据库服务，无需处理
+      if (!ctx.database) {
+        ctx.logger.warn('数据库服务未启用，插件无法工作');
+        return;
+      }
 
-    const channel = session.channel;
-    if (!channel) return;
+      // 只处理群组消息
+      if (session.isDirect) return;
 
-    // 获取原始的 assignee 值
-    const originalAssignee = (channel as any).assignee;
+      const channel = session.channel;
+      if (!channel) return;
 
-    // 如果 assignee 存在且不是当前 bot
-    if (originalAssignee && originalAssignee !== session.selfId) {
-      logInfo(`检测到频道 ${session.channelId} 的 assignee 为 ${originalAssignee}，当前 bot 为 ${session.selfId}`);
+      // 获取原始的 assignee 值
+      const originalAssignee = (channel as any).assignee;
 
-      // 临时修改 assignee 为当前 bot，绕过后续的 assignee 检查
-      (channel as any).assignee = session.selfId;
+      // 如果 assignee 存在且不是当前 bot
+      if (originalAssignee && originalAssignee !== session.selfId) {
+        logInfo(`检测到频道 ${session.channelId} 的 assignee 为 ${originalAssignee}，当前 bot 为 ${session.selfId}`);
 
-      logInfo(`已将频道 ${session.channelId} 的 assignee 临时修改为 ${session.selfId}`);
-    }
-  });
+        // 临时修改 assignee 为当前 bot，绕过后续的 assignee 检查
+        (channel as any).assignee = session.selfId;
 
-  ctx.logger.info('without-assignee 插件已加载，assignee 机制已禁用');
+        logInfo(`已将频道 ${session.channelId} 的 assignee 临时修改为 ${session.selfId}`);
+      }
+    });
+  })
 }

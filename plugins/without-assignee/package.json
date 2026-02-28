@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-without-assignee",
   "description": "禁用 Koishi 的 assignee 机制，允许同一频道内的多个机器人同时响应无前缀指令",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
