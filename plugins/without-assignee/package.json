@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-without-assignee",
-  "description": "without-assignee",
+  "description": "禁用 Koishi 的 assignee 机制，允许同一频道内的多个机器人同时响应无前缀指令",
   "version": "0.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -26,6 +26,6 @@
     "url": "git+https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps.git"
   },
   "peerDependencies": {
-    "koishi": "4.18.9"
+    "koishi": "^4.18.9"
   }
 }

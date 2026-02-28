@@ -429,7 +429,7 @@ export function apply(ctx: Context, config: Config) {
         return data ? data.value : 0;
       } catch (error) {
         ctx.logger.error(`获取用户 ${uid} 的货币时出错: ${error}`);
-        return 0; // Return 0 
+        return 0; // Return 0
       }
     }
   })

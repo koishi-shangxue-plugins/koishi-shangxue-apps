@@ -45,7 +45,7 @@ export const Config: Schema<Config> = Schema.intersect([
     tasks: Schema.array(Schema.object({
       url: Schema.string()
         .description('请求地址（URL）')
-        .default('https://epay.czu.cn/wechat/h5/eleresult?sysid=1&roomid=14970&areaid=1&buildid=19&buildname=%E8%8F%81%E5%9B%AD%E5%85%AC%E5%AF%935%E5%8F%B7-D&roomname=514'),
+        .default(''),
       interval: Schema.number()
         .min(1)
         .max(1440)
