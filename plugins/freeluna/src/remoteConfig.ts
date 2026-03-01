@@ -78,6 +78,7 @@ function executeProviderJs(jsCode: string, providerName: string): ProviderModule
     JSON,
     Error,
     URL,
+    Buffer,
   }
   vm.createContext(sandbox)
 
