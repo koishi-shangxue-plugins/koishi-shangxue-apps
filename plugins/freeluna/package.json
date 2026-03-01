@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-freeluna",
   "description": "FreeLuna - 免费 LLM API 服务，动态加载 API 配置。可用于快速搭建、体验 LLM 功能。",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
