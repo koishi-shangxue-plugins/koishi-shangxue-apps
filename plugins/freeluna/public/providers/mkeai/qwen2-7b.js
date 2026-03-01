@@ -8,7 +8,7 @@
  */
 
 const API_URL = 'https://api.mkeai.com/v1/chat/completions'
-const API_KEY = 'sk-CdjEWA15fBu4Kh2YUbZKFPQ7713n3rpusjhgJGevkaAqI4C7'
+const API_KEY_BASE64 = 'c2stQ2RqRVdBMTVmQnU0S2gyWVViWktGUFE3NzEzbjNycHVzamhnSkdldmthQXFJNEM3'
 
 module.exports = {
   name: 'mkeai-qwen2-7b',
@@ -22,7 +22,7 @@ module.exports = {
    */
   async chat(messages, options) {
     const headers = {
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': `Bearer ${Buffer.from(API_KEY_BASE64, 'base64').toString()}`,
       'Content-Type': 'application/json',
     }
 

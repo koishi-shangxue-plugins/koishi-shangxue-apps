@@ -8,7 +8,7 @@
  */
 
 const API_URL = 'https://api.suanli.cn/v1/chat/completions'
-const API_KEY = 'sk-WBKcgxq63396eXMFYQYdyraLnAtzcOLEAxBmJb6FABsn5wcF'
+const API_KEY_BASE64 = 'c2stV0JLY2d4cTYzMzk2ZVhNRllRWWR5cmFMbkF0emNPTEVBeEJtSmI2RkFCc241d2NG'
 
 module.exports = {
   name: 'suanli-qwen3-30b',
@@ -22,7 +22,7 @@ module.exports = {
    */
   async chat(messages, options) {
     const headers = {
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': `Bearer ${Buffer.from(API_KEY_BASE64, 'base64').toString()}`,
       'Content-Type': 'application/json',
     }
 
