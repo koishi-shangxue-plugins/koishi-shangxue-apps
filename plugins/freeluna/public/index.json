@@ -13,6 +13,30 @@
       "description": "ecylt.top - 免费 GPT-4o-mini",
       "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/ecylt.js",
       "localJsPath": "providers/ecylt.js"
+    },
+    {
+      "name": "suanli-qwen3-30b",
+      "description": "算了么 - 免费 Qwen3-30B-A3B",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli-qwen3-30b.js",
+      "localJsPath": "providers/suanli-qwen3-30b.js"
+    },
+    {
+      "name": "suanli-qwen3-vl-32b",
+      "description": "算了么 - 免费 Qwen3-VL-32B-Thinking",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli-qwen3-vl-32b.js",
+      "localJsPath": "providers/suanli-qwen3-vl-32b.js"
+    },
+    {
+      "name": "suanli-qwq-32b",
+      "description": "算了么 - 免费 QwQ-32B",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli-qwq-32b.js",
+      "localJsPath": "providers/suanli-qwq-32b.js"
+    },
+    {
+      "name": "suanli-glm-4.5",
+      "description": "算了么 - 免费 GLM-4.5",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli-glm-4.5.js",
+      "localJsPath": "providers/suanli-glm-4.5.js"
     }
   ]
 }
