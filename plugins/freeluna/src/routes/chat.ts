@@ -17,22 +17,16 @@ function setCorsHeaders(koaCtx: { set: (key: string, value: string) => void }) {
 export function registerChatRoute(ctx: Context, config: Config) {
   const base = config.basePath
   const chatPath = `${base}/openai-compatible/v1/chat/completions`
-
-
   ctx.server.options(chatPath, async (koaCtx) => {
     setCorsHeaders(koaCtx)
     koaCtx.status = 204
     koaCtx.body = ''
   })
-
-
   ctx.server.get(chatPath, async (koaCtx) => {
     setCorsHeaders(koaCtx)
     koaCtx.status = 405
     koaCtx.body = { error: { message: 'Method Not Allowed', type: 'invalid_request_error' } }
   })
-
-
   ctx.server.post(chatPath, async (koaCtx) => {
     setCorsHeaders(koaCtx)
     const startTime = Date.now()
@@ -66,8 +60,6 @@ export function registerChatRoute(ctx: Context, config: Config) {
         }
         return
       }
-
-
       const body = (koaCtx.request as unknown as { body: unknown }).body as ChatCompletionRequest
 
       logDebug('收到对话请求，model:', body?.model, 'stream:', body?.stream, 'messages:', body?.messages?.length)
@@ -79,8 +71,6 @@ export function registerChatRoute(ctx: Context, config: Config) {
         }
         return
       }
-
-
       const index = await loadProviderIndex(config)
       if (!index || index.providers.length === 0) {
         loggerError('注册表为空或加载失败')
@@ -90,8 +80,6 @@ export function registerChatRoute(ctx: Context, config: Config) {
         }
         return
       }
-
-
       const rawModel = body.model || `freeluna-${index.providers[0].name}`
       const providerName = rawModel.startsWith('freeluna-')
         ? rawModel.slice('freeluna-'.length)
@@ -113,8 +101,6 @@ export function registerChatRoute(ctx: Context, config: Config) {
       }
 
       logInfo(`使用提供商: ${provider.entry.name}`)
-
-
       const options: ChatOptions = {
         model: body.model,
         temperature: body.temperature,
@@ -127,8 +113,6 @@ export function registerChatRoute(ctx: Context, config: Config) {
 
       logInfo(`提供商响应成功，耗时: ${elapsed}ms，回复长度: ${replyText.length}`)
       logDebug('回复内容:', replyText.substring(0, 200))
-
-
       const isStream = body.stream === true
 
       if (isStream) {

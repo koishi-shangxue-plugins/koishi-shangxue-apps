@@ -15,8 +15,6 @@ function setCorsHeaders(koaCtx: any) {
 
 export function registerModelRoutes(ctx: Context, config: Config) {
   const base = config.basePath
-
-
   async function handleModels(koaCtx: any) {
     setCorsHeaders(koaCtx)
     logInfo('/models 请求来源:', koaCtx.ip, '路径:', koaCtx.path, '| UA:', koaCtx.headers['user-agent'] ?? '-')

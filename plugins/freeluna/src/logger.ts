@@ -13,20 +13,14 @@ export function initLogger(ctx: Context, config: Config) {
   loggerInfo = (message: unknown, ...args: unknown[]) => {
     ctx.logger.info(message, ...args)
   }
-
-
   loggerError = (message: unknown, ...args: unknown[]) => {
     ctx.logger.error(message, ...args)
   }
-
-
   logInfo = (message: unknown, ...args: unknown[]) => {
     if (config.loggerInfo) {
       devLogger.info(message, ...args)
     }
   }
-
-
   logDebug = (message: unknown, ...args: unknown[]) => {
     if (config.loggerDebug) {
       devLogger.info(message, ...args)

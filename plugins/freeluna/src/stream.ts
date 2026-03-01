@@ -1,10 +1,7 @@
-
-
 export function createStreamResponse(content: string, model: string): string {
   const id = `chatcmpl-freeluna-${Date.now()}`
   const created = Math.floor(Date.now() / 1000)
   const chunks: object[] = []
-
 
   chunks.push({
     id,
@@ -17,7 +14,6 @@ export function createStreamResponse(content: string, model: string): string {
       finish_reason: null,
     }],
   })
-
 
   for (const char of content) {
     chunks.push({
@@ -33,7 +29,6 @@ export function createStreamResponse(content: string, model: string): string {
     })
   }
 
-
   chunks.push({
     id,
     object: 'chat.completion.chunk',
@@ -45,7 +40,6 @@ export function createStreamResponse(content: string, model: string): string {
       finish_reason: 'stop',
     }],
   })
-
   return chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n'
 }
 
