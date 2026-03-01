@@ -1,6 +1,6 @@
 import { Context } from 'koishi'
 
-import { } from '@koishijs/plugin-server'
+import type { } from '@koishijs/plugin-server'
 
 import type { Config as ConfigType } from './types'
 import { ConfigSchema } from './config'
