@@ -71,7 +71,7 @@ export function registerChatRoute(ctx: Context, config: Config) {
         }
         return
       }
-      const index = await loadProviderIndex(config)
+      const index = await loadProviderIndex(ctx, config)
       if (!index || index.providers.length === 0) {
         loggerError('注册表为空或加载失败')
         koaCtx.status = 503
@@ -84,11 +84,11 @@ export function registerChatRoute(ctx: Context, config: Config) {
       const providerName = rawModel.startsWith('freeluna-')
         ? rawModel.slice('freeluna-'.length)
         : rawModel
-      let provider = await findProvider(providerName, config)
+      let provider = await findProvider(ctx, providerName, config)
 
       if (!provider) {
         logInfo(`模型 "${rawModel}" 未找到，使用默认提供商:`, index.providers[0].name)
-        provider = await findProvider(index.providers[0].name, config)
+        provider = await findProvider(ctx, index.providers[0].name, config)
       }
 
       if (!provider) {

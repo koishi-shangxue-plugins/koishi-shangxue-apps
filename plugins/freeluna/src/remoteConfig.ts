@@ -1,8 +1,16 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import vm from 'node:vm'
+import type { Context } from 'koishi'
+import type { } from '@koishijs/plugin-notifier'
 import type { Config, ProviderIndex, ProviderEntry, ProviderModule, LoadedProvider } from './types'
 import { logInfo, logDebug, loggerError } from './logger'
+
+declare module 'koishi' {
+  interface Context {
+    notifier: any
+  }
+}
 
 let indexCache: ProviderIndex | null = null
 
@@ -29,7 +37,7 @@ function readLocalFile(relPath: string): string {
   return readFileSync(localPath, 'utf-8')
 }
 
-export async function loadProviderIndex(config: Config): Promise<ProviderIndex | null> {
+export async function loadProviderIndex(ctx: Context, config: Config): Promise<ProviderIndex | null> {
 
   if (indexCache) {
     logDebug('使用缓存的注册表')
@@ -42,7 +50,10 @@ export async function loadProviderIndex(config: Config): Promise<ProviderIndex |
       : await fetchRemoteText(config.remoteIndexUrl)
 
     const parsed = JSON.parse(text) as ProviderIndex
-    logInfo('注册表加载成功，提供商数量:', parsed.providers?.length ?? 0)
+    const providerCount = parsed.providers?.length ?? 0
+
+    const notifier = ctx.notifier.create()
+    notifier.update(`FreeLuna 注册表加载成功，共 ${providerCount} 个提供商`)
 
     indexCache = parsed
     return parsed
@@ -111,8 +122,8 @@ async function loadProviderModule(entry: ProviderEntry, config: Config): Promise
   return mod
 }
 
-export async function findProvider(name: string, config: Config): Promise<LoadedProvider | null> {
-  const index = await loadProviderIndex(config)
+export async function findProvider(ctx: Context, name: string, config: Config): Promise<LoadedProvider | null> {
+  const index = await loadProviderIndex(ctx, config)
   if (!index) return null
 
   const entry = index.providers.find(p => p.name === name)
@@ -127,8 +138,8 @@ export async function findProvider(name: string, config: Config): Promise<Loaded
   }
 }
 
-export async function loadAllProviders(config: Config): Promise<LoadedProvider[]> {
-  const index = await loadProviderIndex(config)
+export async function loadAllProviders(ctx: Context, config: Config): Promise<LoadedProvider[]> {
+  const index = await loadProviderIndex(ctx, config)
   if (!index || index.providers.length === 0) return []
 
   const results: LoadedProvider[] = []

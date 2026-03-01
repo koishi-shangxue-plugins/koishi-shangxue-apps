@@ -1,6 +1,7 @@
 import { Context } from 'koishi'
 
 import type { } from '@koishijs/plugin-server'
+import type { } from '@koishijs/plugin-notifier'
 
 import type { Config as ConfigType } from './types'
 import { ConfigSchema } from './config'
@@ -14,7 +15,7 @@ export const reusable = false
 export const filter = false
 
 export const inject = {
-  required: ['server'],
+  required: ['server', 'notifier'],
 }
 
 export const usage = `
@@ -51,7 +52,7 @@ export function apply(ctx: Context, config: ConfigType) {
     registerChatRoute(ctx, config)
 
     loggerInfo(`服务已启动：http://localhost:${ctx.server.port}${config.basePath}/openai-compatible/v1/chat/completions`)
-    const providers = await loadAllProviders(config)
+    const providers = await loadAllProviders(ctx, config)
     if (providers.length === 0) {
       loggerInfo('警告：未能加载任何提供商，请检查配置后重启插件')
     }

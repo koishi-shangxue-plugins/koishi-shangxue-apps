@@ -20,7 +20,7 @@ export function registerModelRoutes(ctx: Context, config: Config) {
     logInfo('/models 请求来源:', koaCtx.ip, '路径:', koaCtx.path, '| UA:', koaCtx.headers['user-agent'] ?? '-')
     logDebug('/models 请求头:', JSON.stringify(koaCtx.headers, null, 2))
 
-    const index = await loadProviderIndex(config)
+    const index = await loadProviderIndex(ctx, config)
     const providers = index?.providers ?? []
 
     logInfo('/models 提供商数量:', providers.length)
