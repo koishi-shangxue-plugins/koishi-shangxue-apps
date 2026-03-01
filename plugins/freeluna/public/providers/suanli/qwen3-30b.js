@@ -1,5 +1,6 @@
 /**
  * 算力云 Qwen3-30B-A3B 提供商适配器
+ * https://qwq.aigpu.cn/
  * https://api.suanli.cn/pricing
  *
  * API 端点: https://api.suanli.cn/v1/chat/completions
@@ -8,7 +9,8 @@
  */
 
 const API_URL = 'https://api.suanli.cn/v1/chat/completions'
-const API_KEY_BASE64 = 'c2stV0JLY2d4cTYzMzk2ZVhNRllRWWR5cmFMbkF0emNPTEVBeEJtSmI2RkFCc241d2NG'
+// 旧key: const API_KEY_BASE64 = 'c2stV0JLY2d4cTYzMzk2ZVhNRllRWWR5cmFMbkF0emNPTEVBeEJtSmI2RkFCc241d2NG'
+const API_KEY_BASE64 = 'c2stVzBycFN0Yzk1VDdKVllWd0RZYzI5SXlpcmp0cFBQYnk2U296Rk1RcjE3bThLV2Vv'
 
 module.exports = {
   name: 'suanli-qwen3-30b',
