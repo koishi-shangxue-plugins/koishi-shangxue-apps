@@ -1,18 +1,18 @@
 /**
- * 算了么 Qwen3-30B-A3B 提供商适配器
- * https://api.suanli.cn/pricing
+ * MKE AI Qwen2.5-Coder-7B-Instruct 提供商适配器
+ * https://api.mkeai.com/pricing
  *
- * API 端点: https://api.suanli.cn/v1/chat/completions
- * 模型: free:Qwen3-30B-A3B（免费）
+ * API 端点: https://api.mkeai.com/v1/chat/completions
+ * 模型: Qwen/Qwen2.5-Coder-7B-Instruct（免费）
  * 响应格式: OpenAI 兼容格式
  */
 
-const API_URL = 'https://api.suanli.cn/v1/chat/completions'
-const API_KEY = 'sk-WBKcgxq63396eXMFYQYdyraLnAtzcOLEAxBmJb6FABsn5wcF'
+const API_URL = 'https://api.mkeai.com/v1/chat/completions'
+const API_KEY = 'sk-CdjEWA15fBu4Kh2YUbZKFPQ7713n3rpusjhgJGevkaAqI4C7'
 
 module.exports = {
-  name: 'suanli-qwen3-30b',
-  description: '算了么 - 免费 Qwen3-30B-A3B',
+  name: 'mkeai-qwen2.5-coder-7b',
+  description: 'MKE AI - 免费 Qwen2.5-Coder-7B-Instruct',
 
   /**
    * 发送对话请求
@@ -27,7 +27,7 @@ module.exports = {
     }
 
     const body = {
-      model: 'free:Qwen3-30B-A3B',
+      model: 'Qwen/Qwen2.5-Coder-7B-Instruct',
       messages: messages,
     }
 
@@ -39,20 +39,20 @@ module.exports = {
     })
 
     if (!res.ok) {
-      throw new Error(`算了么 API 请求失败: HTTP ${res.status} ${res.statusText}`)
+      throw new Error(`MKE AI API 请求失败: HTTP ${res.status} ${res.statusText}`)
     }
 
     const data = await res.json()
 
     // 提取 OpenAI 格式的回复内容
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('算了么 API 返回格式异常')
+      throw new Error('MKE AI API 返回格式异常')
     }
 
     const content = data.choices[0].message.content
 
     if (!content) {
-      throw new Error('算了么 API 返回了空响应')
+      throw new Error('MKE AI API 返回了空响应')
     }
 
     return content

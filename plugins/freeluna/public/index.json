@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
-  "updatedAt": "2026-02-28",
+  "version": "1.2.0",
+  "updatedAt": "2026-03-01",
   "providers": [
     {
       "name": "chatjimmy-llama3",
@@ -16,27 +16,63 @@
     },
     {
       "name": "suanli-qwen3-30b",
-      "description": "算了么 - 免费 Qwen3-30B-A3B",
-      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli-qwen3-30b.js",
-      "localJsPath": "providers/suanli-qwen3-30b.js"
+      "description": "算力云 - 免费 Qwen3-30B-A3B",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli/qwen3-30b.js",
+      "localJsPath": "providers/suanli/qwen3-30b.js"
     },
     {
       "name": "suanli-qwen3-vl-32b",
-      "description": "算了么 - 免费 Qwen3-VL-32B-Thinking",
-      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli-qwen3-vl-32b.js",
-      "localJsPath": "providers/suanli-qwen3-vl-32b.js"
+      "description": "算力云 - 免费 Qwen3-VL-32B-Thinking",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli/qwen3-vl-32b.js",
+      "localJsPath": "providers/suanli/qwen3-vl-32b.js"
     },
     {
       "name": "suanli-qwq-32b",
-      "description": "算了么 - 免费 QwQ-32B",
-      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli-qwq-32b.js",
-      "localJsPath": "providers/suanli-qwq-32b.js"
+      "description": "算力云 - 免费 QwQ-32B",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli/qwq-32b.js",
+      "localJsPath": "providers/suanli/qwq-32b.js"
     },
     {
       "name": "suanli-glm-4.5",
-      "description": "算了么 - 免费 GLM-4.5",
-      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli-glm-4.5.js",
-      "localJsPath": "providers/suanli-glm-4.5.js"
+      "description": "算力云 - 免费 GLM-4.5",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/suanli/glm-4.5.js",
+      "localJsPath": "providers/suanli/glm-4.5.js"
+    },
+    {
+      "name": "mkeai-qwen2-7b",
+      "description": "MKE AI - 免费 Qwen2-7B-Instruct",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/mkeai/qwen2-7b.js",
+      "localJsPath": "providers/mkeai/qwen2-7b.js"
+    },
+    {
+      "name": "mkeai-qwen2.5-7b",
+      "description": "MKE AI - 免费 Qwen2.5-7B-Instruct",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/mkeai/qwen2.5-7b.js",
+      "localJsPath": "providers/mkeai/qwen2.5-7b.js"
+    },
+    {
+      "name": "mkeai-qwen2.5-coder-7b",
+      "description": "MKE AI - 免费 Qwen2.5-Coder-7B-Instruct",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/mkeai/qwen2.5-coder-7b.js",
+      "localJsPath": "providers/mkeai/qwen2.5-coder-7b.js"
+    },
+    {
+      "name": "mkeai-qwen3-32b",
+      "description": "MKE AI - 免费 Qwen3-32B",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/mkeai/qwen3-32b.js",
+      "localJsPath": "providers/mkeai/qwen3-32b.js"
+    },
+    {
+      "name": "mkeai-qwq-32b",
+      "description": "MKE AI - 免费 QwQ-32B",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/mkeai/qwq-32b.js",
+      "localJsPath": "providers/mkeai/qwq-32b.js"
+    },
+    {
+      "name": "mkeai-glm-4-9b",
+      "description": "MKE AI - 免费 GLM-4-9B-Chat",
+      "jsUrl": "https://cdn.jsdelivr.net/gh/koishi-shangxue-plugins/koishi-shangxue-apps@main/plugins/freeluna/public/providers/mkeai/glm-4-9b.js",
+      "localJsPath": "providers/mkeai/glm-4-9b.js"
     }
   ]
 }
