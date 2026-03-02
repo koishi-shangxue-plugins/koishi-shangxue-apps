@@ -9,8 +9,7 @@
  */
 
 const API_URL = 'https://api.suanli.cn/v1/chat/completions'
-// 旧key: const API_KEY_BASE64 = 'c2stV0JLY2d4cTYzMzk2ZVhNRllRWWR5cmFMbkF0emNPTEVBeEJtSmI2RkFCc241d2NG'
-const API_KEY_BASE64 = 'c2stVzBycFN0Yzk1VDdKVllWd0RZYzI5SXlpcmp0cFBQYnk2U296Rk1RcjE3bThLV2Vv'
+const API_KEY_BASE64 = 'c2stTWt4UEg1REl6UnJoVlpqY3JwT240WFZHbXBmbUtmTkZqY1M1d0pFWGI0aldOOWU1'
 
 module.exports = {
   name: 'suanli-glm-4.5',
