@@ -1,10 +1,10 @@
 import { clone, Context, h, Logger, Schema, sleep, Universal } from 'koishi'
 import { } from '@koishijs/assets';
-import { inspect } from 'node:util'
+import {  } from 'koishi-plugin-puppeteer'
 
 export const name = 'testplugin'
 export const inject = {
-  required: ['http', 'logger', 'i18n', 'database'],
+  required: ['http', 'logger', 'puppeteer', 'database'],
   optional: ['assets', 'cache']
 };
 const logger = new Logger(name);
@@ -27,6 +27,48 @@ export function apply(ctx: Context) {
   ctx.on('interaction/button', async (session) => {
     ctx.logger.info(session)
   })
+
+ctx.command('test-timeout', '测试页面渲染超时')
+  .action(async ({ session }) => {
+    await session.send('开始测试，页面将在1分钟后渲染完成...')
+
+    const page = await ctx.puppeteer.page()
+    try {
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>超时测试</title>
+        </head>
+        <body>
+          <h1>正在加载...</h1>
+          <div id="content"></div>
+        </body>
+        </html>
+      `
+
+      await page.setContent(html)
+
+      // 使用 waitForFunction 等待1分钟
+      await page.waitForFunction(() => {
+        return new Promise(resolve => {
+          setTimeout(() => resolve(true), 60000)
+        })
+      })
+
+      const screenshot = await page.screenshot()
+      await session.send(h.image(screenshot, 'image/png'))
+      return '✅ 测试完成'
+    } catch (error) {
+      ctx.logger.info(error)
+      return `❌ 测试失败: ${error.message}`
+    } finally {
+      await page.close()
+    }
+  })
+
+
 
   // ctx.on('message', async (session) => {
   //   ctx.logger.info(session.content)
