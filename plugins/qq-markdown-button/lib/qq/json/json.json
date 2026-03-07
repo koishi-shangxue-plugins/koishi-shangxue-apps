@@ -1,9 +1,0 @@
-{
-    "msg_id": "${session.messageId}",
-    "event_id": "${INTERACTION_CREATE}",
-    "msg_type": 2,
-    "content": "",
-    "keyboard": {
-        "id": "${config.json_button_id}"
-    }
-}

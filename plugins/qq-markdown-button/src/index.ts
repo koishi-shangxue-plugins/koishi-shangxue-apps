@@ -125,7 +125,7 @@ export function apply(ctx: Context, config: Config) {
             const fileList = filesToCopy[type as keyof typeof filesToCopy];
             if (fileList) {
                 fileList.forEach((file: string) => {
-                    const srcPath = path.join(__dirname, 'qq', type, file); // 源文件路径，根据新的目录结构调整
+                    const srcPath = path.join(__dirname, '..', 'qq', type, file); // 源文件路径，编译后 __dirname 在 lib 目录
                     const destPath = path.join(baseDir, type, file);       // 目标文件路径，保持新的目录结构
                     // 确保目标目录存在
                     const destDir = path.dirname(destPath);
@@ -274,7 +274,8 @@ export function apply(ctx: Context, config: Config) {
                     return data;
                 };
 
-                markdownContent = String(replacePlaceholders(markdownContent)).replace(/\n/g, '');
+                // 保留换行符，QQ markdown 需要换行符
+                markdownContent = String(replacePlaceholders(markdownContent));
                 allVariables.markdown = markdownContent;
                 const rawJsonObject = JSON.parse(rawJsonData);
                 const replacedJsonObject = replacePlaceholders(rawJsonObject);
