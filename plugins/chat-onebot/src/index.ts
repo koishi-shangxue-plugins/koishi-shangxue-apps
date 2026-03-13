@@ -45,8 +45,10 @@ export interface Config {
   mode: 'online' | 'local'
   wsMode: 'none' | 'forward' | 'reverse'
   protocolEndpoint?: string
+  protocolToken?: string
   proxyPath?: string
   reversePath?: string
+  accessToken?: string
   loggerinfo: boolean
 }
 
@@ -82,12 +84,15 @@ export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
       wsMode: Schema.const('forward' as const).required().description('把正向转为反向（我们主动连接协议端，WebQQ 连接我们）'),
       protocolEndpoint: Schema.string().required().description('协议端 WebSocket 地址（如 ws://127.0.0.1:3001）'),
+      protocolToken: Schema.string().role('secret').description('连接协议端时携带的 token（留空则不鉴权）'),
       proxyPath: Schema.string().default('/chat-onebot/ws-proxy').description('WebQQ 连接我们的代理路径'),
+      accessToken: Schema.string().role('secret').description('WebQQ 连接我们时需要提供的 token（留空则不鉴权）'),
     }),
     Schema.object({
       wsMode: Schema.const('reverse' as const).required().description('把反向转为正向（协议端连接我们，WebQQ 也连接我们）'),
       reversePath: Schema.string().default('/chat-onebot/ws-incoming').description('协议端反向 WS 连接我们的路径<br>请填入到协议端的 WS 地址中'),
       proxyPath: Schema.string().default('/chat-onebot/ws-proxy').description('WebQQ 连接我们的代理路径<br>[请填入到这个页面](/chat-onebot)'),
+      accessToken: Schema.string().role('secret').description('协议端和 WebQQ 连接我们时需要提供的 token（留空则不鉴权）'),
     }),
   ]),
 
@@ -110,8 +115,10 @@ export function apply(ctx: Context, config: Config) {
     setupWsBridge(ctx, {
       wsMode: config.wsMode,
       protocolEndpoint: config.protocolEndpoint,
+      protocolToken: config.protocolToken,
       proxyPath: config.proxyPath,
       reversePath: config.reversePath,
+      accessToken: config.accessToken,
     }, (msg) => logInfo(msg))
 
     ctx.console.addListener('chat-onebot/get-config' as any, async () => {

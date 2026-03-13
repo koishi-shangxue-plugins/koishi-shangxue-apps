@@ -1,5 +1,6 @@
 import { Context, Logger } from 'koishi'
 import type { WebSocketLayer } from '@koishijs/plugin-server'
+import type { IncomingMessage } from 'node:http'
 
 type RawData = Buffer | ArrayBuffer | Buffer[]
 type MessageHandler = (data: RawData, isBinary: boolean) => void
@@ -12,8 +13,10 @@ export type WsMode = 'none' | 'forward' | 'reverse'
 export interface WsBridgeConfig {
   wsMode: WsMode
   protocolEndpoint?: string
+  protocolToken?: string
   proxyPath?: string
   reversePath?: string
+  accessToken?: string
 }
 
 function normalizeData(data: RawData): Buffer | ArrayBuffer {
@@ -25,6 +28,16 @@ function prepareForward(data: RawData, isBinary: boolean): string | Buffer | Arr
   const normalized = normalizeData(data)
   if (!isBinary) return normalized.toString()
   return normalized
+}
+
+function validateToken(request: IncomingMessage, token: string, logger: Logger, socket: WsSocket): boolean {
+  const auth = (request.headers['authorization'] ?? '') as string
+  if (auth === `Bearer ${token}`) return true
+  const qs = (request.url ?? '').split('?')[1] ?? ''
+  if (new URLSearchParams(qs).get('access_token') === token) return true
+  logger.warn('[WS桥接] 连接被拒绝: token 验证失败')
+  socket.close(1008, 'Invalid token')
+  return false
 }
 
 export function setupWsBridge(
@@ -58,7 +71,8 @@ function setupForwardBridge(
   logger.info(`[WS桥接] WebQQ 请连接到: ${baseUrl}${proxyPath}`)
   logger.info(`[WS桥接] 将代理至协议端: ${config.protocolEndpoint}`)
 
-  const layer = ctx.server.ws(proxyPath, (webqqSocket) => {
+  const layer = ctx.server.ws(proxyPath, (webqqSocket, request) => {
+    if (config.accessToken && !validateToken(request, config.accessToken, logger, webqqSocket)) return
     logInfo('WebQQ 已连接到代理端点，正在连接协议端...')
 
     const pendingMessages: Array<{ data: RawData; isBinary: boolean }> = []
@@ -69,7 +83,9 @@ function setupForwardBridge(
     }
     webqqSocket.on('message', bufferHandler)
 
-    const protocolWs = ctx.http.ws(config.protocolEndpoint!)
+    const protocolWs = ctx.http.ws(config.protocolEndpoint!, config.protocolToken
+      ? { headers: { Authorization: `Bearer ${config.protocolToken}` } }
+      : undefined)
 
     protocolWs.addEventListener('open', () => {
       logInfo(`协议端连接已建立，转发缓冲消息 ${pendingMessages.length} 条`)
@@ -158,7 +174,8 @@ function setupReverseBridge(
     webqq2proto = null
   }
 
-  const reverseLayer = ctx.server.ws(reversePath, (socket) => {
+  const reverseLayer = ctx.server.ws(reversePath, (socket, request) => {
+    if (config.accessToken && !validateToken(request, config.accessToken, logger, socket)) return
     if (protocolSocket) {
       logger.warn('[WS桥接] 已有协议端连接，断开旧连接')
       clearBridge()
@@ -181,7 +198,8 @@ function setupReverseBridge(
     bridge()
   })
 
-  const proxyLayer = ctx.server.ws(proxyPath, (socket) => {
+  const proxyLayer = ctx.server.ws(proxyPath, (socket, request) => {
+    if (config.accessToken && !validateToken(request, config.accessToken, logger, socket)) return
     if (webqqSocket) {
       clearBridge()
       webqqSocket.close(1001, '新连接已建立')
