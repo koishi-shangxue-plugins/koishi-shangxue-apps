@@ -432,6 +432,151 @@ export class FileManager {
     }
   }
 
+  async deleteChannelData(selfId: string, channelId: string) {
+    await this.ensureMetadataLoaded()
+
+    const channelKey = `${selfId}:${channelId}`
+    const filePath = this.getChannelFilePath(selfId, channelId)
+    const deletedMessages = await this.countMessagesFromFile(filePath)
+
+    delete this.memoryCache.messages[channelKey]
+    this.pendingMessages.delete(channelKey)
+
+    const timer = this.writeTimers.get(channelKey)
+    if (timer) {
+      timer()
+      this.writeTimers.delete(channelKey)
+    }
+
+    if (this.memoryCache.channels[selfId]?.[channelId]) {
+      delete this.memoryCache.channels[selfId][channelId]
+      if (!Object.keys(this.memoryCache.channels[selfId]).length) {
+        delete this.memoryCache.channels[selfId]
+      }
+    }
+
+    this.memoryCache.pinnedChannels = this.memoryCache.pinnedChannels.filter((item) => item !== channelKey)
+
+    try {
+      await fs.unlink(filePath)
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.error(`删除频道消息文件失败 [${channelKey}]:`, error)
+      }
+    }
+
+    this.scheduleMetadataWrite()
+
+    return { deletedMessages }
+  }
+
+  async deleteBotData(selfId: string) {
+    await this.ensureMetadataLoaded()
+
+    const botDir = path.join(this.chatHistoryDir, selfId)
+    const channelFiles = await this.listBotChannelFiles(selfId)
+    let deletedMessages = 0
+
+    for (const fileInfo of channelFiles) {
+      deletedMessages += await this.countMessagesFromFile(fileInfo.filePath)
+      delete this.memoryCache.messages[fileInfo.channelKey]
+      this.pendingMessages.delete(fileInfo.channelKey)
+
+      const timer = this.writeTimers.get(fileInfo.channelKey)
+      if (timer) {
+        timer()
+        this.writeTimers.delete(fileInfo.channelKey)
+      }
+    }
+
+    const deletedChannels = channelFiles.length
+
+    delete this.memoryCache.bots[selfId]
+    delete this.memoryCache.channels[selfId]
+    this.memoryCache.pinnedBots = this.memoryCache.pinnedBots.filter((item) => item !== selfId)
+    this.memoryCache.pinnedChannels = this.memoryCache.pinnedChannels.filter((item) => !item.startsWith(`${selfId}:`))
+
+    try {
+      await fs.rm(botDir, { recursive: true, force: true })
+    } catch (error) {
+      this.logger.error(`删除机器人目录失败 [${selfId}]:`, error)
+    }
+
+    this.scheduleMetadataWrite()
+
+    return {
+      deletedChannels,
+      deletedMessages
+    }
+  }
+
+  async updateUserProfileInBotData(selfId: string, userId: string, userName?: string, avatar?: string) {
+    await this.ensureMetadataLoaded()
+
+    let changed = false
+
+    const botChannels = this.memoryCache.channels[selfId] || {}
+    const possibleChannelIds = [
+      userId,
+      `private:${userId}`,
+      `direct:${userId}`
+    ]
+
+    for (const channelId of possibleChannelIds) {
+      const channel = botChannels[channelId]
+      if (!channel || !channel.isDirect || !userName) {
+        continue
+      }
+
+      const newName = `私聊（${userName}）`
+      if (channel.name !== newName) {
+        channel.name = newName
+        changed = true
+      }
+    }
+
+    const channelFiles = await this.listBotChannelFiles(selfId)
+    for (const fileInfo of channelFiles) {
+      const messages = await this.readChannelMessagesFromFile(fileInfo.filePath)
+      let fileChanged = false
+
+      for (const message of messages) {
+        if (message.userId !== userId) {
+          continue
+        }
+
+        if (userName && message.username !== userName) {
+          message.username = userName
+          fileChanged = true
+        }
+
+        if (avatar && message.avatar !== avatar) {
+          message.avatar = avatar
+          fileChanged = true
+        }
+      }
+
+      if (!fileChanged) {
+        continue
+      }
+
+      const [botSelfId, channelId] = fileInfo.channelKey.split(':')
+      if (!botSelfId || !channelId) {
+        continue
+      }
+
+      await this.writeChannelMessages(botSelfId, channelId, messages)
+      this.memoryCache.messages[fileInfo.channelKey] = messages
+      changed = true
+    }
+
+    if (changed) {
+      this.scheduleMetadataWrite()
+    }
+
+    return changed
+  }
+
   async markLatestBotMessageAsSent(selfId: string, channelId: string, realId: string): Promise<MessageInfo | undefined> {
     const messages = await this.readChannelMessages(selfId, channelId)
     const matched = [...messages].reverse().find((message) => message.type === 'bot' && message.sending)
@@ -563,6 +708,30 @@ export class FileManager {
     await this.scanStoredChannelFiles(async (channelKey, filePath) => {
       result.push({ channelKey, filePath })
     })
+
+    return result
+  }
+
+  private async listBotChannelFiles(selfId: string): Promise<Array<{ channelKey: string, filePath: string }>> {
+    const result: Array<{ channelKey: string, filePath: string }> = []
+    const botDir = path.join(this.chatHistoryDir, selfId)
+
+    try {
+      const channelFiles = await fs.readdir(botDir, { withFileTypes: true })
+      for (const channelEntry of channelFiles) {
+        if (!channelEntry.isFile() || !channelEntry.name.endsWith('.json')) continue
+
+        const channelId = channelEntry.name.slice(0, -5)
+        result.push({
+          channelKey: `${selfId}:${channelId}`,
+          filePath: path.join(botDir, channelEntry.name)
+        })
+      }
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.error(`扫描机器人频道文件失败 [${selfId}]:`, error)
+      }
+    }
 
     return result
   }

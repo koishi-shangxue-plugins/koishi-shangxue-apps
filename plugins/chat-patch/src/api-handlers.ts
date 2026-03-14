@@ -178,26 +178,21 @@ export class ApiHandlers {
       try {
         this.logInfo('收到清理历史记录请求（已废弃，建议使用删除频道数据）:', data)
 
-        // 直接删除该频道的所有消息
-        const chatData = await this.fileManager.loadAllChatData()
         const channelKey = `${data.selfId}:${data.channelId}`
 
-        if (!chatData.messages[channelKey]) {
+        const { deletedMessages } = await this.fileManager.deleteChannelData(data.selfId, data.channelId)
+        if (!deletedMessages) {
           return { success: true, message: '频道没有历史消息' }
         }
 
-        const originalCount = chatData.messages[channelKey].length
-        delete chatData.messages[channelKey]
-        this.fileManager.writeChatDataToFile(chatData)
-
         this.logInfo(`频道 ${channelKey} 历史记录已清空:`, {
-          清理消息数: originalCount
+          清理消息数: deletedMessages
         })
 
         return {
           success: true,
-          message: `成功清理 ${originalCount} 条历史消息`,
-          clearedCount: originalCount,
+          message: `成功清理 ${deletedMessages} 条历史消息`,
+          clearedCount: deletedMessages,
           keptCount: 0
         }
       } catch (error: any) {
@@ -301,23 +296,7 @@ export class ApiHandlers {
       try {
         this.logInfo('收到删除机器人数据请求:', data)
 
-        const chatData = await this.fileManager.loadAllChatData()
-        let deletedChannels = 0
-        let deletedMessages = 0
-
-        if (chatData.channels[data.selfId]) {
-          deletedChannels = Object.keys(chatData.channels[data.selfId]).length
-          delete chatData.channels[data.selfId]
-        }
-
-        const channelsToDelete = Object.keys(chatData.messages).filter(key => key.startsWith(`${data.selfId}:`))
-        for (const channelKey of channelsToDelete) {
-          deletedMessages += chatData.messages[channelKey].length
-          delete chatData.messages[channelKey]
-        }
-
-        delete chatData.bots[data.selfId]
-        this.fileManager.writeChatDataToFile(chatData)
+        const { deletedChannels, deletedMessages } = await this.fileManager.deleteBotData(data.selfId)
 
         this.logInfo(`机器人 ${data.selfId} 数据删除完成:`, {
           删除频道数: deletedChannels,
@@ -343,20 +322,8 @@ export class ApiHandlers {
       try {
         this.logInfo('收到删除频道数据请求:', data)
 
-        const chatData = await this.fileManager.loadAllChatData()
         const channelKey = `${data.selfId}:${data.channelId}`
-        let deletedMessages = 0
-
-        if (chatData.messages[channelKey]) {
-          deletedMessages = chatData.messages[channelKey].length
-          delete chatData.messages[channelKey]
-        }
-
-        if (chatData.channels[data.selfId] && chatData.channels[data.selfId][data.channelId]) {
-          delete chatData.channels[data.selfId][data.channelId]
-        }
-
-        this.fileManager.writeChatDataToFile(chatData)
+        const { deletedMessages } = await this.fileManager.deleteChannelData(data.selfId, data.channelId)
 
         this.logInfo(`频道 ${channelKey} 数据删除完成:`, {
           删除消息数: deletedMessages
@@ -497,50 +464,8 @@ export class ApiHandlers {
             user.avatar = await this.messageHandler.downloadAndCacheMedia(user.avatar, 'avatar')
           }
 
-          const chatData = await this.fileManager.loadAllChatData()
-          let changed = false
-
-          const botChannels = chatData.channels[data.selfId] || {}
-
-          const possibleChannelIds = [
-            data.userId,
-            `private:${data.userId}`,
-            `direct:${data.userId}`
-          ]
-
-          for (const channelId of possibleChannelIds) {
-            const channel = botChannels[channelId]
-            if (channel && channel.isDirect) {
-              const newName = `私聊（${user.name}）`
-              if (channel.name !== newName) {
-                channel.name = newName
-                changed = true
-                this.logInfo('更新私聊频道名称:', { channelId, oldName: channel.name, newName })
-              }
-            }
-          }
-
-          const channelKeyPrefix = `${data.selfId}:`
-          for (const [key, messages] of Object.entries(chatData.messages)) {
-            if (key.startsWith(channelKeyPrefix)) {
-              messages.forEach(msg => {
-                if (msg.userId === data.userId) {
-                  if (user.name && msg.username !== user.name) {
-                    msg.username = user.name
-                    changed = true
-                  }
-                  if (user.avatar && msg.avatar !== user.avatar) {
-                    msg.avatar = user.avatar
-                    changed = true
-                  }
-                }
-              });
-            }
-          }
-
+          const changed = await this.fileManager.updateUserProfileInBotData(data.selfId, data.userId, user.name, user.avatar)
           if (changed) {
-            this.fileManager.writeChatDataToFile(chatData)
-
             this.ctx.console.broadcast('chat-data-updated', {})
           }
         }
