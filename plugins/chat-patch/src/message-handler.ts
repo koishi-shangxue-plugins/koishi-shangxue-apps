@@ -202,15 +202,21 @@ export class MessageHandler {
         timestamp: timestamp,
         channelId: session.channelId,
         selfId: session.selfId,
-        elements: this.utils.cleanBase64Content(elements, false),
+        elements: elements,
         type: 'user',
         guildName: guildName,
         platform: session.platform || 'unknown',
-        quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo, false) : undefined,
+        quote: quoteInfo,
         isDirect: !!isDirect
       }
 
+      messageInfo.elements = await this.utils.cleanBase64ContentAsync(messageInfo.elements, false)
+      messageInfo.quote = messageInfo.quote ? await this.utils.cleanBase64ContentAsync(messageInfo.quote, false) : undefined
+
       await this.fileManager.addMessageToFile(messageInfo)
+
+      const eventElements = await this.utils.cleanBase64ContentAsync(elements, false)
+      const eventQuote = quoteInfo ? await this.utils.cleanBase64ContentAsync(quoteInfo, false) : undefined
 
       const messageEvent = {
         type: 'message',
@@ -225,8 +231,8 @@ export class MessageHandler {
         timestamp: timestamp,
         guildName: guildName,
         channelType: session.type || 0,
-        elements: this.utils.cleanBase64Content(elements, false),
-        quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo, false) : undefined,
+        elements: eventElements,
+        quote: eventQuote,
         isDirect: session.isDirect,
         bot: {
           avatar: session.bot.user?.avatar,
@@ -300,7 +306,7 @@ export class MessageHandler {
         timestamp: timestamp,
         channelId: finalChannelId,
         selfId: session.selfId,
-        elements: this.utils.cleanBase64Content(session.event?.message?.elements, true),
+        elements: await this.utils.cleanBase64ContentAsync(session.event?.message?.elements, true),
         type: 'bot',
         guildName: guildName,
         platform: session.platform || 'unknown',
@@ -311,6 +317,8 @@ export class MessageHandler {
 
       // 异步保存消息（不阻塞）
       await this.fileManager.addMessageToFile(messageInfo)
+
+      const eventElements = await this.utils.cleanBase64ContentAsync(session.event?.message?.elements, true)
 
       const messageEvent = {
         type: 'bot-message',
@@ -325,7 +333,7 @@ export class MessageHandler {
         timestamp: timestamp,
         guildName: guildName,
         channelType: session.event?.channel?.type || session.type || 0,
-        elements: this.utils.cleanBase64Content(session.event?.message?.elements, true),
+        elements: eventElements,
         quote: quoteInfo,
         isDirect: !!isDirect,
         sending: true,
@@ -342,6 +350,7 @@ export class MessageHandler {
   }
 
   dispose() {
+    void this.utils.dispose()
     for (const dispose of this.scheduledTasks) {
       dispose()
     }

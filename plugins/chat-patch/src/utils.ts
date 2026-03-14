@@ -4,9 +4,12 @@ import { writeFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
+import { promises as fs } from 'node:fs'
 
 export class Utils {
   private persistImageWriteCount = 0
+
+  private pendingTasks: Set<Promise<void>> = new Set()
 
   constructor(private config: Config, private ctx?: Context) { }
 
@@ -88,6 +91,34 @@ export class Utils {
     }
   }
 
+  async persistBase64ImageAsync(base64Data: string): Promise<string> {
+    if (!this.ctx || !base64Data.startsWith('data:image/')) return base64Data
+
+    try {
+      const dir = join(this.ctx.baseDir, 'data', 'chat-patch', 'persist-images')
+      await fs.mkdir(dir, { recursive: true })
+
+      const hash = createHash('md5').update(base64Data).digest('hex')
+      const ext = base64Data.split(';')[0].split('/')[1] || 'png'
+      const filename = `${hash}.${ext}`
+      const filePath = join(dir, filename)
+
+      if (!(await this.fileExists(filePath))) {
+        const base64Content = base64Data.split(',')[1]
+        await fs.writeFile(filePath, Buffer.from(base64Content, 'base64'))
+      }
+
+      this.persistImageWriteCount += 1
+      if (this.persistImageWriteCount % 20 === 0) {
+        this.trackTask(this.cleanupPersistImagesAsync(dir))
+      }
+
+      return pathToFileURL(filePath).href
+    } catch {
+      return base64Data
+    }
+  }
+
   private cleanupPersistImages(dir: string) {
     try {
       const files = readdirSync(dir)
@@ -98,6 +129,27 @@ export class Utils {
         files.slice(this.config.maxPersistImages).forEach(f => unlinkSync(f.path))
       }
     } catch (e) { }
+  }
+
+  private async cleanupPersistImagesAsync(dir: string) {
+    try {
+      const fileNames = await fs.readdir(dir)
+      const files = await Promise.all(fileNames.map(async (name) => {
+        const filePath = join(dir, name)
+        const stats = await fs.stat(filePath)
+        return { path: filePath, mtime: stats.mtimeMs }
+      }))
+
+      files.sort((a, b) => b.mtime - a.mtime)
+
+      for (const file of files.slice(this.config.maxPersistImages)) {
+        try {
+          await fs.unlink(file.path)
+        } catch {
+          continue
+        }
+      }
+    } catch { }
   }
 
   cleanBase64Content(obj: any, isBotMessage: boolean = false): any {
@@ -153,5 +205,80 @@ export class Utils {
     }
 
     return obj
+  }
+
+  async cleanBase64ContentAsync<T>(obj: T, isBotMessage: boolean = false): Promise<T> {
+    if (obj === null || obj === undefined) {
+      return obj
+    }
+
+    if (typeof obj === 'string') {
+      if (this.isBase64(obj)) {
+        if (isBotMessage && !obj.startsWith('data:image/')) {
+          return '[富媒体内容已省略]' as T
+        }
+        return await this.persistBase64ImageAsync(obj) as T
+      }
+      return obj
+    }
+
+    if (Array.isArray(obj)) {
+      const cleanedItems = await Promise.all(obj.map(item => this.cleanBase64ContentAsync(item, isBotMessage)))
+      return cleanedItems as T
+    }
+
+    if (typeof obj === 'object') {
+      const cleaned: Record<string, unknown> = {}
+      const source = obj as Record<string, unknown>
+
+      for (const [key, value] of Object.entries(source)) {
+        const type = typeof source.type === 'string' ? source.type : undefined
+
+        if (isBotMessage && type && !['text', 'image', 'img'].includes(type)) {
+          if (typeof value === 'string' && (key === 'src' || key === 'url' || key === 'file') && this.isBase64(value)) {
+            cleaned[key] = '[富媒体内容已省略]'
+            continue
+          }
+        }
+
+        if (
+          typeof value === 'string'
+          && (key === 'src' || key === 'url' || key === 'file' || key === 'data' || key === 'content')
+          && this.isBase64(value)
+        ) {
+          if (isBotMessage && !value.startsWith('data:image/')) {
+            cleaned[key] = '[富媒体内容已省略]'
+          } else {
+            cleaned[key] = await this.persistBase64ImageAsync(value)
+          }
+        } else {
+          cleaned[key] = await this.cleanBase64ContentAsync(value, isBotMessage)
+        }
+      }
+
+      return cleaned as T
+    }
+
+    return obj
+  }
+
+  async dispose() {
+    await Promise.allSettled([...this.pendingTasks])
+  }
+
+  private trackTask(task: Promise<void>) {
+    this.pendingTasks.add(task)
+    void task.finally(() => {
+      this.pendingTasks.delete(task)
+    })
+  }
+
+  private async fileExists(filePath: string) {
+    try {
+      await fs.access(filePath)
+      return true
+    } catch {
+      return false
+    }
   }
 }

@@ -166,8 +166,7 @@ export class ApiHandlers {
           viteUrl: `/vite/@fs/${normalizedPath}`
         }
       } catch (error: any) {
-        this.logger.error('获取图片失败:', error)
-        return { success: false, error: error?.message || String(error) }
+        return { success: false, error: this.getClientErrorMessage(error) }
       }
     })
 
@@ -554,7 +553,7 @@ export class ApiHandlers {
 
     this.ctx.console.addListener('debug-get-raw-data' as any, async () => {
       try {
-        const data = await this.fileManager.loadAllChatData()
+        const data = await this.fileManager.readRawDataSnapshot()
         return {
           success: true,
           data: data
@@ -621,8 +620,7 @@ export class ApiHandlers {
           viteUrl: `/vite/@fs/${normalizedPath}`
         }
       } catch (error: any) {
-        this.logger.error('视频临时加载失败:', error)
-        return { success: false, error: error?.message || String(error) }
+        return { success: false, error: this.getClientErrorMessage(error) }
       }
     })
   }
@@ -665,7 +663,6 @@ export class ApiHandlers {
         dataUrl: `data:${contentType};base64,${base64}`
       }
     } catch (error: any) {
-      this.logger.error('读取本地文件失败:', { fileUrl, error: error.message })
       return {
         success: false,
         error: `读取本地文件失败: ${error.message}`
@@ -731,5 +728,13 @@ export class ApiHandlers {
         continue
       }
     }
+  }
+
+  private getClientErrorMessage(error: unknown) {
+    if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+      return error.message
+    }
+
+    return String(error)
   }
 }

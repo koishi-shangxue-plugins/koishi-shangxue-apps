@@ -298,7 +298,7 @@ export class FileManager {
         messageInfo.timestamp = Date.now()
       }
 
-      const cleanedMessageInfo = this.utils.cleanBase64Content(messageInfo) as MessageInfo
+      const cleanedMessageInfo = await this.utils.cleanBase64ContentAsync(messageInfo, false)
       data.messages[channelKey].push(cleanedMessageInfo)
     }
 
@@ -365,7 +365,7 @@ export class FileManager {
       if (!messageInfo.timestamp) {
         messageInfo.timestamp = Date.now()
       }
-      const cleanedMessageInfo = this.utils.cleanBase64Content(messageInfo) as MessageInfo
+      const cleanedMessageInfo = await this.utils.cleanBase64ContentAsync(messageInfo, false)
       data.messages[channelKey].push(cleanedMessageInfo)
 
       if (data.messages[channelKey].length > this.config.maxMessagesPerChannel) {
@@ -381,27 +381,55 @@ export class FileManager {
   }
 
   async cleanupExcessMessagesInStorage() {
-    const data = await this.loadAllChatData()
-    const cleanedData = this.cleanExcessMessages(data)
+    let cleanedCount = 0
 
-    const originalCount = Object.values(data.messages).reduce((total, msgs) => total + msgs.length, 0)
-    const cleanedCount = Object.values(cleanedData.messages).reduce((total, msgs) => total + msgs.length, 0)
+    await this.scanStoredChannelFiles(async (channelKey, filePath) => {
+      const messages = await this.readChannelMessagesFromFile(filePath)
+      if (messages.length <= this.config.maxMessagesPerChannel) {
+        return
+      }
 
-    if (originalCount !== cleanedCount) {
-      this.writeChatDataToFile(cleanedData)
-      this.logger.logInfo('定期清理完成，清理了', originalCount - cleanedCount, '条超量消息')
+      const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp)
+      const keptMessages = sortedMessages.slice(-this.config.maxMessagesPerChannel)
+      cleanedCount += messages.length - keptMessages.length
+
+      const [selfId, channelId] = channelKey.split(':')
+      if (!selfId || !channelId) {
+        return
+      }
+
+      await this.writeChannelMessages(selfId, channelId, keptMessages)
+      this.memoryCache.messages[channelKey] = keptMessages
+      this.logger.logInfo(`频道 ${channelKey} 清理了 ${messages.length - keptMessages.length} 条旧消息，保留最新 ${keptMessages.length} 条`)
+    })
+
+    if (cleanedCount > 0) {
+      this.logger.logInfo('定期清理完成，清理了', cleanedCount, '条超量消息')
     }
   }
 
   async getAllChannelMessageCounts(): Promise<Record<string, number>> {
     const counts: Record<string, number> = {}
-    const data = await this.loadAllChatData()
 
-    for (const [channelKey, messages] of Object.entries(data.messages)) {
-      counts[channelKey] = messages.length
-    }
+    await this.scanStoredChannelFiles(async (channelKey, filePath) => {
+      counts[channelKey] = await this.countMessagesFromFile(filePath)
+    })
 
     return counts
+  }
+
+  async readRawDataSnapshot(): Promise<ChatData> {
+    const metadata = await this.readMetadataOnly()
+    const messages: Record<string, MessageInfo[]> = {}
+
+    await this.scanStoredChannelFiles(async (channelKey, filePath) => {
+      messages[channelKey] = await this.readChannelMessagesFromFile(filePath)
+    })
+
+    return {
+      ...metadata,
+      messages
+    }
   }
 
   async markLatestBotMessageAsSent(selfId: string, channelId: string, realId: string): Promise<MessageInfo | undefined> {
@@ -432,6 +460,7 @@ export class FileManager {
     this.writeTimers.clear()
 
     await this.writeQueue
+    await this.utils.dispose()
   }
 
   private createEmptyChatData(): ChatData {
@@ -531,6 +560,14 @@ export class FileManager {
   private async listStoredChannelFiles(): Promise<Array<{ channelKey: string, filePath: string }>> {
     const result: Array<{ channelKey: string, filePath: string }> = []
 
+    await this.scanStoredChannelFiles(async (channelKey, filePath) => {
+      result.push({ channelKey, filePath })
+    })
+
+    return result
+  }
+
+  private async scanStoredChannelFiles(visitor: (channelKey: string, filePath: string) => Promise<void>) {
     try {
       const botDirs = await fs.readdir(this.chatHistoryDir, { withFileTypes: true })
       for (const botEntry of botDirs) {
@@ -543,10 +580,7 @@ export class FileManager {
           if (!channelEntry.isFile() || !channelEntry.name.endsWith('.json')) continue
 
           const channelId = channelEntry.name.slice(0, -5)
-          result.push({
-            channelKey: `${botEntry.name}:${channelId}`,
-            filePath: path.join(botDir, channelEntry.name)
-          })
+          await visitor(`${botEntry.name}:${channelId}`, path.join(botDir, channelEntry.name))
         }
       }
     } catch (error) {
@@ -554,8 +588,24 @@ export class FileManager {
         this.logger.error('扫描频道文件失败:', error)
       }
     }
+  }
 
-    return result
+  private async readChannelMessagesFromFile(filePath: string): Promise<MessageInfo[]> {
+    try {
+      const jsonData = await fs.readFile(filePath, 'utf8')
+      const messages = JSON.parse(jsonData)
+      return Array.isArray(messages) ? messages : []
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.error(`读取频道消息文件失败 [${filePath}]:`, error)
+      }
+      return []
+    }
+  }
+
+  private async countMessagesFromFile(filePath: string): Promise<number> {
+    const messages = await this.readChannelMessagesFromFile(filePath)
+    return messages.length
   }
 
   private isSameBotInfo(left: BotInfo, right: BotInfo) {
