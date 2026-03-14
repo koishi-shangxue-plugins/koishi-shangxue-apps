@@ -4,6 +4,7 @@ export interface Config {
   loggerinfo: boolean
   clearIndexedDBOnStart: boolean
   maxMessagesPerChannel: number
+  messageChunkSize: number
   maxPersistImages: number
   blockedPlatforms: Array<{
     platformName: string
@@ -14,6 +15,7 @@ export interface Config {
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     maxMessagesPerChannel: Schema.number().default(500).description('每个群组最大保存消息数量').min(50).max(1500).step(1),
+    messageChunkSize: Schema.number().default(100).description('单个消息分块文件最大消息数量').min(20).max(500).step(1),
     maxPersistImages: Schema.number().default(100).description('持久化存储的图片缓存数量').min(10).max(500).step(1),
     blockedPlatforms: Schema.array(Schema.object({
       platformName: Schema.string().description('平台名称或关键词'),

@@ -7,6 +7,29 @@ import { PluginLogger } from './logger'
 import path from 'node:path'
 import { promises as fs } from 'node:fs'
 
+interface ChannelChunkMeta {
+  id: number
+  fileName: string
+  messageCount: number
+}
+
+interface ChannelIndexData {
+  version: 1
+  channelId: string
+  totalMessages: number
+  nextChunkId: number
+  chunks: ChannelChunkMeta[]
+}
+
+interface StoredChannelEntry {
+  selfId: string
+  channelId: string
+  channelKey: string
+  channelDirPath: string
+  indexFilePath: string
+  legacyFilePath: string
+}
+
 export class FileManager {
   private chatHistoryDir: string // 聊天记录根目录
   private metadataFilePath: string // 元数据文件路径（存储bots、channels、pinned等信息）
@@ -122,11 +145,6 @@ export class FileManager {
     await fs.mkdir(dirPath, { recursive: true })
   }
 
-  // 获取频道消息文件路径
-  private getChannelFilePath(selfId: string, channelId: string): string {
-    return path.join(this.chatHistoryDir, selfId, `${channelId}.json`)
-  }
-
   // 读取单个频道的消息（公共方法）
   async readChannelMessages(selfId: string, channelId: string): Promise<MessageInfo[]> {
     await this.ensureMetadataLoaded()
@@ -149,18 +167,6 @@ export class FileManager {
       return await loadPromise
     } finally {
       this.channelLoadPromises.delete(channelKey)
-    }
-  }
-
-  // 写入单个频道的消息
-  private async writeChannelMessages(selfId: string, channelId: string, messages: MessageInfo[]) {
-    const filePath = this.getChannelFilePath(selfId, channelId)
-    try {
-      const jsonData = JSON.stringify(messages, null, 2)
-      await this.ensureDir(path.dirname(filePath))
-      await fs.writeFile(filePath, jsonData, 'utf8')
-    } catch (error) {
-      this.logger.error(`写入频道消息失败 [${selfId}:${channelId}]:`, error)
     }
   }
 
@@ -211,32 +217,13 @@ export class FileManager {
     }
   }
 
-  // 扫描所有频道消息文件并加载到内存
+  // 扫描所有频道消息并加载到内存
   private async loadAllChannelMessages(): Promise<Record<string, MessageInfo[]>> {
     const messages: Record<string, MessageInfo[]> = {}
 
-    try {
-      const botDirs = await fs.readdir(this.chatHistoryDir, { withFileTypes: true })
-      for (const botEntry of botDirs) {
-        if (!botEntry.isDirectory()) continue
-
-        const botId = botEntry.name
-        const botDir = path.join(this.chatHistoryDir, botId)
-        const channelFiles = await fs.readdir(botDir, { withFileTypes: true })
-
-        for (const channelEntry of channelFiles) {
-          if (!channelEntry.isFile() || !channelEntry.name.endsWith('.json')) continue
-
-          const channelId = channelEntry.name.slice(0, -5)
-          const channelKey = `${botId}:${channelId}`
-          messages[channelKey] = await this.loadChannelMessages(botId, channelId)
-        }
-      }
-    } catch (error) {
-      if (!this.isFileMissingError(error)) {
-        this.logger.error('加载频道消息失败:', error)
-      }
-    }
+    await this.scanStoredChannels(async (entry) => {
+      messages[entry.channelKey] = await this.loadChannelMessages(entry.selfId, entry.channelId)
+    })
 
     return messages
   }
@@ -285,35 +272,20 @@ export class FileManager {
     if (!selfId || !channelId) return
 
     if (!data.messages[channelKey]) {
-      data.messages[channelKey] = []
+      data.messages[channelKey] = await this.readChannelMessages(selfId, channelId)
     }
 
-    for (const messageInfo of messagesToWrite) {
-      const existingMessage = data.messages[channelKey].find(m => m.id === messageInfo.id)
-      if (existingMessage) {
-        continue
-      }
-
-      if (!messageInfo.timestamp) {
-        messageInfo.timestamp = Date.now()
-      }
-
-      const cleanedMessageInfo = await this.utils.cleanBase64ContentAsync(messageInfo, false)
-      data.messages[channelKey].push(cleanedMessageInfo)
-    }
-
-    // 限制消息数量
-    if (data.messages[channelKey].length > this.config.maxMessagesPerChannel) {
-      data.messages[channelKey].sort((a, b) => a.timestamp - b.timestamp)
-      data.messages[channelKey] = data.messages[channelKey].slice(-this.config.maxMessagesPerChannel)
+    const uniqueMessages = this.deduplicateMessages(messagesToWrite)
+    if (!uniqueMessages.length) {
+      return
     }
 
     this.memoryCache = data
 
-    // 串行写入，避免多个频道同时打满磁盘。
+    // 只向最后一个 chunk 追加，避免整频道重写。
     this.enqueueWrite(async () => {
-      await this.writeChannelMessages(selfId, channelId, data.messages[channelKey])
-      this.logger.logInfo(`批量写入 ${messagesToWrite.length} 条消息到频道 ${channelKey}`)
+      await this.appendMessagesToChannel(selfId, channelId, uniqueMessages)
+      this.logger.logInfo(`批量写入 ${uniqueMessages.length} 条消息到频道 ${channelKey}`)
     })
   }
 
@@ -347,12 +319,6 @@ export class FileManager {
     await this.ensureMetadataLoaded()
     const channelKey = `${messageInfo.selfId}:${messageInfo.channelId}`
 
-    // 添加到待写入队列
-    if (!this.pendingMessages.has(channelKey)) {
-      this.pendingMessages.set(channelKey, [])
-    }
-    this.pendingMessages.get(channelKey)!.push(messageInfo)
-
     // 更新内存缓存
     const data = this.memoryCache
 
@@ -367,6 +333,16 @@ export class FileManager {
       }
       const cleanedMessageInfo = await this.utils.cleanBase64ContentAsync(messageInfo, false)
       data.messages[channelKey].push(cleanedMessageInfo)
+
+      if (!this.pendingMessages.has(channelKey)) {
+        this.pendingMessages.set(channelKey, [])
+      }
+
+      const pendingMessages = this.pendingMessages.get(channelKey) || []
+      if (!pendingMessages.some((message) => message.id === cleanedMessageInfo.id)) {
+        pendingMessages.push(cleanedMessageInfo)
+      }
+      this.pendingMessages.set(channelKey, pendingMessages)
 
       if (data.messages[channelKey].length > this.config.maxMessagesPerChannel) {
         data.messages[channelKey].sort((a, b) => a.timestamp - b.timestamp)
@@ -383,24 +359,22 @@ export class FileManager {
   async cleanupExcessMessagesInStorage() {
     let cleanedCount = 0
 
-    await this.scanStoredChannelFiles(async (channelKey, filePath) => {
-      const messages = await this.readChannelMessagesFromFile(filePath)
-      if (messages.length <= this.config.maxMessagesPerChannel) {
+    await this.scanStoredChannels(async (entry) => {
+      const indexData = await this.loadOrCreateChannelIndex(entry.selfId, entry.channelId)
+      if (indexData.totalMessages <= this.config.maxMessagesPerChannel) {
         return
       }
 
-      const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp)
-      const keptMessages = sortedMessages.slice(-this.config.maxMessagesPerChannel)
-      cleanedCount += messages.length - keptMessages.length
-
-      const [selfId, channelId] = channelKey.split(':')
-      if (!selfId || !channelId) {
+      const removedCount = await this.trimChannelToLimit(entry.selfId, entry.channelId, indexData, this.config.maxMessagesPerChannel)
+      if (!removedCount) {
         return
       }
 
-      await this.writeChannelMessages(selfId, channelId, keptMessages)
-      this.memoryCache.messages[channelKey] = keptMessages
-      this.logger.logInfo(`频道 ${channelKey} 清理了 ${messages.length - keptMessages.length} 条旧消息，保留最新 ${keptMessages.length} 条`)
+      cleanedCount += removedCount
+      if (this.memoryCache.messages[entry.channelKey]) {
+        this.memoryCache.messages[entry.channelKey] = await this.readChannelMessages(entry.selfId, entry.channelId)
+      }
+      this.logger.logInfo(`频道 ${entry.channelKey} 清理了 ${removedCount} 条旧消息，保留最新 ${indexData.totalMessages} 条`)
     })
 
     if (cleanedCount > 0) {
@@ -411,8 +385,8 @@ export class FileManager {
   async getAllChannelMessageCounts(): Promise<Record<string, number>> {
     const counts: Record<string, number> = {}
 
-    await this.scanStoredChannelFiles(async (channelKey, filePath) => {
-      counts[channelKey] = await this.countMessagesFromFile(filePath)
+    await this.scanStoredChannels(async (entry) => {
+      counts[entry.channelKey] = await this.countChannelMessages(entry.selfId, entry.channelId)
     })
 
     return counts
@@ -422,8 +396,8 @@ export class FileManager {
     const metadata = await this.readMetadataOnly()
     const messages: Record<string, MessageInfo[]> = {}
 
-    await this.scanStoredChannelFiles(async (channelKey, filePath) => {
-      messages[channelKey] = await this.readChannelMessagesFromFile(filePath)
+    await this.scanStoredChannels(async (entry) => {
+      messages[entry.channelKey] = await this.readChannelMessages(entry.selfId, entry.channelId)
     })
 
     return {
@@ -436,8 +410,7 @@ export class FileManager {
     await this.ensureMetadataLoaded()
 
     const channelKey = `${selfId}:${channelId}`
-    const filePath = this.getChannelFilePath(selfId, channelId)
-    const deletedMessages = await this.countMessagesFromFile(filePath)
+    const deletedMessages = await this.countChannelMessages(selfId, channelId)
 
     delete this.memoryCache.messages[channelKey]
     this.pendingMessages.delete(channelKey)
@@ -457,13 +430,7 @@ export class FileManager {
 
     this.memoryCache.pinnedChannels = this.memoryCache.pinnedChannels.filter((item) => item !== channelKey)
 
-    try {
-      await fs.unlink(filePath)
-    } catch (error) {
-      if (!this.isFileMissingError(error)) {
-        this.logger.error(`删除频道消息文件失败 [${channelKey}]:`, error)
-      }
-    }
+    await this.removeChannelStorage(selfId, channelId)
 
     this.scheduleMetadataWrite()
 
@@ -474,22 +441,22 @@ export class FileManager {
     await this.ensureMetadataLoaded()
 
     const botDir = path.join(this.chatHistoryDir, selfId)
-    const channelFiles = await this.listBotChannelFiles(selfId)
+    const channels = await this.listBotChannels(selfId)
     let deletedMessages = 0
 
-    for (const fileInfo of channelFiles) {
-      deletedMessages += await this.countMessagesFromFile(fileInfo.filePath)
-      delete this.memoryCache.messages[fileInfo.channelKey]
-      this.pendingMessages.delete(fileInfo.channelKey)
+    for (const entry of channels) {
+      deletedMessages += await this.countChannelMessages(entry.selfId, entry.channelId)
+      delete this.memoryCache.messages[entry.channelKey]
+      this.pendingMessages.delete(entry.channelKey)
 
-      const timer = this.writeTimers.get(fileInfo.channelKey)
+      const timer = this.writeTimers.get(entry.channelKey)
       if (timer) {
         timer()
-        this.writeTimers.delete(fileInfo.channelKey)
+        this.writeTimers.delete(entry.channelKey)
       }
     }
 
-    const deletedChannels = channelFiles.length
+    const deletedChannels = channels.length
 
     delete this.memoryCache.bots[selfId]
     delete this.memoryCache.channels[selfId]
@@ -535,38 +502,16 @@ export class FileManager {
       }
     }
 
-    const channelFiles = await this.listBotChannelFiles(selfId)
-    for (const fileInfo of channelFiles) {
-      const messages = await this.readChannelMessagesFromFile(fileInfo.filePath)
-      let fileChanged = false
-
-      for (const message of messages) {
-        if (message.userId !== userId) {
-          continue
-        }
-
-        if (userName && message.username !== userName) {
-          message.username = userName
-          fileChanged = true
-        }
-
-        if (avatar && message.avatar !== avatar) {
-          message.avatar = avatar
-          fileChanged = true
-        }
-      }
-
-      if (!fileChanged) {
+    const channels = await this.listBotChannels(selfId)
+    for (const entry of channels) {
+      const entryChanged = await this.updateUserProfileInChannel(entry.selfId, entry.channelId, userId, userName, avatar)
+      if (!entryChanged) {
         continue
       }
 
-      const [botSelfId, channelId] = fileInfo.channelKey.split(':')
-      if (!botSelfId || !channelId) {
-        continue
+      if (this.memoryCache.messages[entry.channelKey]) {
+        this.memoryCache.messages[entry.channelKey] = await this.readChannelMessages(entry.selfId, entry.channelId)
       }
-
-      await this.writeChannelMessages(botSelfId, channelId, messages)
-      this.memoryCache.messages[fileInfo.channelKey] = messages
       changed = true
     }
 
@@ -578,18 +523,20 @@ export class FileManager {
   }
 
   async markLatestBotMessageAsSent(selfId: string, channelId: string, realId: string): Promise<MessageInfo | undefined> {
-    const messages = await this.readChannelMessages(selfId, channelId)
-    const matched = [...messages].reverse().find((message) => message.type === 'bot' && message.sending)
-
+    const matched = await this.findAndUpdateLatestBotMessage(selfId, channelId, realId)
     if (!matched) {
       return undefined
     }
 
-    matched.realId = realId
-    matched.sending = false
-    this.enqueueWrite(async () => {
-      await this.writeChannelMessages(selfId, channelId, messages)
-    })
+    const channelKey = `${selfId}:${channelId}`
+    const cachedMessages = this.memoryCache.messages[channelKey]
+    if (cachedMessages) {
+      const cachedMatched = [...cachedMessages].reverse().find((message) => message.type === 'bot' && message.sending)
+      if (cachedMatched) {
+        cachedMatched.realId = realId
+        cachedMatched.sending = false
+      }
+    }
 
     return matched
   }
@@ -635,23 +582,17 @@ export class FileManager {
   }
 
   private async loadChannelMessages(selfId: string, channelId: string): Promise<MessageInfo[]> {
-    const filePath = this.getChannelFilePath(selfId, channelId)
+    const indexData = await this.loadOrCreateChannelIndex(selfId, channelId)
+    const channelDirPath = this.getChannelDirPath(selfId, channelId)
+    const messages: MessageInfo[] = []
 
-    try {
-      const jsonData = await fs.readFile(filePath, 'utf8')
-      const messages = JSON.parse(jsonData)
-      const normalizedMessages = Array.isArray(messages) ? messages : []
-      this.memoryCache.messages[`${selfId}:${channelId}`] = normalizedMessages
-      return normalizedMessages
-    } catch (error) {
-      if (!this.isFileMissingError(error)) {
-        this.logger.error(`读取频道消息失败 [${selfId}:${channelId}]:`, error)
-      }
-
-      const emptyMessages: MessageInfo[] = []
-      this.memoryCache.messages[`${selfId}:${channelId}`] = emptyMessages
-      return emptyMessages
+    for (const chunk of indexData.chunks) {
+      const chunkMessages = await this.readChunkMessages(channelDirPath, chunk.fileName)
+      messages.push(...chunkMessages)
     }
+
+    this.memoryCache.messages[`${selfId}:${channelId}`] = messages
+    return messages
   }
 
   private scheduleMetadataWrite() {
@@ -679,77 +620,63 @@ export class FileManager {
     await this.writeMetadata(metadata)
 
     const expectedKeys = new Set(Object.keys(messages))
-    const existingFiles = await this.listStoredChannelFiles()
+    const existingChannels = await this.listStoredChannels()
 
     for (const [channelKey, channelMessages] of Object.entries(messages)) {
       const [selfId, channelId] = channelKey.split(':')
       if (!selfId || !channelId) continue
-      await this.writeChannelMessages(selfId, channelId, channelMessages)
+      await this.rewriteChannelMessages(selfId, channelId, channelMessages)
     }
 
-    for (const fileInfo of existingFiles) {
-      if (expectedKeys.has(fileInfo.channelKey)) {
+    for (const entry of existingChannels) {
+      if (expectedKeys.has(entry.channelKey)) {
         continue
       }
 
-      try {
-        await fs.unlink(fileInfo.filePath)
-      } catch (error) {
-        if (!this.isFileMissingError(error)) {
-          this.logger.warn(`删除频道消息文件失败 [${fileInfo.channelKey}]:`, error)
-        }
-      }
+      await this.removeChannelStorage(entry.selfId, entry.channelId)
     }
   }
 
-  private async listStoredChannelFiles(): Promise<Array<{ channelKey: string, filePath: string }>> {
-    const result: Array<{ channelKey: string, filePath: string }> = []
+  private async listStoredChannels(): Promise<StoredChannelEntry[]> {
+    const result: StoredChannelEntry[] = []
 
-    await this.scanStoredChannelFiles(async (channelKey, filePath) => {
-      result.push({ channelKey, filePath })
+    await this.scanStoredChannels(async (entry) => {
+      result.push(entry)
     })
 
     return result
   }
 
-  private async listBotChannelFiles(selfId: string): Promise<Array<{ channelKey: string, filePath: string }>> {
-    const result: Array<{ channelKey: string, filePath: string }> = []
-    const botDir = path.join(this.chatHistoryDir, selfId)
+  private async listBotChannels(selfId: string): Promise<StoredChannelEntry[]> {
+    const result: StoredChannelEntry[] = []
 
-    try {
-      const channelFiles = await fs.readdir(botDir, { withFileTypes: true })
-      for (const channelEntry of channelFiles) {
-        if (!channelEntry.isFile() || !channelEntry.name.endsWith('.json')) continue
-
-        const channelId = channelEntry.name.slice(0, -5)
-        result.push({
-          channelKey: `${selfId}:${channelId}`,
-          filePath: path.join(botDir, channelEntry.name)
-        })
+    await this.scanStoredChannels(async (entry) => {
+      if (entry.selfId === selfId) {
+        result.push(entry)
       }
-    } catch (error) {
-      if (!this.isFileMissingError(error)) {
-        this.logger.error(`扫描机器人频道文件失败 [${selfId}]:`, error)
-      }
-    }
+    }, selfId)
 
     return result
   }
 
-  private async scanStoredChannelFiles(visitor: (channelKey: string, filePath: string) => Promise<void>) {
+  private async scanStoredChannels(visitor: (entry: StoredChannelEntry) => Promise<void>, botIdFilter?: string) {
     try {
       const botDirs = await fs.readdir(this.chatHistoryDir, { withFileTypes: true })
       for (const botEntry of botDirs) {
+        const botName = this.normalizeDirentName(botEntry.name)
         if (!botEntry.isDirectory()) continue
+        if (botIdFilter && botName !== botIdFilter) continue
 
-        const botDir = path.join(this.chatHistoryDir, botEntry.name)
-        const channelFiles = await fs.readdir(botDir, { withFileTypes: true })
+        const botDir = path.join(this.chatHistoryDir, botName)
+        const channelEntries = await fs.readdir(botDir, { withFileTypes: true })
 
-        for (const channelEntry of channelFiles) {
-          if (!channelEntry.isFile() || !channelEntry.name.endsWith('.json')) continue
+        for (const channelEntry of channelEntries) {
+          const channelId = await this.resolveStoredChannelId(botName, channelEntry)
+          if (!channelId) {
+            continue
+          }
 
-          const channelId = channelEntry.name.slice(0, -5)
-          await visitor(`${botEntry.name}:${channelId}`, path.join(botDir, channelEntry.name))
+          await visitor(this.createStoredChannelEntry(botName, channelId))
         }
       }
     } catch (error) {
@@ -757,6 +684,407 @@ export class FileManager {
         this.logger.error('扫描频道文件失败:', error)
       }
     }
+  }
+
+  private createStoredChannelEntry(selfId: string, channelId: string): StoredChannelEntry {
+    const channelDirPath = this.getChannelDirPath(selfId, channelId)
+    return {
+      selfId,
+      channelId,
+      channelKey: `${selfId}:${channelId}`,
+      channelDirPath,
+      indexFilePath: this.getChannelIndexPath(selfId, channelId),
+      legacyFilePath: this.getLegacyChannelFilePath(selfId, channelId)
+    }
+  }
+
+  private async resolveStoredChannelId(selfId: string, entry: { isFile(): boolean, isDirectory(): boolean, name: string | Buffer }) {
+    const entryName = this.normalizeDirentName(entry.name)
+
+    if (entry.isFile() && entryName.endsWith('.json')) {
+      return entryName.slice(0, -5)
+    }
+
+    if (!entry.isDirectory()) {
+      return undefined
+    }
+
+    const encodedChannelId = entryName
+    const channelDirPath = path.join(this.chatHistoryDir, selfId, encodedChannelId)
+    const indexFilePath = path.join(channelDirPath, 'index.json')
+
+    try {
+      const jsonData = await fs.readFile(indexFilePath, 'utf8')
+      const indexData = JSON.parse(jsonData) as Partial<ChannelIndexData>
+      if (typeof indexData.channelId === 'string') {
+        return indexData.channelId
+      }
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.error(`读取频道索引失败 [${selfId}:${entryName}]:`, error)
+      }
+    }
+
+    return this.decodeChannelId(encodedChannelId)
+  }
+
+  private getBotDirPath(selfId: string) {
+    return path.join(this.chatHistoryDir, selfId)
+  }
+
+  private getEncodedChannelId(channelId: string) {
+    return encodeURIComponent(channelId)
+  }
+
+  private decodeChannelId(encodedChannelId: string) {
+    try {
+      return decodeURIComponent(encodedChannelId)
+    } catch {
+      return encodedChannelId
+    }
+  }
+
+  private normalizeDirentName(name: string | Buffer) {
+    return typeof name === 'string' ? name : name.toString('utf8')
+  }
+
+  private getChannelDirPath(selfId: string, channelId: string) {
+    return path.join(this.getBotDirPath(selfId), this.getEncodedChannelId(channelId))
+  }
+
+  private getChannelIndexPath(selfId: string, channelId: string) {
+    return path.join(this.getChannelDirPath(selfId, channelId), 'index.json')
+  }
+
+  private getChunkFilePath(channelDirPath: string, fileName: string) {
+    return path.join(channelDirPath, fileName)
+  }
+
+  private getLegacyChannelFilePath(selfId: string, channelId: string) {
+    return path.join(this.getBotDirPath(selfId), `${channelId}.json`)
+  }
+
+  private createEmptyChannelIndex(channelId: string): ChannelIndexData {
+    return {
+      version: 1,
+      channelId,
+      totalMessages: 0,
+      nextChunkId: 1,
+      chunks: []
+    }
+  }
+
+  private createChunkFileName(chunkId: number) {
+    return `chunk-${String(chunkId).padStart(6, '0')}.json`
+  }
+
+  private async loadOrCreateChannelIndex(selfId: string, channelId: string): Promise<ChannelIndexData> {
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+
+    try {
+      const jsonData = await fs.readFile(entry.indexFilePath, 'utf8')
+      const indexData = JSON.parse(jsonData) as ChannelIndexData
+      return this.normalizeChannelIndex(channelId, indexData)
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.error(`读取频道索引失败 [${entry.channelKey}]:`, error)
+      }
+    }
+
+    const legacyMessages = await this.readLegacyChannelMessages(entry.legacyFilePath)
+    const indexData = this.createEmptyChannelIndex(channelId)
+    await this.ensureDir(entry.channelDirPath)
+
+    if (legacyMessages.length) {
+      await this.writeMessagesToChunks(entry.channelDirPath, indexData, legacyMessages)
+      try {
+        await fs.unlink(entry.legacyFilePath)
+      } catch (error) {
+        if (!this.isFileMissingError(error)) {
+          this.logger.warn(`删除旧频道文件失败 [${entry.channelKey}]:`, error)
+        }
+      }
+    } else {
+      await this.writeChannelIndex(entry.indexFilePath, indexData)
+    }
+
+    return indexData
+  }
+
+  private normalizeChannelIndex(channelId: string, indexData: ChannelIndexData): ChannelIndexData {
+    return {
+      version: 1,
+      channelId,
+      totalMessages: indexData.totalMessages || 0,
+      nextChunkId: indexData.nextChunkId || (indexData.chunks?.length || 0) + 1,
+      chunks: Array.isArray(indexData.chunks) ? indexData.chunks : []
+    }
+  }
+
+  private async writeChannelIndex(indexFilePath: string, indexData: ChannelIndexData) {
+    await this.ensureDir(path.dirname(indexFilePath))
+    await fs.writeFile(indexFilePath, JSON.stringify(indexData, null, 2), 'utf8')
+  }
+
+  private async readLegacyChannelMessages(filePath: string): Promise<MessageInfo[]> {
+    try {
+      const jsonData = await fs.readFile(filePath, 'utf8')
+      const messages = JSON.parse(jsonData)
+      return Array.isArray(messages) ? messages : []
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.error(`读取旧频道消息失败 [${filePath}]:`, error)
+      }
+      return []
+    }
+  }
+
+  private async readChunkMessages(channelDirPath: string, fileName: string): Promise<MessageInfo[]> {
+    try {
+      const jsonData = await fs.readFile(this.getChunkFilePath(channelDirPath, fileName), 'utf8')
+      const messages = JSON.parse(jsonData)
+      return Array.isArray(messages) ? messages : []
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.error(`读取消息分块失败 [${channelDirPath}/${fileName}]:`, error)
+      }
+      return []
+    }
+  }
+
+  private async writeChunkMessages(channelDirPath: string, fileName: string, messages: MessageInfo[]) {
+    await this.ensureDir(channelDirPath)
+    await fs.writeFile(this.getChunkFilePath(channelDirPath, fileName), JSON.stringify(messages, null, 2), 'utf8')
+  }
+
+  private async writeMessagesToChunks(channelDirPath: string, indexData: ChannelIndexData, messages: MessageInfo[]) {
+    const oldChunks = [...indexData.chunks]
+    indexData.chunks = []
+    indexData.totalMessages = 0
+    indexData.nextChunkId = 1
+
+    for (let offset = 0; offset < messages.length; offset += this.config.messageChunkSize) {
+      const chunkMessages = messages.slice(offset, offset + this.config.messageChunkSize)
+      const chunkId = indexData.nextChunkId
+      const fileName = this.createChunkFileName(chunkId)
+      await this.writeChunkMessages(channelDirPath, fileName, chunkMessages)
+      indexData.chunks.push({ id: chunkId, fileName, messageCount: chunkMessages.length })
+      indexData.nextChunkId += 1
+      indexData.totalMessages += chunkMessages.length
+    }
+
+    for (const chunk of oldChunks) {
+      try {
+        await fs.unlink(this.getChunkFilePath(channelDirPath, chunk.fileName))
+      } catch (error) {
+        if (!this.isFileMissingError(error)) {
+          this.logger.warn(`删除旧消息分块失败 [${channelDirPath}/${chunk.fileName}]:`, error)
+        }
+      }
+    }
+
+    await this.writeChannelIndex(path.join(channelDirPath, 'index.json'), indexData)
+  }
+
+  private async rewriteChannelMessages(selfId: string, channelId: string, messages: MessageInfo[]) {
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+    const indexData = this.createEmptyChannelIndex(channelId)
+    await this.writeMessagesToChunks(entry.channelDirPath, indexData, messages)
+
+    try {
+      await fs.unlink(entry.legacyFilePath)
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.warn(`删除旧频道文件失败 [${entry.channelKey}]:`, error)
+      }
+    }
+  }
+
+  private async appendMessagesToChannel(selfId: string, channelId: string, messages: MessageInfo[]) {
+    if (!messages.length) {
+      return
+    }
+
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+    const indexData = await this.loadOrCreateChannelIndex(selfId, channelId)
+    await this.ensureDir(entry.channelDirPath)
+
+    let remainingMessages = [...messages]
+    const lastChunk = indexData.chunks[indexData.chunks.length - 1]
+
+    if (lastChunk && lastChunk.messageCount < this.config.messageChunkSize) {
+      const chunkMessages = await this.readChunkMessages(entry.channelDirPath, lastChunk.fileName)
+      const writableCount = this.config.messageChunkSize - chunkMessages.length
+      const appendMessages = remainingMessages.slice(0, writableCount)
+      if (appendMessages.length) {
+        chunkMessages.push(...appendMessages)
+        lastChunk.messageCount = chunkMessages.length
+        indexData.totalMessages += appendMessages.length
+        remainingMessages = remainingMessages.slice(appendMessages.length)
+        await this.writeChunkMessages(entry.channelDirPath, lastChunk.fileName, chunkMessages)
+      }
+    }
+
+    while (remainingMessages.length) {
+      const chunkMessages = remainingMessages.slice(0, this.config.messageChunkSize)
+      const chunkId = indexData.nextChunkId
+      const fileName = this.createChunkFileName(chunkId)
+      await this.writeChunkMessages(entry.channelDirPath, fileName, chunkMessages)
+      indexData.chunks.push({ id: chunkId, fileName, messageCount: chunkMessages.length })
+      indexData.nextChunkId += 1
+      indexData.totalMessages += chunkMessages.length
+      remainingMessages = remainingMessages.slice(chunkMessages.length)
+    }
+
+    await this.trimChannelToLimit(selfId, channelId, indexData, this.config.maxMessagesPerChannel)
+    await this.writeChannelIndex(entry.indexFilePath, indexData)
+  }
+
+  private async trimChannelToLimit(selfId: string, channelId: string, indexData: ChannelIndexData, limit: number) {
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+    let overflow = indexData.totalMessages - limit
+    if (overflow <= 0) {
+      return 0
+    }
+
+    let removedCount = 0
+
+    while (overflow > 0 && indexData.chunks.length) {
+      const chunk = indexData.chunks[0]
+      if (chunk.messageCount <= overflow) {
+        overflow -= chunk.messageCount
+        removedCount += chunk.messageCount
+        indexData.totalMessages -= chunk.messageCount
+        indexData.chunks.shift()
+        try {
+          await fs.unlink(this.getChunkFilePath(entry.channelDirPath, chunk.fileName))
+        } catch (error) {
+          if (!this.isFileMissingError(error)) {
+            this.logger.warn(`删除消息分块失败 [${entry.channelKey}:${chunk.fileName}]:`, error)
+          }
+        }
+        continue
+      }
+
+      const chunkMessages = await this.readChunkMessages(entry.channelDirPath, chunk.fileName)
+      const keptMessages = chunkMessages.slice(overflow)
+      removedCount += overflow
+      indexData.totalMessages -= overflow
+      chunk.messageCount = keptMessages.length
+      overflow = 0
+      await this.writeChunkMessages(entry.channelDirPath, chunk.fileName, keptMessages)
+    }
+
+    await this.writeChannelIndex(entry.indexFilePath, indexData)
+    return removedCount
+  }
+
+  private async countChannelMessages(selfId: string, channelId: string) {
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+
+    try {
+      const jsonData = await fs.readFile(entry.indexFilePath, 'utf8')
+      const indexData = JSON.parse(jsonData) as Partial<ChannelIndexData>
+      if (typeof indexData.totalMessages === 'number') {
+        return indexData.totalMessages
+      }
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.error(`读取频道索引失败 [${entry.channelKey}]:`, error)
+      }
+    }
+
+    return (await this.readLegacyChannelMessages(entry.legacyFilePath)).length
+  }
+
+  private async removeChannelStorage(selfId: string, channelId: string) {
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+
+    try {
+      await fs.rm(entry.channelDirPath, { recursive: true, force: true })
+    } catch (error) {
+      this.logger.error(`删除频道目录失败 [${entry.channelKey}]:`, error)
+    }
+
+    try {
+      await fs.unlink(entry.legacyFilePath)
+    } catch (error) {
+      if (!this.isFileMissingError(error)) {
+        this.logger.error(`删除旧频道文件失败 [${entry.channelKey}]:`, error)
+      }
+    }
+  }
+
+  private async updateUserProfileInChannel(selfId: string, channelId: string, userId: string, userName?: string, avatar?: string) {
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+    const indexData = await this.loadOrCreateChannelIndex(selfId, channelId)
+    let changed = false
+
+    for (const chunk of indexData.chunks) {
+      const messages = await this.readChunkMessages(entry.channelDirPath, chunk.fileName)
+      let chunkChanged = false
+
+      for (const message of messages) {
+        if (message.userId !== userId) {
+          continue
+        }
+
+        if (userName && message.username !== userName) {
+          message.username = userName
+          chunkChanged = true
+        }
+
+        if (avatar && message.avatar !== avatar) {
+          message.avatar = avatar
+          chunkChanged = true
+        }
+      }
+
+      if (!chunkChanged) {
+        continue
+      }
+
+      await this.writeChunkMessages(entry.channelDirPath, chunk.fileName, messages)
+      changed = true
+    }
+
+    return changed
+  }
+
+  private async findAndUpdateLatestBotMessage(selfId: string, channelId: string, realId: string): Promise<MessageInfo | undefined> {
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+    const indexData = await this.loadOrCreateChannelIndex(selfId, channelId)
+
+    for (let index = indexData.chunks.length - 1; index >= 0; index -= 1) {
+      const chunk = indexData.chunks[index]
+      const messages = await this.readChunkMessages(entry.channelDirPath, chunk.fileName)
+      const matched = [...messages].reverse().find((message) => message.type === 'bot' && message.sending)
+      if (!matched) {
+        continue
+      }
+
+      matched.realId = realId
+      matched.sending = false
+      await this.writeChunkMessages(entry.channelDirPath, chunk.fileName, messages)
+      return matched
+    }
+
+    return undefined
+  }
+
+  private deduplicateMessages(messages: MessageInfo[]) {
+    const seen = new Set<string>()
+    const deduplicated: MessageInfo[] = []
+
+    for (const message of messages) {
+      if (seen.has(message.id)) {
+        continue
+      }
+      seen.add(message.id)
+      deduplicated.push(message)
+    }
+
+    return deduplicated
   }
 
   private async readChannelMessagesFromFile(filePath: string): Promise<MessageInfo[]> {

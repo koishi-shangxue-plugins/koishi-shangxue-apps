@@ -435,6 +435,7 @@ export class ApiHandlers {
           success: true,
           config: {
             maxMessagesPerChannel: this.config.maxMessagesPerChannel,
+            messageChunkSize: this.config.messageChunkSize,
             maxPersistImages: this.config.maxPersistImages,
             loggerinfo: this.config.loggerinfo,
             blockedPlatforms: this.config.blockedPlatforms || [],
