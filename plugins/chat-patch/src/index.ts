@@ -7,6 +7,7 @@ import { MessageHandler } from './message-handler'
 import { FileManager } from './file-manager'
 import { ApiHandlers } from './api-handlers'
 import { Config } from './config'
+import { createPluginLogger } from './logger'
 import { Utils } from './utils'
 
 export const name = 'chat-patch'
@@ -36,127 +37,50 @@ export const usage = `
 export { Config } from './config'
 
 export async function apply(ctx: Context, config: Config) {
-  const logger = ctx.logger('chat-patch')
+  const pluginLogger = createPluginLogger(ctx.logger('chat-patch'), config)
 
-  const mediaDir = path.join(ctx.baseDir, 'data', 'chat-patch', 'persist-media', 'media')
-  if (require('node:fs').existsSync(mediaDir)) {
-    try {
-      const files = require('node:fs').readdirSync(mediaDir)
-      let deletedCount = 0
-      for (const file of files) {
-        const filePath = path.join(mediaDir, file)
-        try {
-          require('node:fs').unlinkSync(filePath)
-          deletedCount++
-        } catch (e) {
-          logger.warn('删除媒体文件失败:', filePath, e)
-        }
-      }
-      if (deletedCount > 0) {
-        logger.info(`启动时清理了 ${deletedCount} 个旧版本的媒体缓存文件`)
-      }
-    } catch (e) {
-      logger.warn('清理媒体文件夹失败:', e)
-    }
-  }
+  const fileManager = new FileManager(ctx, config, pluginLogger)
+  await fileManager.initialize()
 
-  const fileManager = new FileManager(ctx, config)
-  const messageHandler = new MessageHandler(ctx, config, fileManager)
-  const apiHandlers = new ApiHandlers(ctx, config, fileManager, messageHandler)
+  const messageHandler = new MessageHandler(ctx, config, fileManager, pluginLogger)
+  const apiHandlers = new ApiHandlers(ctx, config, fileManager, messageHandler, pluginLogger)
   const utils = new Utils(config, ctx)
 
-  const initialData = fileManager.readChatDataFromFile()
-  const cleanedData = fileManager.cleanExcessMessages(initialData)
+  const metadata = await fileManager.readMetadataOnly()
 
-  const originalCount = Object.values(initialData.messages).reduce((total, msgs) => total + msgs.length, 0)
-  const cleanedCount = Object.values(cleanedData.messages).reduce((total, msgs) => total + msgs.length, 0)
-
-  if (originalCount !== cleanedCount) {
-    fileManager.writeChatDataToFile(cleanedData)
-  }
-
-  function logInfo(...args: any[]) {
-    if (config.loggerinfo) {
-      (logger.info as (...args: any[]) => void)(...args)
-    }
-  }
-
-  logInfo('插件加载完成，数据统计:', {
-    机器人数量: Object.keys(cleanedData.bots).length,
-    频道数量: Object.keys(cleanedData.channels).reduce((total, botId) =>
-      total + Object.keys(cleanedData.channels[botId] || {}).length, 0),
-    消息频道数: Object.keys(cleanedData.messages).length,
-    总消息数: Object.values(cleanedData.messages).reduce((total, msgs) => total + msgs.length, 0)
+  pluginLogger.logInfo('插件加载完成，元数据统计:', {
+    机器人数量: Object.keys(metadata.bots).length,
+    频道数量: Object.keys(metadata.channels).reduce((total, botId) =>
+      total + Object.keys(metadata.channels[botId] || {}).length, 0),
+    置顶机器人数量: metadata.pinnedBots.length,
+    置顶频道数量: metadata.pinnedChannels.length
   })
 
   ctx.on('message', (session) => {
     if (utils.isPlatformBlocked(session.platform || 'unknown')) return
 
-    const timestamp = Date.now()
-
-    ctx.console.broadcast('chat-message-event', {
-      type: 'message',
-      selfId: session.selfId,
-      platform: session.platform || 'unknown',
-      channelId: session.channelId,
-      messageId: session.event?.message?.id || `msg-${timestamp}`,
-      content: session.content || '',
-      userId: session.userId || 'unknown',
-      username: session.username || session.userId || 'unknown',
-      avatar: session.event?.user?.avatar,
-      timestamp: timestamp,
-      isDirect: session.isDirect,
-      elements: utils.cleanBase64Content(session.elements, false),
-      bot: {
-        avatar: session.bot.user?.avatar,
-        name: session.bot.user?.name,
-      }
-    })
-
-    messageHandler.recordUserMessage(session, timestamp)
+    messageHandler.recordUserMessage(session, Date.now())
   })
 
   ctx.on('before-send', (session) => {
     if (utils.isPlatformBlocked(session.platform || 'unknown')) return
 
-    const timestamp = Date.now()
-
-    ctx.console.broadcast('chat-bot-message-event', {
-      type: 'bot-message',
-      selfId: session.selfId,
-      platform: session.platform || 'unknown',
-      channelId: session.channelId,
-      messageId: `bot-msg-${timestamp}`,
-      content: session.content || '',
-      userId: session.selfId,
-      username: session.bot.user?.name || `Bot-${session.selfId}`,
-      avatar: session.bot.user?.avatar,
-      timestamp: timestamp,
-      sending: true,
-      elements: utils.cleanBase64Content(session.event?.message?.elements, true),
-      bot: {
-        avatar: session.bot.user?.avatar,
-        name: session.bot.user?.name,
-      }
-    })
-
-    messageHandler.recordBotMessage(session, timestamp)
+    messageHandler.recordBotMessage(session, Date.now())
   })
 
+  let cleanupDelayTimer: (() => void) | undefined
+  let cleanupInterval: (() => void) | undefined
+
   ctx.on('ready', async () => {
-    logInfo('插件启动完成，开始监听消息')
+    pluginLogger.logInfo('插件启动完成，开始监听消息')
 
-    ctx.setInterval(() => {
-      const data = fileManager.readChatDataFromFile()
-      const cleanedData = fileManager.cleanExcessMessages(data)
+    // 延后清理，避免和 Koishi 刚 ready 时的资源竞争。
+    cleanupDelayTimer = ctx.setTimeout(() => {
+      void fileManager.cleanupExcessMessagesInStorage()
+    }, 15000)
 
-      const originalCount = Object.values(data.messages).reduce((total, msgs) => total + msgs.length, 0)
-      const cleanedCount = Object.values(cleanedData.messages).reduce((total, msgs) => total + msgs.length, 0)
-
-      if (originalCount !== cleanedCount) {
-        fileManager.writeChatDataToFile(cleanedData)
-        logInfo('定期清理完成，清理了', originalCount - cleanedCount, '条超量消息')
-      }
+    cleanupInterval = ctx.setInterval(() => {
+      void fileManager.cleanupExcessMessagesInStorage()
     }, 300000)
   })
 
@@ -168,8 +92,10 @@ export async function apply(ctx: Context, config: Config) {
   })
 
   ctx.on('dispose', () => {
-
-    fileManager.dispose()
-    logInfo('插件已卸载，所有待处理的消息已写入')
+    cleanupDelayTimer?.()
+    cleanupInterval?.()
+    messageHandler.dispose()
+    void fileManager.dispose()
+    pluginLogger.logInfo('插件已卸载，所有待处理的消息已写入')
   })
 }

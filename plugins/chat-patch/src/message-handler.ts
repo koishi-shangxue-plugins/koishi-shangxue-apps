@@ -1,46 +1,51 @@
 import { BotInfo, ChannelInfo, MessageInfo, QuoteInfo } from './types'
-import { Context, Session, h, Logger } from 'koishi'
+import { Context, Session, h } from 'koishi'
 import { FileManager } from './file-manager'
 import { Config } from './config'
 import { Utils } from './utils'
+import { PluginLogger } from './logger'
 import { } from '@koishijs/plugin-console'
+import { promises as fs } from 'node:fs'
+import path from 'node:path'
+import { createHash } from 'node:crypto'
 
 export class MessageHandler {
-  private logger: Logger
   private utils: Utils
 
   private correctChannelIds: Map<string, string> = new Map()
 
+  private scheduledTasks: Set<() => void> = new Set()
+
+  private channelRefreshInFlight: Set<string> = new Set()
+
+  private lastChannelRefreshAt: Map<string, number> = new Map()
+
+  private readonly CHANNEL_REFRESH_TTL_MS = 10 * 60 * 1000
+
   constructor(
     private ctx: Context,
     private config: Config,
-    private fileManager: FileManager
+    private fileManager: FileManager,
+    private logger: PluginLogger
   ) {
-    this.logger = ctx.logger('chat-patch')
     this.utils = new Utils(config)
   }
 
   recordUserMessage(session: Session, timestamp: number) {
-
-    setImmediate(() => {
-      this.processUserMessage(session, timestamp).catch(error => {
-        this.logger.error('记录用户消息失败:', error)
-      })
+    this.scheduleTask('记录用户消息', async () => {
+      await this.processUserMessage(session, timestamp)
     })
   }
 
   recordBotMessage(session: Session, timestamp: number) {
-
-    setImmediate(() => {
-      this.processBotMessage(session, timestamp).catch(error => {
-        this.logger.error('记录机器人消息失败:', error)
-      })
+    this.scheduleTask('记录机器人消息', async () => {
+      await this.processBotMessage(session, timestamp)
     })
   }
 
   setCorrectChannelId(selfId: string, channelId: string) {
     this.correctChannelIds.set(selfId, channelId)
-    this.logInfo('设置正确的 channelId:', { selfId, channelId })
+    this.logger.logInfo('设置正确的 channelId:', { selfId, channelId })
   }
 
   getCorrectChannelId(selfId: string): string | undefined {
@@ -48,25 +53,17 @@ export class MessageHandler {
   }
 
   updateBotInfoToFile(session: Session) {
-
-    setImmediate(() => {
-      try {
-        const data = this.fileManager.readChatDataFromFile()
-
-        const botInfo: BotInfo = {
-          selfId: session.selfId,
-          platform: session.platform || 'unknown',
-          username: session.bot.user?.name || `Bot-${session.selfId}`,
-          avatar: session.bot.user?.avatar,
-          status: 'online'
-        }
-
-        data.bots[session.selfId] = botInfo
-        this.fileManager.writeChatDataToFile(data)
-        this.logInfo('更新机器人信息到文件:', botInfo.username)
-      } catch (error) {
-        this.logger.error('更新机器人信息失败:', error)
+    this.scheduleTask('更新机器人信息', async () => {
+      const botInfo: BotInfo = {
+        selfId: session.selfId,
+        platform: session.platform || 'unknown',
+        username: session.bot.user?.name || `Bot-${session.selfId}`,
+        avatar: session.bot.user?.avatar,
+        status: 'online'
       }
+
+      await this.fileManager.upsertBotInfo(botInfo)
+      this.logger.logInfo('更新机器人信息到文件:', botInfo.username)
     })
   }
 
@@ -74,8 +71,7 @@ export class MessageHandler {
     const isDirect = session.isDirect || session.channelId?.includes('private')
     const directUserName = session.username || session.event?.user?.name || session.userId
 
-    const data = this.fileManager.readChatDataFromFile()
-    const existingChannel = data.channels[session.selfId]?.[session.channelId]
+    const existingChannel = this.fileManager.getCachedChannelInfo(session.selfId, session.channelId)
 
     let immediateName = session.channelId
     if (isDirect) {
@@ -92,76 +88,12 @@ export class MessageHandler {
       immediateName = existingChannel.guildName
     }
 
-    setImmediate(async () => {
-      try {
-        let guildName = session.channelId
-
-        if (!isDirect) {
-          try {
-
-            if (session.guildId && session.bot.getGuild && typeof session.bot.getGuild === 'function') {
-              const guild = await session.bot.getGuild(session.guildId)
-              guildName = guild?.name || session.channelId
-            } else if (session.guildId && !session.bot.getGuild && session.bot.getChannel && typeof session.bot.getChannel === 'function') {
-              try {
-                const channel = await session.bot.getChannel(session.guildId)
-                guildName = channel?.name || session.channelId
-              } catch (channelError) {
-                this.logInfo('获取频道信息失败，使用频道ID作为备用:', channelError)
-              }
-            }
-          } catch (error) {
-            this.logInfo('获取频道信息失败，使用频道ID作为备用:', error)
-            guildName = session.channelId
-          }
-        }
-
-        const freshData = this.fileManager.readChatDataFromFile()
-        if (!freshData.channels[session.selfId]) {
-          freshData.channels[session.selfId] = {}
-        }
-
-        const existingChannel = freshData.channels[session.selfId][session.channelId]
-
-        let finalName: string
-        if (isDirect) {
-          if (directUserName && directUserName !== session.userId) {
-            finalName = `私聊（${directUserName}）`
-          } else if (existingChannel?.name && !existingChannel.name.includes('未知')) {
-            finalName = existingChannel.name
-          } else if (session.platform && session.platform.toLowerCase().includes('sandbox')) {
-            finalName = `私聊（${session.userId}）`
-          } else {
-            finalName = '私聊（未知用户）'
-          }
-        } else {
-          finalName = guildName || session.channelId
-        }
-
-        const channelInfo: ChannelInfo = {
-          id: session.channelId,
-          name: finalName,
-          type: session.type || 0,
-          channelId: session.channelId,
-          guildName: guildName,
-          isDirect: !!isDirect
-        }
-
-        if (existingChannel && existingChannel.name !== finalName) {
-          this.logInfo('更新频道名称:', {
-            channelId: session.channelId,
-            oldName: existingChannel.name,
-            newName: finalName
-          })
-        }
-
-        freshData.channels[session.selfId][session.channelId] = channelInfo
-        this.fileManager.writeChatDataToFile(freshData)
-        this.logInfo('更新频道信息到文件:', channelInfo.name)
-      } catch (error) {
-        this.logger.error('异步更新频道信息失败:', error)
-      }
-    })
+    const channelKey = `${session.selfId}:${session.channelId}`
+    if (this.shouldRefreshChannelInfo(channelKey, existingChannel, isDirect, session.channelId, directUserName)) {
+      this.scheduleTask('更新频道信息', async () => {
+        await this.refreshChannelInfo(session, existingChannel, isDirect, directUserName)
+      })
+    }
 
     return immediateName
   }
@@ -177,20 +109,17 @@ export class MessageHandler {
       if (type === 'image') folder = 'images'
       else if (type === 'avatar') folder = 'avatars'
 
-      const dir = require('node:path').join(this.ctx.baseDir, 'data', 'chat-patch', 'persist-media', folder)
-      if (!require('node:fs').existsSync(dir)) {
-        require('node:fs').mkdirSync(dir, { recursive: true })
-      }
+      const dir = path.join(this.ctx.baseDir, 'data', 'chat-patch', 'persist-media', folder)
+      await fs.mkdir(dir, { recursive: true })
 
-      const crypto = require('node:crypto')
-      const hash = crypto.createHash('md5').update(url).digest('hex')
-      const ext = require('node:path').extname(new URL(url).pathname) || (type === 'image' ? '.jpg' : '.mp4')
+      const hash = createHash('md5').update(url).digest('hex')
+      const ext = path.extname(new URL(url).pathname) || (type === 'image' ? '.jpg' : '.mp4')
       const filename = `${hash}${ext}`
-      const filePath = require('node:path').join(dir, filename)
+      const filePath = path.join(dir, filename)
 
-      if (!require('node:fs').existsSync(filePath)) {
+      if (!(await this.fileExists(filePath))) {
         const buffer = await this.ctx.http.get(url, { responseType: 'arraybuffer' })
-        require('node:fs').writeFileSync(filePath, Buffer.from(buffer))
+        await fs.writeFile(filePath, Buffer.from(buffer))
       }
 
       // 返回 Vite @fs 路径格式，让浏览器通过 Vite 开发服务器加载本地文件
@@ -206,32 +135,8 @@ export class MessageHandler {
   private processMediaElementsAsync(elements: h[], isUserMessage: boolean = true) {
     if (!elements) return
 
-    setImmediate(async () => {
-      try {
-        for (const el of elements) {
-          if (['image', 'img', 'mface'].includes(el.type)) {
-            const src = el.attrs.src || el.attrs.url || el.attrs.file
-            if (src && isUserMessage) {
-
-              this.downloadAndCacheMedia(src, 'image').catch(e => {
-                this.logger.warn('缓存图片失败:', e)
-              })
-            }
-          } else if (el.type === 'audio') {
-            const src = el.attrs.src || el.attrs.url || el.attrs.file
-            if (src && isUserMessage) {
-
-              this.downloadAndCacheMedia(src, 'media').catch(e => {
-                this.logger.warn('缓存语音失败:', e)
-              })
-            }
-          }
-
-          if (el.children) this.processMediaElementsAsync(el.children, isUserMessage)
-        }
-      } catch (error) {
-        this.logger.error('处理媒体元素失败:', error)
-      }
+    this.scheduleTask('处理媒体元素', async () => {
+      await this.processMediaElements(elements, isUserMessage)
     })
   }
 
@@ -357,12 +262,11 @@ export class MessageHandler {
       const quoteMatch = content.match(/<quote id="([^"]+)"\/>/)
       if (quoteMatch) {
         const quoteId = quoteMatch[1]
-        const data = this.fileManager.readChatDataFromFile()
-        const channelKey = `${session.selfId}:${finalChannelId}`
-        const quotedMsg = data.messages[channelKey]?.find(m => m.id === quoteId)
+        const messages = await this.fileManager.readChannelMessages(session.selfId, finalChannelId)
+        const quotedMsg = messages.find((message) => message.id === quoteId)
 
         if (quotedMsg) {
-          const realId = quotedMsg.id.startsWith('bot-msg-') ? (quotedMsg as any).realId : quotedMsg.id
+          const realId = quotedMsg.id.startsWith('bot-msg-') ? quotedMsg.realId : quotedMsg.id
 
           quoteInfo = {
             messageId: realId || quotedMsg.id,
@@ -437,9 +341,159 @@ export class MessageHandler {
     }
   }
 
-  private logInfo(...args: any[]) {
-    if (this.config.loggerinfo) {
-      (this.logger.info as (...args: any[]) => void)(...args)
+  dispose() {
+    for (const dispose of this.scheduledTasks) {
+      dispose()
+    }
+    this.scheduledTasks.clear()
+  }
+
+  private scheduleTask(label: string, task: () => Promise<void>) {
+    const dispose = this.ctx.setTimeout(() => {
+      this.scheduledTasks.delete(dispose)
+      void task().catch((error) => {
+        this.logger.error(`${label}失败:`, error)
+      })
+    }, 0)
+
+    this.scheduledTasks.add(dispose)
+  }
+
+  private shouldRefreshChannelInfo(
+    channelKey: string,
+    existingChannel: ChannelInfo | undefined,
+    isDirect: boolean,
+    channelId: string,
+    directUserName?: string
+  ) {
+    if (this.channelRefreshInFlight.has(channelKey)) {
+      return false
+    }
+
+    const lastRefresh = this.lastChannelRefreshAt.get(channelKey) || 0
+    if (Date.now() - lastRefresh < this.CHANNEL_REFRESH_TTL_MS) {
+      return false
+    }
+
+    if (isDirect) {
+      return !directUserName && (!existingChannel || existingChannel.name.includes('未知'))
+    }
+
+    return !existingChannel?.guildName || existingChannel.guildName === channelId
+  }
+
+  private async refreshChannelInfo(
+    session: Session,
+    existingChannel: ChannelInfo | undefined,
+    isDirect: boolean,
+    directUserName?: string
+  ) {
+    const channelKey = `${session.selfId}:${session.channelId}`
+    this.channelRefreshInFlight.add(channelKey)
+
+    try {
+      let guildName = existingChannel?.guildName || session.channelId
+
+      if (!isDirect) {
+        guildName = await this.resolveGuildName(session)
+      }
+
+      const finalName = this.buildChannelName(session, existingChannel, isDirect, directUserName, guildName)
+      const channelInfo: ChannelInfo = {
+        id: session.channelId,
+        name: finalName,
+        type: session.type || 0,
+        channelId: session.channelId,
+        guildName,
+        isDirect: !!isDirect
+      }
+
+      await this.fileManager.upsertChannelInfo(session.selfId, session.channelId, channelInfo)
+      this.lastChannelRefreshAt.set(channelKey, Date.now())
+      this.logger.logInfo('更新频道信息到文件:', channelInfo.name)
+    } finally {
+      this.channelRefreshInFlight.delete(channelKey)
+    }
+  }
+
+  private async resolveGuildName(session: Session): Promise<string> {
+    try {
+      if (session.guildId && session.bot.getGuild && typeof session.bot.getGuild === 'function') {
+        const guild = await session.bot.getGuild(session.guildId)
+        return guild?.name || session.channelId
+      }
+
+      if (session.guildId && session.bot.getChannel && typeof session.bot.getChannel === 'function') {
+        const channel = await session.bot.getChannel(session.guildId)
+        return channel?.name || session.channelId
+      }
+    } catch (error) {
+      this.logger.logInfo('获取频道信息失败，使用频道ID作为备用:', error)
+    }
+
+    return session.channelId
+  }
+
+  private buildChannelName(
+    session: Session,
+    existingChannel: ChannelInfo | undefined,
+    isDirect: boolean,
+    directUserName: string | undefined,
+    guildName: string
+  ) {
+    if (isDirect) {
+      if (directUserName && directUserName !== session.userId) {
+        return `私聊（${directUserName}）`
+      }
+
+      if (existingChannel?.name && !existingChannel.name.includes('未知')) {
+        return existingChannel.name
+      }
+
+      if (session.platform && session.platform.toLowerCase().includes('sandbox')) {
+        return `私聊（${session.userId}）`
+      }
+
+      return '私聊（未知用户）'
+    }
+
+    return guildName || session.channelId
+  }
+
+  private async processMediaElements(elements: h[], isUserMessage: boolean) {
+    for (const el of elements) {
+      if (['image', 'img', 'mface'].includes(el.type)) {
+        const src = el.attrs.src || el.attrs.url || el.attrs.file
+        if (src && isUserMessage) {
+          try {
+            await this.downloadAndCacheMedia(src, 'image')
+          } catch (error) {
+            this.logger.warn('缓存图片失败:', error)
+          }
+        }
+      } else if (el.type === 'audio') {
+        const src = el.attrs.src || el.attrs.url || el.attrs.file
+        if (src && isUserMessage) {
+          try {
+            await this.downloadAndCacheMedia(src, 'media')
+          } catch (error) {
+            this.logger.warn('缓存语音失败:', error)
+          }
+        }
+      }
+
+      if (el.children?.length) {
+        await this.processMediaElements(el.children, isUserMessage)
+      }
+    }
+  }
+
+  private async fileExists(filePath: string) {
+    try {
+      await fs.access(filePath)
+      return true
+    } catch {
+      return false
     }
   }
 }

@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 
 export class Utils {
+  private persistImageWriteCount = 0
+
   constructor(private config: Config, private ctx?: Context) { }
 
   isPlatformBlocked(platform: string): boolean {
@@ -74,7 +76,11 @@ export class Utils {
       const base64Content = base64Data.split(',')[1]
       writeFileSync(filePath, Buffer.from(base64Content, 'base64'))
 
-      this.cleanupPersistImages(dir)
+      // 降低清理频率，避免每次写图都同步扫描整个目录。
+      this.persistImageWriteCount += 1
+      if (this.persistImageWriteCount % 20 === 0) {
+        this.cleanupPersistImages(dir)
+      }
 
       return pathToFileURL(filePath).href
     } catch (e) {
