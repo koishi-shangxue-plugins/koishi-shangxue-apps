@@ -64,28 +64,32 @@ export class ApiHandlers {
       offset?: number
     }) => {
       try {
-        // 直接从文件读取该频道的消息，不加载所有消息到内存
-        let messages = await this.fileManager.readChannelMessages(requestData.selfId, requestData.channelId)
-
-        const sortedMessages = [...messages].sort((a, b) => b.timestamp - a.timestamp)
-
         if (requestData.limit !== undefined) {
-          const limit = requestData.limit
-          const offset = requestData.offset || 0
-          messages = sortedMessages.slice(offset, offset + limit)
+          const result = await this.fileManager.readChannelMessagesPage(
+            requestData.selfId,
+            requestData.channelId,
+            requestData.limit,
+            requestData.offset || 0
+          )
 
-          messages = messages.sort((a, b) => a.timestamp - b.timestamp)
-        } else {
-          // 如果没有指定limit，返回所有消息（按时间正序）
-          messages = sortedMessages.sort((a, b) => a.timestamp - b.timestamp)
+          this.logInfo('获取历史消息:', `${requestData.selfId}:${requestData.channelId}`, '共', result.messages.length, '条消息')
+
+          return {
+            success: true,
+            messages: result.messages,
+            total: result.total
+          }
         }
+
+        // 未分页时，仍返回完整频道消息。
+        const messages = await this.fileManager.readChannelMessages(requestData.selfId, requestData.channelId)
 
         this.logInfo('获取历史消息:', `${requestData.selfId}:${requestData.channelId}`, '共', messages.length, '条消息')
 
         return {
           success: true,
           messages: messages,
-          total: sortedMessages.length
+          total: messages.length
         }
       } catch (error: any) {
         this.logger.error('获取历史消息失败:', error)

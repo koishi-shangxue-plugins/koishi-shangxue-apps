@@ -27,10 +27,10 @@ interface StoredChannelEntry {
   channelKey: string
   channelDirPath: string
   indexFilePath: string
-  legacyFilePath: string
 }
 
 export class FileManager {
+  private storageBaseDir: string
   private chatHistoryDir: string // 聊天记录根目录
   private metadataFilePath: string // 元数据文件路径（存储bots、channels、pinned等信息）
   private utils: Utils
@@ -57,13 +57,14 @@ export class FileManager {
     private logger: PluginLogger
   ) {
     const baseDir = path.resolve(ctx.baseDir, 'data', 'chat-patch')
-    this.chatHistoryDir = path.join(baseDir, 'chat-history')
-    this.metadataFilePath = path.join(baseDir, 'metadata.json')
+    this.storageBaseDir = path.join(baseDir, 'v2')
+    this.chatHistoryDir = path.join(this.storageBaseDir, 'chat-history')
+    this.metadataFilePath = path.join(this.storageBaseDir, 'metadata.json')
     this.utils = new Utils(config, ctx)
 
-    // 异步清理旧版本的单文件存储，避免阻塞启动。
+    // 异步清理旧版本数据，避免阻塞启动。
     this.ctx.setTimeout(() => {
-      void this.cleanupOldDataFiles(baseDir)
+      void this.cleanupLegacyStorage(baseDir)
     }, 0)
   }
 
@@ -124,8 +125,8 @@ export class FileManager {
     this.scheduleMetadataWrite()
   }
 
-  // 清理旧版本的JSON文件
-  private async cleanupOldDataFiles(baseDir: string) {
+  // 清理旧版本数据目录
+  private async cleanupLegacyStorage(baseDir: string) {
     const oldFiles = ['chat-data.json', 'data.json', 'messages.json']
     for (const fileName of oldFiles) {
       const filePath = path.join(baseDir, fileName)
@@ -136,6 +137,20 @@ export class FileManager {
         if (!this.isFileMissingError(error)) {
           this.logger.warn(`删除旧版本数据文件失败: ${fileName}`, error)
         }
+      }
+    }
+
+    const legacyPaths = [
+      path.join(baseDir, 'metadata.json'),
+      path.join(baseDir, 'chat-history')
+    ]
+
+    for (const legacyPath of legacyPaths) {
+      try {
+        await fs.rm(legacyPath, { recursive: true, force: true })
+        this.logger.logInfo(`已清理旧版数据路径: ${legacyPath}`)
+      } catch (error) {
+        this.logger.warn(`清理旧版数据路径失败: ${legacyPath}`, error)
       }
     }
   }
@@ -167,6 +182,47 @@ export class FileManager {
       return await loadPromise
     } finally {
       this.channelLoadPromises.delete(channelKey)
+    }
+  }
+
+  async readChannelMessagesPage(selfId: string, channelId: string, limit: number, offset = 0): Promise<{ messages: MessageInfo[], total: number }> {
+    await this.ensureMetadataLoaded()
+
+    const indexData = await this.loadOrCreateChannelIndex(selfId, channelId)
+    if (limit <= 0 || offset >= indexData.totalMessages) {
+      return {
+        messages: [],
+        total: indexData.totalMessages
+      }
+    }
+
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+    const collected: MessageInfo[] = []
+    let skipped = 0
+
+    for (let chunkIndex = indexData.chunks.length - 1; chunkIndex >= 0; chunkIndex -= 1) {
+      const chunk = indexData.chunks[chunkIndex]
+      const chunkMessages = await this.readChunkMessages(entry.channelDirPath, chunk.fileName)
+
+      for (let messageIndex = chunkMessages.length - 1; messageIndex >= 0; messageIndex -= 1) {
+        if (skipped < offset) {
+          skipped += 1
+          continue
+        }
+
+        collected.push(chunkMessages[messageIndex])
+        if (collected.length >= limit) {
+          return {
+            messages: collected.reverse(),
+            total: indexData.totalMessages
+          }
+        }
+      }
+    }
+
+    return {
+      messages: collected.reverse(),
+      total: indexData.totalMessages
     }
   }
 
@@ -693,17 +749,12 @@ export class FileManager {
       channelId,
       channelKey: `${selfId}:${channelId}`,
       channelDirPath,
-      indexFilePath: this.getChannelIndexPath(selfId, channelId),
-      legacyFilePath: this.getLegacyChannelFilePath(selfId, channelId)
+      indexFilePath: this.getChannelIndexPath(selfId, channelId)
     }
   }
 
   private async resolveStoredChannelId(selfId: string, entry: { isFile(): boolean, isDirectory(): boolean, name: string | Buffer }) {
     const entryName = this.normalizeDirentName(entry.name)
-
-    if (entry.isFile() && entryName.endsWith('.json')) {
-      return entryName.slice(0, -5)
-    }
 
     if (!entry.isDirectory()) {
       return undefined
@@ -760,10 +811,6 @@ export class FileManager {
     return path.join(channelDirPath, fileName)
   }
 
-  private getLegacyChannelFilePath(selfId: string, channelId: string) {
-    return path.join(this.getBotDirPath(selfId), `${channelId}.json`)
-  }
-
   private createEmptyChannelIndex(channelId: string): ChannelIndexData {
     return {
       version: 1,
@@ -791,22 +838,10 @@ export class FileManager {
       }
     }
 
-    const legacyMessages = await this.readLegacyChannelMessages(entry.legacyFilePath)
     const indexData = this.createEmptyChannelIndex(channelId)
     await this.ensureDir(entry.channelDirPath)
 
-    if (legacyMessages.length) {
-      await this.writeMessagesToChunks(entry.channelDirPath, indexData, legacyMessages)
-      try {
-        await fs.unlink(entry.legacyFilePath)
-      } catch (error) {
-        if (!this.isFileMissingError(error)) {
-          this.logger.warn(`删除旧频道文件失败 [${entry.channelKey}]:`, error)
-        }
-      }
-    } else {
-      await this.writeChannelIndex(entry.indexFilePath, indexData)
-    }
+    await this.writeChannelIndex(entry.indexFilePath, indexData)
 
     return indexData
   }
@@ -824,19 +859,6 @@ export class FileManager {
   private async writeChannelIndex(indexFilePath: string, indexData: ChannelIndexData) {
     await this.ensureDir(path.dirname(indexFilePath))
     await fs.writeFile(indexFilePath, JSON.stringify(indexData, null, 2), 'utf8')
-  }
-
-  private async readLegacyChannelMessages(filePath: string): Promise<MessageInfo[]> {
-    try {
-      const jsonData = await fs.readFile(filePath, 'utf8')
-      const messages = JSON.parse(jsonData)
-      return Array.isArray(messages) ? messages : []
-    } catch (error) {
-      if (!this.isFileMissingError(error)) {
-        this.logger.error(`读取旧频道消息失败 [${filePath}]:`, error)
-      }
-      return []
-    }
   }
 
   private async readChunkMessages(channelDirPath: string, fileName: string): Promise<MessageInfo[]> {
@@ -890,14 +912,6 @@ export class FileManager {
     const entry = this.createStoredChannelEntry(selfId, channelId)
     const indexData = this.createEmptyChannelIndex(channelId)
     await this.writeMessagesToChunks(entry.channelDirPath, indexData, messages)
-
-    try {
-      await fs.unlink(entry.legacyFilePath)
-    } catch (error) {
-      if (!this.isFileMissingError(error)) {
-        this.logger.warn(`删除旧频道文件失败 [${entry.channelKey}]:`, error)
-      }
-    }
   }
 
   private async appendMessagesToChannel(selfId: string, channelId: string, messages: MessageInfo[]) {
@@ -994,7 +1008,7 @@ export class FileManager {
       }
     }
 
-    return (await this.readLegacyChannelMessages(entry.legacyFilePath)).length
+    return 0
   }
 
   private async removeChannelStorage(selfId: string, channelId: string) {
@@ -1004,14 +1018,6 @@ export class FileManager {
       await fs.rm(entry.channelDirPath, { recursive: true, force: true })
     } catch (error) {
       this.logger.error(`删除频道目录失败 [${entry.channelKey}]:`, error)
-    }
-
-    try {
-      await fs.unlink(entry.legacyFilePath)
-    } catch (error) {
-      if (!this.isFileMissingError(error)) {
-        this.logger.error(`删除旧频道文件失败 [${entry.channelKey}]:`, error)
-      }
     }
   }
 
@@ -1085,24 +1091,6 @@ export class FileManager {
     }
 
     return deduplicated
-  }
-
-  private async readChannelMessagesFromFile(filePath: string): Promise<MessageInfo[]> {
-    try {
-      const jsonData = await fs.readFile(filePath, 'utf8')
-      const messages = JSON.parse(jsonData)
-      return Array.isArray(messages) ? messages : []
-    } catch (error) {
-      if (!this.isFileMissingError(error)) {
-        this.logger.error(`读取频道消息文件失败 [${filePath}]:`, error)
-      }
-      return []
-    }
-  }
-
-  private async countMessagesFromFile(filePath: string): Promise<number> {
-    const messages = await this.readChannelMessagesFromFile(filePath)
-    return messages.length
   }
 
   private isSameBotInfo(left: BotInfo, right: BotInfo) {
