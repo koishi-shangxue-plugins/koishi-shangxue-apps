@@ -37,6 +37,8 @@ export class FileManager {
 
   private memoryCache: ChatData = this.createEmptyChatData()
 
+  private channelMessagesCache: Map<string, MessageInfo[]> = new Map()
+
   private pendingMessages: Map<string, MessageInfo[]> = new Map() // 按channelKey分组的待写入消息
 
   private writeTimers: Map<string, (() => void)> = new Map() // 每个频道独立的写入定时器
@@ -73,6 +75,7 @@ export class FileManager {
   }
 
   readChatDataFromFile(): ChatData {
+    this.memoryCache.messages = this.getChannelMessagesCacheSnapshot()
     return this.memoryCache
   }
 
@@ -165,7 +168,7 @@ export class FileManager {
     await this.ensureMetadataLoaded()
 
     const channelKey = `${selfId}:${channelId}`
-    const cached = this.memoryCache.messages[channelKey]
+    const cached = this.getCachedChannelMessages(channelKey)
     if (cached) {
       return cached
     }
@@ -224,6 +227,30 @@ export class FileManager {
       messages: collected.reverse(),
       total: indexData.totalMessages
     }
+  }
+
+  async findChannelMessageById(selfId: string, channelId: string, messageId: string): Promise<MessageInfo | null> {
+    await this.ensureMetadataLoaded()
+
+    const channelKey = `${selfId}:${channelId}`
+    const cachedMessages = this.peekCachedChannelMessages(channelKey)
+    const cachedMatched = cachedMessages?.find((message) => message.id === messageId)
+    if (cachedMatched) {
+      return cachedMatched
+    }
+
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+    const indexData = await this.loadOrCreateChannelIndex(selfId, channelId)
+    for (let chunkIndex = indexData.chunks.length - 1; chunkIndex >= 0; chunkIndex -= 1) {
+      const chunk = indexData.chunks[chunkIndex]
+      const messages = await this.readChunkMessages(entry.channelDirPath, chunk.fileName)
+      const matched = messages.find((message) => message.id === messageId)
+      if (matched) {
+        return matched
+      }
+    }
+
+    return null
   }
 
   // 读取元数据（bots、channels、pinned等）
@@ -286,15 +313,26 @@ export class FileManager {
 
   async loadAllChatData(): Promise<ChatData> {
     await this.ensureMetadataLoaded()
-    this.memoryCache.messages = await this.loadAllChannelMessages()
-    return this.memoryCache
+    return {
+      ...this.memoryCache,
+      messages: await this.loadAllChannelMessages()
+    }
   }
 
   writeChatDataToFile(data: ChatData) {
     data.lastSaveTime = Date.now()
-    this.memoryCache = data
+    const { messages, ...metadata } = data
+    this.memoryCache = {
+      ...metadata,
+      messages: this.getChannelMessagesCacheSnapshot()
+    }
+
+    for (const [channelKey, channelMessages] of Object.entries(messages)) {
+      this.setCachedChannelMessages(channelKey, channelMessages)
+    }
+
     this.enqueueWrite(async () => {
-      await this.persistFullSnapshot()
+      await this.persistFullSnapshot(messages)
     })
   }
 
@@ -322,21 +360,20 @@ export class FileManager {
 
     this.pendingMessages.delete(channelKey)
 
-    const data = this.memoryCache
+    const cachedMessages = this.peekCachedChannelMessages(channelKey)
     const [selfId, channelId] = channelKey.split(':')
 
     if (!selfId || !channelId) return
-
-    if (!data.messages[channelKey]) {
-      data.messages[channelKey] = await this.readChannelMessages(selfId, channelId)
-    }
 
     const uniqueMessages = this.deduplicateMessages(messagesToWrite)
     if (!uniqueMessages.length) {
       return
     }
 
-    this.memoryCache = data
+    if (cachedMessages) {
+      const nextMessages = this.mergeChannelMessages(cachedMessages, uniqueMessages)
+      this.setCachedChannelMessages(channelKey, this.limitChannelMessages(nextMessages))
+    }
 
     // 只向最后一个 chunk 追加，避免整频道重写。
     this.enqueueWrite(async () => {
@@ -375,37 +412,34 @@ export class FileManager {
     await this.ensureMetadataLoaded()
     const channelKey = `${messageInfo.selfId}:${messageInfo.channelId}`
 
-    // 更新内存缓存
-    const data = this.memoryCache
-
-    if (!data.messages[channelKey]) {
-      data.messages[channelKey] = await this.readChannelMessages(messageInfo.selfId, messageInfo.channelId)
+    if (!messageInfo.timestamp) {
+      messageInfo.timestamp = Date.now()
     }
 
-    const existingMessage = data.messages[channelKey].find(m => m.id === messageInfo.id)
-    if (!existingMessage) {
-      if (!messageInfo.timestamp) {
-        messageInfo.timestamp = Date.now()
-      }
-      const cleanedMessageInfo = await this.utils.cleanBase64ContentAsync(messageInfo, false)
-      data.messages[channelKey].push(cleanedMessageInfo)
+    const cleanedMessageInfo = await this.utils.cleanBase64ContentAsync(messageInfo, false)
+    const pendingMessages = this.pendingMessages.get(channelKey) || []
+    if (pendingMessages.some((message) => message.id === cleanedMessageInfo.id)) {
+      return
+    }
 
-      if (!this.pendingMessages.has(channelKey)) {
-        this.pendingMessages.set(channelKey, [])
-      }
+    const cachedMessages = this.peekCachedChannelMessages(channelKey)
+    if (cachedMessages?.some((message) => message.id === cleanedMessageInfo.id)) {
+      return
+    }
 
-      const pendingMessages = this.pendingMessages.get(channelKey) || []
-      if (!pendingMessages.some((message) => message.id === cleanedMessageInfo.id)) {
-        pendingMessages.push(cleanedMessageInfo)
+    if (!cachedMessages) {
+      const existsInStorage = await this.channelMessageExists(messageInfo.selfId, messageInfo.channelId, cleanedMessageInfo.id)
+      if (existsInStorage) {
+        return
       }
-      this.pendingMessages.set(channelKey, pendingMessages)
+    }
 
-      if (data.messages[channelKey].length > this.config.maxMessagesPerChannel) {
-        data.messages[channelKey].sort((a, b) => a.timestamp - b.timestamp)
-        data.messages[channelKey] = data.messages[channelKey].slice(-this.config.maxMessagesPerChannel)
-      }
+    pendingMessages.push(cleanedMessageInfo)
+    this.pendingMessages.set(channelKey, pendingMessages)
 
-      this.memoryCache = data
+    if (cachedMessages) {
+      const nextMessages = this.mergeChannelMessages(cachedMessages, [cleanedMessageInfo])
+      this.setCachedChannelMessages(channelKey, this.limitChannelMessages(nextMessages))
     }
 
     // 安排写入
@@ -427,8 +461,8 @@ export class FileManager {
       }
 
       cleanedCount += removedCount
-      if (this.memoryCache.messages[entry.channelKey]) {
-        this.memoryCache.messages[entry.channelKey] = await this.readChannelMessages(entry.selfId, entry.channelId)
+      if (this.peekCachedChannelMessages(entry.channelKey)) {
+        this.setCachedChannelMessages(entry.channelKey, await this.loadChannelMessagesNoCache(entry.selfId, entry.channelId))
       }
       this.logger.logInfo(`频道 ${entry.channelKey} 清理了 ${removedCount} 条旧消息，保留最新 ${indexData.totalMessages} 条`)
     })
@@ -453,7 +487,7 @@ export class FileManager {
     const messages: Record<string, MessageInfo[]> = {}
 
     await this.scanStoredChannels(async (entry) => {
-      messages[entry.channelKey] = await this.readChannelMessages(entry.selfId, entry.channelId)
+      messages[entry.channelKey] = await this.loadChannelMessagesNoCache(entry.selfId, entry.channelId)
     })
 
     return {
@@ -468,7 +502,7 @@ export class FileManager {
     const channelKey = `${selfId}:${channelId}`
     const deletedMessages = await this.countChannelMessages(selfId, channelId)
 
-    delete this.memoryCache.messages[channelKey]
+    this.deleteCachedChannelMessages(channelKey)
     this.pendingMessages.delete(channelKey)
 
     const timer = this.writeTimers.get(channelKey)
@@ -502,7 +536,7 @@ export class FileManager {
 
     for (const entry of channels) {
       deletedMessages += await this.countChannelMessages(entry.selfId, entry.channelId)
-      delete this.memoryCache.messages[entry.channelKey]
+      this.deleteCachedChannelMessages(entry.channelKey)
       this.pendingMessages.delete(entry.channelKey)
 
       const timer = this.writeTimers.get(entry.channelKey)
@@ -565,8 +599,8 @@ export class FileManager {
         continue
       }
 
-      if (this.memoryCache.messages[entry.channelKey]) {
-        this.memoryCache.messages[entry.channelKey] = await this.readChannelMessages(entry.selfId, entry.channelId)
+      if (this.peekCachedChannelMessages(entry.channelKey)) {
+        this.setCachedChannelMessages(entry.channelKey, await this.loadChannelMessagesNoCache(entry.selfId, entry.channelId))
       }
       changed = true
     }
@@ -585,12 +619,13 @@ export class FileManager {
     }
 
     const channelKey = `${selfId}:${channelId}`
-    const cachedMessages = this.memoryCache.messages[channelKey]
+    const cachedMessages = this.peekCachedChannelMessages(channelKey)
     if (cachedMessages) {
       const cachedMatched = [...cachedMessages].reverse().find((message) => message.type === 'bot' && message.sending)
       if (cachedMatched) {
         cachedMatched.realId = realId
         cachedMatched.sending = false
+        this.setCachedChannelMessages(channelKey, cachedMessages)
       }
     }
 
@@ -633,11 +668,17 @@ export class FileManager {
     const metadata = await this.readMetadata()
     this.memoryCache = {
       ...metadata,
-      messages: this.memoryCache.messages
+      messages: this.getChannelMessagesCacheSnapshot()
     }
   }
 
   private async loadChannelMessages(selfId: string, channelId: string): Promise<MessageInfo[]> {
+    const messages = await this.loadChannelMessagesNoCache(selfId, channelId)
+    this.setCachedChannelMessages(`${selfId}:${channelId}`, messages)
+    return messages
+  }
+
+  private async loadChannelMessagesNoCache(selfId: string, channelId: string): Promise<MessageInfo[]> {
     const indexData = await this.loadOrCreateChannelIndex(selfId, channelId)
     const channelDirPath = this.getChannelDirPath(selfId, channelId)
     const messages: MessageInfo[] = []
@@ -647,13 +688,12 @@ export class FileManager {
       messages.push(...chunkMessages)
     }
 
-    this.memoryCache.messages[`${selfId}:${channelId}`] = messages
     return messages
   }
 
   private scheduleMetadataWrite() {
     this.enqueueWrite(async () => {
-      const { messages, ...metadata } = this.memoryCache
+      const { messages, ...metadata } = this.readChatDataFromFile()
       await this.writeMetadata(metadata)
     })
   }
@@ -670,9 +710,8 @@ export class FileManager {
       })
   }
 
-  private async persistFullSnapshot() {
-    const snapshot = this.memoryCache
-    const { messages, ...metadata } = snapshot
+  private async persistFullSnapshot(messages: Record<string, MessageInfo[]>) {
+    const { messages: _, ...metadata } = this.readChatDataFromFile()
     await this.writeMetadata(metadata)
 
     const expectedKeys = new Set(Object.keys(messages))
@@ -1091,6 +1130,86 @@ export class FileManager {
     }
 
     return deduplicated
+  }
+
+  private getCachedChannelMessages(channelKey: string) {
+    const cached = this.channelMessagesCache.get(channelKey)
+    if (!cached) {
+      return undefined
+    }
+
+    this.channelMessagesCache.delete(channelKey)
+    this.channelMessagesCache.set(channelKey, cached)
+    this.memoryCache.messages = this.getChannelMessagesCacheSnapshot()
+    return cached
+  }
+
+  private peekCachedChannelMessages(channelKey: string) {
+    return this.channelMessagesCache.get(channelKey)
+  }
+
+  private setCachedChannelMessages(channelKey: string, messages: MessageInfo[]) {
+    this.channelMessagesCache.delete(channelKey)
+    this.channelMessagesCache.set(channelKey, messages)
+
+    while (this.channelMessagesCache.size > this.config.channelCacheLimit) {
+      const oldestKey = this.channelMessagesCache.keys().next().value as string | undefined
+      if (!oldestKey) {
+        break
+      }
+      this.channelMessagesCache.delete(oldestKey)
+    }
+
+    this.memoryCache.messages = this.getChannelMessagesCacheSnapshot()
+  }
+
+  private deleteCachedChannelMessages(channelKey: string) {
+    this.channelMessagesCache.delete(channelKey)
+    delete this.memoryCache.messages[channelKey]
+  }
+
+  private getChannelMessagesCacheSnapshot() {
+    return Object.fromEntries(this.channelMessagesCache.entries())
+  }
+
+  private mergeChannelMessages(baseMessages: MessageInfo[], appendedMessages: MessageInfo[]) {
+    const merged = [...baseMessages]
+    const knownIds = new Set(baseMessages.map((message) => message.id))
+
+    for (const message of appendedMessages) {
+      if (knownIds.has(message.id)) {
+        continue
+      }
+      knownIds.add(message.id)
+      merged.push(message)
+    }
+
+    return merged
+  }
+
+  private limitChannelMessages(messages: MessageInfo[]) {
+    if (messages.length <= this.config.maxMessagesPerChannel) {
+      return messages
+    }
+
+    return [...messages]
+      .sort((left, right) => left.timestamp - right.timestamp)
+      .slice(-this.config.maxMessagesPerChannel)
+  }
+
+  private async channelMessageExists(selfId: string, channelId: string, messageId: string) {
+    const entry = this.createStoredChannelEntry(selfId, channelId)
+    const indexData = await this.loadOrCreateChannelIndex(selfId, channelId)
+
+    for (let chunkIndex = indexData.chunks.length - 1; chunkIndex >= 0; chunkIndex -= 1) {
+      const chunk = indexData.chunks[chunkIndex]
+      const messages = await this.readChunkMessages(entry.channelDirPath, chunk.fileName)
+      if (messages.some((message) => message.id === messageId)) {
+        return true
+      }
+    }
+
+    return false
   }
 
   private isSameBotInfo(left: BotInfo, right: BotInfo) {

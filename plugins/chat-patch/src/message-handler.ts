@@ -268,8 +268,7 @@ export class MessageHandler {
       const quoteMatch = content.match(/<quote id="([^"]+)"\/>/)
       if (quoteMatch) {
         const quoteId = quoteMatch[1]
-        const messages = await this.fileManager.readChannelMessages(session.selfId, finalChannelId)
-        const quotedMsg = messages.find((message) => message.id === quoteId)
+          const quotedMsg = await this.fileManager.findChannelMessageById(session.selfId, finalChannelId, quoteId)
 
         if (quotedMsg) {
           const realId = quotedMsg.id.startsWith('bot-msg-') ? quotedMsg.realId : quotedMsg.id
