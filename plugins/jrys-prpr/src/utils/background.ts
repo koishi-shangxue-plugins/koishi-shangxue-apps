@@ -46,16 +46,32 @@ function handleLocalPath(filePath: string): string {
 
   const stats = fs.lstatSync(localPath)
 
-  // 如果是文件夹
+  // 如果是文件夹：收集目录内的图片文件 + txt 文件每行 URL，合并后随机选一个
   if (stats.isDirectory()) {
-    const files = fs.readdirSync(localPath)
-      .filter(file => /\.(jpg|png|gif|bmp|webp)$/i.test(file))
-    if (files.length === 0) {
-      throw new Error(`文件夹 "${localPath}" 中未找到有效图片文件`)
+    const entries = fs.readdirSync(localPath)
+    const candidates: string[] = []
+
+    for (const entry of entries) {
+      const fullPath = path.join(localPath, entry)
+      // 图片文件直接作为候选项
+      if (/\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(entry)) {
+        candidates.push(pathToFileURL(fullPath).href)
+        continue
+      }
+      // txt 文件：每一行都作为候选项（行内容为 URL 或路径）
+      if (/\.txt$/i.test(entry)) {
+        const lines = fs.readFileSync(fullPath, 'utf-8')
+          .split('\n')
+          .map(l => l.trim())
+          .filter(Boolean)
+        candidates.push(...lines)
+      }
     }
-    const randomFile = files[Math.floor(Math.random() * files.length)]
-    const fullPath = path.join(localPath, randomFile)
-    return pathToFileURL(fullPath).href
+
+    if (candidates.length === 0) {
+      throw new Error(`文件夹 "${localPath}" 中未找到有效图片文件或 txt 条目`)
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)]
   }
 
   // 如果是文件

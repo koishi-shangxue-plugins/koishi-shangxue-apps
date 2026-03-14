@@ -41,7 +41,7 @@ export function apply(ctx: Context, config: ConfigType) {
     const retryCounts: Record<string, number> = {} // 使用一个对象来存储每个用户的重试次数
 
     // 初始化字体
-    await initializeFont(ctx, config)
+    await initializeFont(ctx)
 
     if (!fs.existsSync(root)) {
       fs.mkdirSync(root, { recursive: true })

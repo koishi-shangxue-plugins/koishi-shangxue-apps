@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { URL, pathToFileURL, fileURLToPath } from 'node:url'
 import type { Context, Session } from 'koishi'
 import type { Config, JrysData } from '../types'
-import { getFontDataUrl } from './font'
+import { getFontDataUrl, getFontFormatFromDataUrl } from './font'
 import { getFormattedDate } from './jrys'
 
 /**
@@ -31,13 +31,13 @@ margin-bottom: 10px;
 .lucky-star {
 font-size: 60px;
 margin-bottom: 10px;
-background: linear-gradient(to right, 
-#fcb5b5, 
-#fcd6ae, 
+background: linear-gradient(to right,
+#fcb5b5,
+#fcd6ae,
 #fde8a6,
-#c3f7b1, 
-#aed6fa, 
-#c4aff5, 
+#c3f7b1,
+#aed6fa,
+#c4aff5,
 #f1afcc);
 -webkit-background-clip: text;
 background-clip: text;
@@ -56,7 +56,7 @@ color: transparent;
 <style>
 ${fontDataUrl ? `@font-face {
 font-family: "${selectedFont}";
-src: url('${fontDataUrl}') format('truetype');
+src: url('${fontDataUrl}') format('${getFontFormatFromDataUrl(fontDataUrl)}');
 }` : ''}
 body, html {
 height: 100%;
@@ -143,13 +143,13 @@ margin-top: 10px;
 .today-text {
 font-size: 45px;
 margin-bottom: 10px;
-background: linear-gradient(to right, 
-#fcb5b5, 
-#fcd6ae, 
+background: linear-gradient(to right,
+#fcb5b5,
+#fcd6ae,
 #fde8a6,
-#c3f7b1, 
-#aed6fa, 
-#c4aff5, 
+#c3f7b1,
+#aed6fa,
+#c4aff5,
 #f1afcc);
 -webkit-background-clip: text;
 background-clip: text;
@@ -169,7 +169,7 @@ color: transparent;
 <div class="fortune-summary">${dJson.fortuneSummary}</div>
 <div class="lucky-star">${dJson.luckyStar}</div>
 </div>
-<div class="fortune-info2">           
+<div class="fortune-info2">
 <div class="sign-text">${dJson.signText}</div>
 <div class="unsign-text">
 ${dJson.unsignText}
