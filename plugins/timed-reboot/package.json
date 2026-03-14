@@ -27,5 +27,8 @@
   },
   "peerDependencies": {
     "koishi": "^4.18.9"
+  },
+  "devDependencies": {
+    "@koishijs/loader": "^4.6.11"
   }
 }
