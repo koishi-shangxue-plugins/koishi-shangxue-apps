@@ -1,0 +1,31 @@
+{
+  "name": "koishi-plugin-timed-reboot",
+  "description": "timed-reboot",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist",
+    "src",
+    "client"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "timed-reboot"
+  ],
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps",
+  "bugs": {
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps.git"
+  },
+  "peerDependencies": {
+    "koishi": "^4.18.9"
+  }
+}
