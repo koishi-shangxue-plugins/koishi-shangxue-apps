@@ -1,6 +1,6 @@
 import { Context, h } from 'koishi'
 import type { Config } from '../types'
-import { getBackgroundForChannel } from '../utils/background'
+import { getRandomBackground } from '../utils/background'
 import { getJrys } from '../utils/jrys'
 import { alreadySignedInToday, recordSignIn, updateUserCurrency } from '../utils/database'
 import { convertToBase64image } from '../utils/image'
@@ -24,7 +24,7 @@ export function registerJrysCommand(
       let hasSignedInToday = await alreadySignedInToday(ctx, session.userId, session.channelId, config)
       retryCounts[session.userId] = retryCounts[session.userId] || 0 // 初始化重试次数
       let Checkin_HintText_messageid: any
-      let backgroundImage = getBackgroundForChannel(config, session.channelId)
+      let backgroundImage = getRandomBackground(config)
       let BackgroundURL = backgroundImage.replace(/\\/g, '/')
       let imageBuffer: Buffer
       const dJson = await getJrys(session, config, logInfo)
@@ -50,8 +50,7 @@ ${dJson.unsignText}\n
             enablecurrencymessage = h.text(session.text(".CurrencyGetbackgroundimagesplit", [config.maintenanceCostPerUnit]))
           }
         }
-        let splitBackground = getBackgroundForChannel(config, session.channelId)
-        let splitBackgroundURL = splitBackground.replace(/\\/g, '/')
+        let splitBackgroundURL = getRandomBackground(config).replace(/\\/g, '/')
         let BackgroundURL_base64 = await convertToBase64image(ctx, splitBackgroundURL, logInfo)
         let message = [
           h.image(BackgroundURL_base64),
