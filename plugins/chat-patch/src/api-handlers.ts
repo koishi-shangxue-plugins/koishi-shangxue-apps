@@ -64,32 +64,20 @@ export class ApiHandlers {
       offset?: number
     }) => {
       try {
-        if (requestData.limit !== undefined) {
-          const result = await this.fileManager.readChannelMessagesPage(
-            requestData.selfId,
-            requestData.channelId,
-            requestData.limit,
-            requestData.offset || 0
-          )
+        const limit = Math.max(1, requestData.limit ?? this.config.messageChunkSize)
+        const result = await this.fileManager.readChannelMessagesPage(
+          requestData.selfId,
+          requestData.channelId,
+          limit,
+          requestData.offset || 0
+        )
 
-          this.logInfo('获取历史消息:', `${requestData.selfId}:${requestData.channelId}`, '共', result.messages.length, '条消息')
-
-          return {
-            success: true,
-            messages: result.messages,
-            total: result.total
-          }
-        }
-
-        // 未分页时，仍返回完整频道消息。
-        const messages = await this.fileManager.readChannelMessages(requestData.selfId, requestData.channelId)
-
-        this.logInfo('获取历史消息:', `${requestData.selfId}:${requestData.channelId}`, '共', messages.length, '条消息')
+        this.logInfo('获取历史消息:', `${requestData.selfId}:${requestData.channelId}`, '共', result.messages.length, '条消息')
 
         return {
           success: true,
-          messages: messages,
-          total: messages.length
+          messages: result.messages,
+          total: result.total
         }
       } catch (error: any) {
         this.logger.error('获取历史消息失败:', error)
@@ -440,6 +428,7 @@ export class ApiHandlers {
           config: {
             maxMessagesPerChannel: this.config.maxMessagesPerChannel,
             messageChunkSize: this.config.messageChunkSize,
+            channelCacheLimit: this.config.channelCacheLimit,
             maxPersistImages: this.config.maxPersistImages,
             loggerinfo: this.config.loggerinfo,
             blockedPlatforms: this.config.blockedPlatforms || [],
@@ -478,19 +467,6 @@ export class ApiHandlers {
         return { success: true, data: user }
       } catch (error: any) {
         return { success: false, error: error?.message || '获取用户信息失败' }
-      }
-    })
-
-    this.ctx.console.addListener('debug-get-raw-data' as any, async () => {
-      try {
-        const data = await this.fileManager.readRawDataSnapshot()
-        return {
-          success: true,
-          data: data
-        }
-      } catch (error: any) {
-        this.logger.error('获取原始数据失败:', error)
-        return { success: false, error: error?.message || String(error) }
       }
     })
 
