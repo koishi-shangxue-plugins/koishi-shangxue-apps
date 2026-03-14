@@ -1,24 +1,11 @@
 import { Context, h } from 'koishi'
 import type { Config } from '../types'
-import { getRandomBackground } from '../utils/background'
+import { getBackgroundForChannel } from '../utils/background'
 import { getJrys } from '../utils/jrys'
 import { alreadySignedInToday, recordSignIn, updateUserCurrency } from '../utils/database'
 import { convertToBase64image } from '../utils/image'
 import { generateFortuneHTML, getImageBuffer } from '../utils/render'
 import { sendImageMessage } from '../utils/message-sender'
-
-/**
- * 根据当前频道获取背景图
- * 若该群在 groupBackgroundConfig 中有配置且列表非空，则优先使用，否则回退到全局随机背景
- */
-function getBackgroundForChannel(config: Config, channelId: string): string {
-  const groupCfg = config.groupBackgroundConfig?.find(g => g.channelId === channelId)
-  if (groupCfg && groupCfg.BackgroundURL && groupCfg.BackgroundURL.length > 0) {
-    const urls = groupCfg.BackgroundURL
-    return urls[Math.floor(Math.random() * urls.length)]
-  }
-  return getRandomBackground(config)
-}
 
 /**
  * 注册今日运势主命令
@@ -101,6 +88,8 @@ ${dJson.unsignText}\n
           await page.setContent(HTMLsource)
           // 等待网络空闲
           await page.waitForNetworkIdle()
+          // 等待字体加载完成，避免截图时字体未就绪回退系统字体
+          await page.evaluate(() => document.fonts.ready)
           const element = await page.$('body')
 
           imageBuffer = await element.screenshot({
