@@ -304,7 +304,7 @@ export class FileManager {
         lastSaveTime: Date.now()
       }
       const jsonData = JSON.stringify(dataToWrite, null, 2)
-      await fs.writeFile(this.metadataFilePath, jsonData, 'utf8')
+      await this.atomicWriteTextFile(this.metadataFilePath, jsonData)
     } catch (error) {
       this.logger.error('写入元数据失败:', error)
     }
@@ -880,7 +880,7 @@ export class FileManager {
 
   private async writeChannelIndex(indexFilePath: string, indexData: ChannelIndexData) {
     await this.ensureDir(path.dirname(indexFilePath))
-    await fs.writeFile(indexFilePath, JSON.stringify(indexData, null, 2), 'utf8')
+    await this.atomicWriteTextFile(indexFilePath, JSON.stringify(indexData, null, 2))
   }
 
   private async readChunkMessages(channelDirPath: string, fileName: string): Promise<MessageInfo[]> {
@@ -898,7 +898,7 @@ export class FileManager {
 
   private async writeChunkMessages(channelDirPath: string, fileName: string, messages: MessageInfo[]) {
     await this.ensureDir(channelDirPath)
-    await fs.writeFile(this.getChunkFilePath(channelDirPath, fileName), JSON.stringify(messages, null, 2), 'utf8')
+    await this.atomicWriteTextFile(this.getChunkFilePath(channelDirPath, fileName), JSON.stringify(messages, null, 2))
   }
 
   private async writeMessagesToChunks(channelDirPath: string, indexData: ChannelIndexData, messages: MessageInfo[]) {
@@ -1400,5 +1400,37 @@ export class FileManager {
       && error !== null
       && 'code' in error
       && error.code === 'ENOENT'
+  }
+
+  private async atomicWriteTextFile(filePath: string, content: string) {
+    const tempFilePath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`
+
+    await fs.writeFile(tempFilePath, content, 'utf8'
+    )
+
+    try {
+      await fs.rename(tempFilePath, filePath)
+    } catch (error) {
+      if (this.isAtomicRenameReplaceError(error)) {
+        await fs.rm(filePath, { force: true })
+        await fs.rename(tempFilePath, filePath)
+        return
+      }
+
+      try {
+        await fs.rm(tempFilePath, { force: true })
+      } catch {
+        // 忽略临时文件清理失败，保留原始错误即可。
+      }
+
+      throw error
+    }
+  }
+
+  private isAtomicRenameReplaceError(error: unknown): boolean {
+    return typeof error === 'object'
+      && error !== null
+      && 'code' in error
+      && (error.code === 'EEXIST' || error.code === 'EPERM')
   }
 }
