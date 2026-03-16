@@ -39,7 +39,7 @@ export interface FilterGroup {
 }
 
 export interface Dialogue {
-  id: any
+  id: number
   question: string
   answer: string
   type: 'keyword' | 'regexp'

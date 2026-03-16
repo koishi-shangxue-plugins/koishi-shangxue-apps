@@ -48,7 +48,7 @@
           </div>
           <div class="form-item">
             <label>回复内容</label>
-            <textarea class="k-input" v-model="currentDialogue.answer"
+            <textarea ref="answerTextarea" class="k-input" v-model="currentDialogue.answer" @paste="handlePasteImage"
               placeholder="你好，{{session.username}}！试试 {{h.image('https://... Taffy.png')}}" :rows="5"></textarea>
           </div>
 
@@ -92,8 +92,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { ref, computed, nextTick } from 'vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import { useDialogLogic } from './logic'
 import FilterBuilder from './filter.vue'
 import { Dialogue } from './types'
@@ -155,6 +155,86 @@ const getFilterLabel = (dialogue: Dialogue) => {
     return scopeLabels[dialogue.scope] || dialogue.scope
   }
   return '无'
+}
+
+const answerTextarea = ref<HTMLTextAreaElement | null>(null)
+
+interface UploadResponse {
+  success: boolean
+  url?: string
+  message?: string
+}
+
+// 粘贴图片：上传到后端并在光标处插入 {{h.image("file://...")}}
+const handlePasteImage = async (event: ClipboardEvent) => {
+  const clipboardData = event.clipboardData
+  if (!clipboardData) return
+
+  const items = Array.from(clipboardData.items)
+  const imageItem = items.find(item => item.kind === 'file' && item.type.startsWith('image/'))
+  if (!imageItem) return
+
+  // 如果还没保存创建问答，无法按 id 归档
+  const id = currentDialogue.id
+  if (typeof id !== 'number' || !Number.isFinite(id) || id <= 0) {
+    event.preventDefault()
+    ElMessage.warning('请先保存创建问答后再粘贴图片。')
+    return
+  }
+
+  const file = imageItem.getAsFile()
+  if (!file) return
+
+  // 阻止默认粘贴行为（避免把不可见字符/文件名塞进 textarea）
+  event.preventDefault()
+
+  const target = event.target
+  if (!(target instanceof HTMLTextAreaElement)) return
+
+  try {
+    const resp = await uploadClipboardImage(file, id)
+    if (!resp.success || !resp.url) {
+      ElMessage.error(resp.message || '图片上传失败')
+      return
+    }
+
+    const insertText = `{{h.image("${resp.url}")}}`
+    insertAtCursor(target, insertText)
+    ElMessage.success('图片已保存并插入引用')
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    ElMessage.error(`图片上传失败：${message}`)
+  }
+}
+
+const uploadClipboardImage = async (file: File, dialogueId: number): Promise<UploadResponse> => {
+  const response = await fetch('/dialogue-webui/upload-image', {
+    method: 'POST',
+    headers: {
+      'x-dialogue-id': String(dialogueId),
+      'x-filename': file.name,
+    },
+    body: file,
+  })
+
+  const data = await response.json().catch(() => ({ success: false, message: '后端返回不是 JSON。' })) as UploadResponse
+  if (!response.ok) {
+    return { success: false, message: data.message || `HTTP ${response.status}` }
+  }
+  return data
+}
+
+const insertAtCursor = (textarea: HTMLTextAreaElement, text: string) => {
+  const current = currentDialogue.answer || ''
+  const start = textarea.selectionStart ?? current.length
+  const end = textarea.selectionEnd ?? start
+
+  currentDialogue.answer = current.slice(0, start) + text + current.slice(end)
+  nextTick(() => {
+    textarea.focus()
+    const pos = start + text.length
+    textarea.setSelectionRange(pos, pos)
+  })
 }
 
 </script>

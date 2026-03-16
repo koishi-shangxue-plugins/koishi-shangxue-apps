@@ -2,13 +2,18 @@ import { ref, reactive, onMounted } from 'vue'
 import { send } from '@koishijs/client'
 import { Dialogue } from './types'
 
+type SendFn = <T = unknown>(event: string, ...args: unknown[]) => Promise<T>
+const sendConsole = send as unknown as SendFn
+
+type DialogueForm = Omit<Dialogue, 'id'> & { id: number | null }
+
 export function useDialogLogic() {
   // State
   const dialogues = ref<Dialogue[]>([])
   const showModal = ref(false)
   const showFilterModal = ref(false)
   const isEditMode = ref(false)
-  const currentDialogue = reactive<Partial<Dialogue>>({
+  const currentDialogue = reactive<DialogueForm>({
     id: null,
     question: '',
     answer: '',
@@ -19,7 +24,7 @@ export function useDialogLogic() {
   // 从后端获取数据
   const fetchDialogues = async () => {
     try {
-      dialogues.value = await (send as any)('webdialogue/list') as any
+      dialogues.value = await sendConsole<Dialogue[]>('webdialogue/list')
     } catch (error) {
       console.error('获取问答列表失败:', error)
     }
@@ -72,10 +77,15 @@ export function useDialogLogic() {
     }
 
     try {
+      const { id, ...payload } = currentDialogue
       if (isEditMode.value) {
-        await (send as any)('webdialogue/update', currentDialogue)
+        if (typeof id !== 'number') {
+          alert('当前问答缺少 id，无法保存。')
+          return
+        }
+        await sendConsole('webdialogue/update', { ...payload, id })
       } else {
-        await (send as any)('webdialogue/create', currentDialogue)
+        await sendConsole('webdialogue/create', payload)
       }
       showModal.value = false
       await fetchDialogues()
@@ -86,10 +96,11 @@ export function useDialogLogic() {
 
   // 保存过滤器设置
   const handleSaveFilter = async () => {
-    if (!currentDialogue.id) return
+    if (typeof currentDialogue.id !== 'number') return
 
     try {
-      await (send as any)('webdialogue/update', currentDialogue)
+      const { id, ...payload } = currentDialogue
+      await sendConsole('webdialogue/update', { ...payload, id })
       showFilterModal.value = false
       await fetchDialogues()
     } catch (error) {
@@ -101,7 +112,7 @@ export function useDialogLogic() {
   const handleDelete = async (id: number | null | undefined) => {
     if (!id) return
     try {
-      await (send as any)('webdialogue/delete', id)
+      await sendConsole('webdialogue/delete', id)
       // 如果是在编辑模态框中删除，需要关闭模态框
       if (showModal.value && isEditMode.value && currentDialogue.id === id) {
         showModal.value = false
