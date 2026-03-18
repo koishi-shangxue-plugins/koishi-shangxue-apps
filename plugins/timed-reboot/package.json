@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-timed-reboot",
-  "description": "timed-reboot",
-  "version": "0.0.1",
+  "description": "定时重启你的koishi！",
+  "version": "0.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

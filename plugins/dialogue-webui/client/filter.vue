@@ -1,32 +1,14 @@
 <template>
   <div class="filter-builder">
-    <div class="filter-header">
-      <button class="k-button small add-action" @click="addGroup">添加条件组</button>
-    </div>
-
-    <div v-if="!modelValue || modelValue.length === 0" class="empty-state">
+    <!-- 扁平化条件组：固定只有一个条件组（不再允许添加/删除条件组） -->
+    <div v-if="!group" class="empty-state">
       <p>暂无过滤条件，将匹配所有消息</p>
+      <button class="k-button small add-action" @click="addCondition">添加条件</button>
     </div>
 
-    <div v-for="(group, groupIndex) in modelValue" :key="groupIndex" class="filter-group">
+    <div v-else class="filter-group">
       <div class="group-header">
-        <span class="group-label">条件组 {{ groupIndex + 1 }}</span>
-        <div class="group-connector" v-if="groupIndex > 0">
-          <span class="connector-label">与上一组的关系：</span>
-          <div class="group-logic">
-            <label>
-              <input type="radio" :value="'and'" v-model="group.connector"
-                @change="() => emit('update:modelValue', props.modelValue || [])" />
-              <span>与（AND）</span>
-            </label>
-            <label>
-              <input type="radio" :value="'or'" v-model="group.connector"
-                @change="() => emit('update:modelValue', props.modelValue || [])" />
-              <span>或（OR）</span>
-            </label>
-          </div>
-        </div>
-        <button class="k-button small delete-action" @click="confirmRemoveGroup(groupIndex)">删除组</button>
+        <span class="group-label">条件组</span>
       </div>
 
       <div class="conditions-list">
@@ -36,12 +18,12 @@
             <div class="group-logic">
               <label>
                 <input type="radio" :value="'and'" v-model="condition.connector"
-                  @change="() => emit('update:modelValue', props.modelValue || [])" />
+                  @change="emitCurrent()" />
                 <span>与（AND）</span>
               </label>
               <label>
                 <input type="radio" :value="'or'" v-model="condition.connector"
-                  @change="() => emit('update:modelValue', props.modelValue || [])" />
+                  @change="emitCurrent()" />
                 <span>或（OR）</span>
               </label>
             </div>
@@ -49,14 +31,14 @@
 
           <div class="condition-row">
             <select v-model="condition.field" class="k-select"
-              @change="() => emit('update:modelValue', props.modelValue || [])">
+              @change="emitCurrent()">
               <option v-for="field in fieldOptions" :key="field.value" :value="field.value">
                 {{ field.label }}
               </option>
             </select>
 
             <select v-model="condition.operator" class="k-select"
-              @change="() => emit('update:modelValue', props.modelValue || [])">
+              @change="emitCurrent()">
               <option v-for="op in getOperatorsForField(condition.field)" :key="op.value" :value="op.value">
                 {{ op.label }}
               </option>
@@ -64,19 +46,19 @@
 
             <input v-model="condition.value" class="k-input" :placeholder="getPlaceholderForField(condition.field)"
               :type="getInputTypeForField(condition.field)"
-              @input="() => emit('update:modelValue', props.modelValue || [])" />
+              @input="emitCurrent()" />
 
             <button class="k-button small delete-action"
-              @click="confirmRemoveCondition(groupIndex, condIndex)">删除条件</button>
+              @click="confirmRemoveCondition(condIndex)">删除条件</button>
           </div>
         </div>
 
-        <button class="k-button small add-action" @click="addCondition(groupIndex)">添加条件</button>
+        <button class="k-button small add-action" @click="addCondition">添加条件</button>
       </div>
     </div>
 
     <!-- 代码预览 -->
-    <div v-if="modelValue && modelValue.length > 0" class="code-preview">
+    <div v-if="group && group.conditions.length > 0" class="code-preview">
       <h4>过滤条件预览</h4>
       <pre><code>{{ generateCodePreview() }}</code></pre>
     </div>
@@ -95,6 +77,17 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: FilterGroup[]]
 }>()
+
+const group = computed(() => props.modelValue?.[0])
+
+// 将 v-model 统一收敛到“单条件组”
+const emitCurrent = () => {
+  if (!group.value) {
+    emit('update:modelValue', [])
+    return
+  }
+  emit('update:modelValue', [group.value])
+}
 
 // 字段选项
 const fieldOptions = [
@@ -171,64 +164,46 @@ const getInputTypeForField = (field: FilterField | '') => {
   return 'text'
 }
 
-// 添加条件组
-const addGroup = () => {
-  const newGroups = [...(props.modelValue || [])]
-  newGroups.push({
-    connector: 'and', // 与上一组的连接关系，默认 AND
-    conditions: []
-  })
-  emit('update:modelValue', newGroups)
-}
-
-// 删除条件组
-const removeGroup = (groupIndex: number) => {
-  const newGroups = [...(props.modelValue || [])]
-  newGroups.splice(groupIndex, 1)
-  emit('update:modelValue', newGroups)
-}
-
-// 确认删除条件组
-const confirmRemoveGroup = async (groupIndex: number) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除条件组 ${groupIndex + 1} 吗？<br><br>此操作不可恢复。`,
-      '删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-        dangerouslyUseHTMLString: true
-      }
-    )
-    removeGroup(groupIndex)
-  } catch {
-    // 用户取消删除
-  }
-}
-
 // 添加条件
-const addCondition = (groupIndex: number) => {
-  const newGroups = [...(props.modelValue || [])]
+const addCondition = () => {
+  // 固定只有一个条件组：不存在时先创建
+  const currentGroup: FilterGroup = group.value
+    ? group.value
+    : { connector: 'and', conditions: [] }
+
+  const newGroup: FilterGroup = {
+    ...currentGroup,
+    conditions: [...(currentGroup.conditions || [])],
+  }
+
   // 添加新条件，使用第一个选项作为默认值
-  newGroups[groupIndex].conditions.push({
+  newGroup.conditions.push({
     field: fieldOptions[0].value as FilterField,
     operator: allOperators[0].value as FilterOperator,
     value: '',
     connector: 'and' // 默认与上一个条件是 AND 关系
   })
-  emit('update:modelValue', newGroups)
+  emit('update:modelValue', [newGroup])
 }
 
 // 删除条件
-const removeCondition = (groupIndex: number, condIndex: number) => {
-  const newGroups = [...(props.modelValue || [])]
-  newGroups[groupIndex].conditions.splice(condIndex, 1)
-  emit('update:modelValue', newGroups)
+const removeCondition = (condIndex: number) => {
+  if (!group.value) return
+  const newGroup: FilterGroup = {
+    ...group.value,
+    conditions: [...(group.value.conditions || [])],
+  }
+  newGroup.conditions.splice(condIndex, 1)
+  // 没有条件时，清空过滤器
+  if (newGroup.conditions.length === 0) {
+    emit('update:modelValue', [])
+    return
+  }
+  emit('update:modelValue', [newGroup])
 }
 
 // 确认删除条件
-const confirmRemoveCondition = async (groupIndex: number, condIndex: number) => {
+const confirmRemoveCondition = async (condIndex: number) => {
   try {
     await ElMessageBox.confirm(
       `确定要删除此条件吗？<br><br>此操作不可恢复。`,
@@ -240,7 +215,7 @@ const confirmRemoveCondition = async (groupIndex: number, condIndex: number) => 
         dangerouslyUseHTMLString: true
       }
     )
-    removeCondition(groupIndex, condIndex)
+    removeCondition(condIndex)
   } catch {
     // 用户取消删除
   }
@@ -248,16 +223,11 @@ const confirmRemoveCondition = async (groupIndex: number, condIndex: number) => 
 
 // 生成代码预览
 const generateCodePreview = () => {
-  if (!props.modelValue || props.modelValue.length === 0) {
+  if (!group.value || group.value.conditions.length === 0) {
     return '// 无过滤条件'
   }
 
-  const allGroupConditions: Array<{ condition: string; connector?: 'and' | 'or' }> = []
-
-  props.modelValue.forEach((group) => {
-    if (group.conditions.length === 0) return
-
-    const groupConditions = group.conditions.map(cond => {
+  const groupConditions = group.value.conditions.map(cond => {
       const fieldMap: Record<string, string> = {
         userId: 'session.userId',
         channelId: 'session.channelId',
@@ -335,33 +305,20 @@ const generateCodePreview = () => {
       }
     }).filter(c => c) // 过滤掉空条件
 
-    if (groupConditions.length === 0) return
-
-    // 构建组内条件，使用每个条件的 connector
-    let groupCondition = groupConditions[0]
-    for (let i = 1; i < groupConditions.length; i++) {
-      const cond = group.conditions[i]
-      const connectorSymbol = cond.connector === 'or' ? ' || ' : ' && '
-      groupCondition += connectorSymbol + groupConditions[i]
-    }
-
-    // 如果有多个条件，用括号包裹
-    if (groupConditions.length > 1) {
-      allGroupConditions.push({ condition: `(${groupCondition})`, connector: group.connector })
-    } else {
-      allGroupConditions.push({ condition: groupCondition, connector: group.connector })
-    }
-  })
-
-  if (allGroupConditions.length === 0) {
+  if (groupConditions.length === 0) {
     return '// 无有效过滤条件'
   }
 
-  // 构建最终条件，使用每个组的 connector
-  let finalCondition = allGroupConditions[0].condition
-  for (let i = 1; i < allGroupConditions.length; i++) {
-    const connectorSymbol = allGroupConditions[i].connector === 'or' ? ' || ' : ' && '
-    finalCondition += `\n  ${connectorSymbol}${allGroupConditions[i].condition}`
+  // 构建条件组内条件，使用每个条件的 connector
+  let finalCondition = groupConditions[0]
+  for (let i = 1; i < groupConditions.length; i++) {
+    const cond = group.value.conditions[i]
+    const connectorSymbol = cond.connector === 'or' ? ' || ' : ' && '
+    finalCondition += connectorSymbol + groupConditions[i]
+  }
+
+  if (groupConditions.length > 1) {
+    finalCondition = `(${finalCondition})`
   }
 
   return `if (${finalCondition}) {\n  // 触发关键词回复\n}`

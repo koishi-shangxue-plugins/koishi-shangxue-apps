@@ -142,8 +142,10 @@ const getTypeLabel = (value: string) => typeOptions.find(o => o.value === value)
 // 获取过滤条件的简短描述
 const getFilterLabel = (dialogue: Dialogue) => {
   if (dialogue.filterGroups && dialogue.filterGroups.length > 0) {
-    const totalConditions = dialogue.filterGroups.reduce((sum, group) => sum + group.conditions.length, 0)
-    return `${dialogue.filterGroups.length}组/${totalConditions}条件`
+    // 扁平化条件组：只保留 1 个条件组，展示条件数量即可
+    const firstGroup = dialogue.filterGroups[0]
+    const totalConditions = firstGroup?.conditions?.length || 0
+    return totalConditions > 0 ? `${totalConditions}条件` : '无'
   }
   // 兼容旧数据
   if (dialogue.scope) {

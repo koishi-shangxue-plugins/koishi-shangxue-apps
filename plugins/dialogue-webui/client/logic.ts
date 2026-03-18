@@ -52,7 +52,8 @@ export function useDialogLogic() {
     // 确保 filterGroups 存在，兼容旧数据
     Object.assign(currentDialogue, {
       ...dialogue,
-      filterGroups: dialogue.filterGroups || []
+      // 只保留一个条件组（扁平化条件组）
+      filterGroups: (dialogue.filterGroups || []).slice(0, 1)
     })
     showModal.value = true
   }
@@ -63,21 +64,27 @@ export function useDialogLogic() {
     // 确保 filterGroups 存在，兼容旧数据
     Object.assign(currentDialogue, {
       ...dialogue,
-      filterGroups: dialogue.filterGroups || []
+      // 只保留一个条件组（扁平化条件组）
+      filterGroups: (dialogue.filterGroups || []).slice(0, 1)
     })
     showFilterModal.value = true
   }
 
   // 保存（创建或更新）
   const handleSave = async () => {
+    // 统一去掉前后空格，避免“关键词/回复内容”被空格干扰
+    currentDialogue.question = currentDialogue.question.trim()
+    currentDialogue.answer = currentDialogue.answer.trim()
     // 输入验证
-    if (!currentDialogue.question?.trim() || !currentDialogue.answer?.trim()) {
+    if (!currentDialogue.question || !currentDialogue.answer) {
       alert('关键词和回复内容不能为空！')
       return
     }
 
     try {
       const { id, ...payload } = currentDialogue
+      // 只允许一个条件组（扁平化条件组）
+      payload.filterGroups = (payload.filterGroups || []).slice(0, 1)
       if (isEditMode.value) {
         if (typeof id !== 'number') {
           alert('当前问答缺少 id，无法保存。')
@@ -100,6 +107,8 @@ export function useDialogLogic() {
 
     try {
       const { id, ...payload } = currentDialogue
+      // 只允许一个条件组（扁平化条件组）
+      payload.filterGroups = (payload.filterGroups || []).slice(0, 1)
       await sendConsole('webdialogue/update', { ...payload, id })
       showFilterModal.value = false
       await fetchDialogues()
