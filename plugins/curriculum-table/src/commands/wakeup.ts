@@ -8,13 +8,13 @@ import { TABLE_NAME } from '../types'
 import { calculateDate, resolveTargetUser } from '../utils'
 
 export function registerWakeupCommand(ctx: Context, config: Config, logInfo: LogInfoFn): void {
-  ctx.command(`${config.command}.${config.command13} <param:text>`)
+  ctx.command(`${config.baseCommand}.${config.importWakeupCommand} <param:text>`)
     .option('target', '-t <target:text> 指定用户（请直接@目标用户）')
-    .example(`${config.command13} 这是来自「WakeUp课程表」的课表分享......分享口令为「PaJ_8Kj_zeelspJs2HBL1」`)
+    .example(`${config.importWakeupCommand} 这是来自「WakeUp课程表」的课表分享......分享口令为「PaJ_8Kj_zeelspJs2HBL1」`)
     .action(async ({ session, options }, param) => {
       if (!param) {
         await session.send('请输入wakeup课程表分享口令：')
-        param = await session.prompt(config.waittimeout * 1000)
+        param = await session.prompt(config.interactionTimeoutSeconds * 1000)
       }
       const keyMatch = param.match(/分享口令为「(.*?)」/)
       if (!keyMatch) return '未检测到分享口令，请检查输入格式。'
@@ -118,7 +118,7 @@ export function registerWakeupCommand(ctx: Context, config: Config, logInfo: Log
         }
 
         if (importedCount > 0) {
-          if (config.autocommand14) await session.execute(config.command14)
+          if (config.autoDeduplicateOnImport) await session.execute(config.deduplicateCoursesCommand)
           return `已成功导入 ${importedCount} 门课程：${details}`
         } else {
           return '课程表导入完成，但没有可导入的新课程（可能已全部导入或数据异常）。'

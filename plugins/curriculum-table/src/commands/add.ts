@@ -8,9 +8,9 @@ import { TABLE_NAME } from '../types'
 import { parseWeekdays, resolveTargetUser } from '../utils'
 
 export function registerAddCommand(ctx: Context, config: Config, logInfo: LogInfoFn): void {
-  ctx.command(`${config.command}.${config.command11} <param1:string> <param2:string> <param3:string>`)
+  ctx.command(`${config.baseCommand}.${config.addCourseCommand} <param1:string> <param2:string> <param3:string>`)
     .option('target', '-t <target:text> 指定用户（请直接@目标用户）')
-    .example(`${config.command11} 周一周三 高等数学 8:00-9:30`)
+    .example(`${config.addCourseCommand} 周一周三 高等数学 8:00-9:30`)
     .action(async ({ session, options }, param1, param2, param3) => {
       if (!param1 || !param2 || !param3) {
         return '请提供所有必需的参数：日期、课程名称和时间。'
@@ -48,8 +48,8 @@ export function registerAddCommand(ctx: Context, config: Config, logInfo: LogInf
         })
         logInfo(`用户 ${targetUser.userId} 添加课程: ${classnameParam} ${normalizedWeekday.join(',')} ${normalizedTime}`)
 
-        if (config.autocommand14) {
-          await session.execute(config.command14)
+        if (config.autoDeduplicateOnImport) {
+          await session.execute(config.deduplicateCoursesCommand)
         }
         return `已为 ${targetUser.username} 添加课程：${classnameParam} ${normalizedWeekday.join(',')} ${normalizedTime}`
       } catch (e) {

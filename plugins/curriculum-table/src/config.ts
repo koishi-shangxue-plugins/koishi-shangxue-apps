@@ -3,6 +3,51 @@
  */
 import { Schema } from 'koishi'
 
+export interface CommandNamesConfig {
+  baseCommand: string
+  addCourseCommand: string
+  removeCourseCommand: string
+  clearUserCoursesCommand: string
+  clearChannelCoursesCommand: string
+  importWakeupCommand: string
+  deduplicateCoursesCommand: string
+  viewScheduleCommand: string
+}
+
+export interface InteractionConfig {
+  interactionTimeoutSeconds: number
+  autoDeduplicateOnImport: boolean
+}
+
+export interface PushSubscriptionConfig {
+  botId: string
+  channelId: string
+  pushTime: string
+}
+
+export interface ScheduledPushConfig {
+  enableScheduledPush: boolean
+  subscriptions?: PushSubscriptionConfig[]
+}
+
+export interface RenderSettingsConfig {
+  screenshotQuality: number
+  backgroundColor: string
+  footerText: string
+}
+
+export interface FontSettingsConfig {
+  useGlyphService: boolean
+  glyphFontFamily?: string
+}
+
+export interface DebugConfig {
+  enableDebugLogging: boolean
+  closePageAfterRender: boolean
+}
+
+export interface Config extends CommandNamesConfig, InteractionConfig, ScheduledPushConfig, RenderSettingsConfig, FontSettingsConfig, DebugConfig {}
+
 export const name = 'curriculum-table'
 export const inject = {
   required: ['puppeteer', 'database'],
@@ -15,59 +60,57 @@ export const usage = `
 
 export const Config = Schema.intersect([
   Schema.object({
-    command: Schema.string().default('群友课表').description('注册的`父级指令`的名称'),
-    command11: Schema.string().default('添加').description('实现 `添加课程` 的指令名称'),
-    command12: Schema.string().default('移除').description('实现 `移除单门课程` 的指令名称'),
-    command12b: Schema.string().default('删除个人').description('实现 `删除个人课表（清除自己在本群的所有课程）` 的指令名称'),
-    command12c: Schema.string().default('删除群组').description('实现 `删除群组课表（清除本群所有人的所有课程，需二次确认）` 的指令名称'),
-    command13: Schema.string().default('wakeup').description('实现 `wakeup快速导入课表` 的指令名称'),
-    command14: Schema.string().default('去重').description('实现 `课程去重` 的指令名称'),
-    command21: Schema.string().default('看看').description('实现 `查看当前群组的课表` 的指令名称'),
+    baseCommand: Schema.string().default('群友课表').description('注册的父级指令名称'),
+    addCourseCommand: Schema.string().default('添加').description('添加课程指令名称'),
+    removeCourseCommand: Schema.string().default('移除').description('移除单门课程指令名称'),
+    clearUserCoursesCommand: Schema.string().default('删除个人').description('删除个人课表指令名称（清除自己在本群的所有课程）'),
+    clearChannelCoursesCommand: Schema.string().default('删除群组').description('删除群组课表指令名称（清除本群所有人的所有课程，需二次确认）'),
+    importWakeupCommand: Schema.string().default('wakeup').description('WakeUp 快速导入指令名称'),
+    deduplicateCoursesCommand: Schema.string().default('去重').description('课程去重指令名称'),
+    viewScheduleCommand: Schema.string().default('看看').description('查看当前群组课表指令名称'),
   }).description('基础设置'),
 
   Schema.object({
-    waittimeout: Schema.number().description('等待用户交互的超时时间。（单位：秒）').default(30),
-    autocommand14: Schema.boolean().default(true).description('添加课程时，自动执行`课程去重`'),
+    interactionTimeoutSeconds: Schema.number().description('等待用户交互的超时时间（秒）').default(30),
+    autoDeduplicateOnImport: Schema.boolean().default(true).description('添加或导入课程后自动执行课程去重'),
   }).description('进阶设置'),
 
   Schema.object({
-    cronPush: Schema.boolean().default(false).description('是否开启自动推送功能。**需要cron服务！**<br>指定机器人，并定时推送到指定频道'),
+    enableScheduledPush: Schema.boolean().default(false).description('是否开启定时主动推送功能。需要 cron 服务，并指定机器人与频道。'),
   }).description('定时推送'),
   Schema.union([
     Schema.object({
-      cronPush: Schema.const(true).required(),
-      subscribe: Schema.array(Schema.object({
-        bot: Schema.string().description('机器人ID'),
+      enableScheduledPush: Schema.const(true).required(),
+      subscriptions: Schema.array(Schema.object({
+        botId: Schema.string().description('机器人 ID'),
         channelId: Schema.string().description('群组ID'),
-        time: Schema.string().role('time').description('每日推送时间').default('07:30:00'),
+        pushTime: Schema.string().role('time').description('每日推送时间').default('07:30:00'),
       })).role('table').description('在指定群组订阅课表 定时主动推送'),
     }),
     Schema.object({
-      cronPush: Schema.const(false),
+      enableScheduledPush: Schema.const(false),
     }),
   ]),
 
   Schema.object({
-    screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(80).description('设置图片压缩 保留质量（%）'),
-    backgroundcolor: Schema.string().role('color').description('渲染的课表底色背景色（新UI模板不使用此项）').default('rgba(234, 228, 225, 1)'),
-    footertext: Schema.string().role('textarea', { rows: [2, 4] }).description('页脚描述文字。换行请用`<br>`').default('使用 /schedule.set 指令设置课程表'),
+    screenshotQuality: Schema.number().role('slider').min(0).max(100).step(1).default(80).description('设置图片压缩保留质量（%）'),
+    backgroundColor: Schema.string().role('color').description('渲染课表底色背景色（新 UI 模板当前不使用）').default('rgba(234, 228, 225, 1)'),
+    footerText: Schema.string().role('textarea', { rows: [2, 4] }).description('页脚描述文字。换行请用 <br>').default('使用 /schedule.set 指令设置课程表'),
   }).description('渲染设置'),
 
   Schema.object({
-    useGlyph: Schema.boolean().default(false).description('是否启用 `glyph` 字体服务。<br>启用后，将优先使用 `glyph` 服务提供的字体。'),
+    useGlyphService: Schema.boolean().default(false).description('是否启用 glyph 字体服务。启用后优先使用 glyph 提供的字体。'),
   }).description('字体设置'),
   Schema.union([
     Schema.object({
-      useGlyph: Schema.const(true).required(),
-      fontFamily: Schema.dynamic('glyph.fonts').description('选择字体'),
+      useGlyphService: Schema.const(true).required(),
+      glyphFontFamily: Schema.dynamic('glyph.fonts').description('选择 glyph 字体'),
     }),
     Schema.object({}),
   ]),
 
   Schema.object({
-    loggerinfo: Schema.boolean().default(false).description('日志调试模式 `非必要不开启`'),
-    pageclose: Schema.boolean().default(true).description('puppeteer 自动 page.close<br>非开发者请勿改动'),
+    enableDebugLogging: Schema.boolean().default(false).description('日志调试模式，非必要不开启'),
+    closePageAfterRender: Schema.boolean().default(true).description('渲染完成后自动关闭 puppeteer page，非开发者请勿改动'),
   }).description('开发者选项'),
-])
-
-export type Config = typeof Config extends Schema<infer T> ? T : never
+]) as Schema<Config>

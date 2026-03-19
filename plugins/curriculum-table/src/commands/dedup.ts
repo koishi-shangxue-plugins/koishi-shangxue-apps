@@ -7,7 +7,7 @@ import type { CurriculumTable, LogInfoFn } from '../types'
 import { TABLE_NAME } from '../types'
 
 export function registerDedupCommand(ctx: Context, config: Config, logInfo: LogInfoFn): void {
-  ctx.command(`${config.command}.${config.command14}`)
+  ctx.command(`${config.baseCommand}.${config.deduplicateCoursesCommand}`)
     .action(async ({ session }) => {
       const userId = session.userId
       const channelId = session.channelId

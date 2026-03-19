@@ -27,7 +27,7 @@ declare module 'koishi' {
 
 export async function apply(ctx: Context, config: CurriculumTableConfig) {
   function logInfo(msg: string, ...rest: unknown[]): void {
-    if (config.loggerinfo) {
+    if (config.enableDebugLogging) {
       ctx.logger.info(msg, ...rest)
     }
   }
@@ -36,13 +36,13 @@ export async function apply(ctx: Context, config: CurriculumTableConfig) {
   const templatePath = path.join(__dirname, 'template.html')
 
   const renderConfig: RenderConfig = {
-    screenshotquality: config.screenshotquality,
-    backgroundcolor: config.backgroundcolor,
-    footertext: config.footertext,
-    pageclose: config.pageclose,
-    useGlyph: config.useGlyph,
-    fontFamily: (config as { fontFamily?: string }).fontFamily,
-    loggerinfo: config.loggerinfo,
+    screenshotQuality: config.screenshotQuality,
+    backgroundColor: config.backgroundColor,
+    footerText: config.footerText,
+    closePageAfterRender: config.closePageAfterRender,
+    useGlyphService: config.useGlyphService,
+    glyphFontFamily: config.glyphFontFamily,
+    enableDebugLogging: config.enableDebugLogging,
   }
 
   ctx.on('ready', async () => {
@@ -64,7 +64,7 @@ export async function apply(ctx: Context, config: CurriculumTableConfig) {
       autoInc: true,
     })
 
-    ctx.command(config.command)
+    ctx.command(config.baseCommand)
 
     registerAddCommand(ctx, config, logInfo)
     registerWakeupCommand(ctx, config, logInfo)
@@ -76,14 +76,14 @@ export async function apply(ctx: Context, config: CurriculumTableConfig) {
   })
 
   ctx.on('ready', () => {
-    if (!config.cronPush || !config.subscribe || config.subscribe.length === 0) return
+    if (!config.enableScheduledPush || !config.subscriptions || config.subscriptions.length === 0) return
 
     ctx.inject(['cron'], (childCtx) => {
-      for (const sub of config.subscribe) {
-        const { bot: botId, channelId, time } = sub
-        if (!time) continue
+      for (const sub of config.subscriptions) {
+        const { botId, channelId, pushTime } = sub
+        if (!pushTime) continue
 
-        const [hour, minute] = time.split(':')
+        const [hour, minute] = pushTime.split(':')
         const cronExpr = `${minute} ${hour} * * *`
 
         try {

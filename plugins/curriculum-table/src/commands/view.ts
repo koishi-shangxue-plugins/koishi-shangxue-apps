@@ -15,7 +15,7 @@ export function registerViewCommand(
   templatePath: string,
   logInfo: LogInfoFn,
 ): void {
-  ctx.command(`${config.command}.${config.command21} [day:string]`)
+  ctx.command(`${config.baseCommand}.${config.viewScheduleCommand} [day:string]`)
     .action(async ({ session }, day) => {
       let dayOffset = 0
       if (day) {

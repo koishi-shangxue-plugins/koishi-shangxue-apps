@@ -30,26 +30,26 @@ export interface CourseRenderItem {
 
 /** 渲染所需的 config 子集 */
 export interface RenderConfig {
-  screenshotquality: number
-  backgroundcolor: string
-  footertext: string
-  pageclose: boolean
-  useGlyph: boolean
-  fontFamily?: string
-  loggerinfo: boolean
+  screenshotQuality: number
+  backgroundColor: string
+  footerText: string
+  closePageAfterRender: boolean
+  useGlyphService: boolean
+  glyphFontFamily?: string
+  enableDebugLogging: boolean
 }
 
 /** 加载字体 CSS 规则（优先 glyph，回退本地文件） */
-export async function getFontFaceRule(ctx: Context, config: Pick<RenderConfig, 'useGlyph' | 'fontFamily'>, fontDir: string): Promise<string> {
+export async function getFontFaceRule(ctx: Context, config: Pick<RenderConfig, 'useGlyphService' | 'glyphFontFamily'>, fontDir: string): Promise<string> {
   const fontName = '千图马克手写体lite'
   const localFontPath = path.join(fontDir, '方正像素12.ttf')
 
-  if (config.useGlyph && ctx.glyph && config.fontFamily) {
-    const fontDataUrl = ctx.glyph.getFontDataUrl(config.fontFamily)
+  if (config.useGlyphService && ctx.glyph && config.glyphFontFamily) {
+    const fontDataUrl = ctx.glyph.getFontDataUrl(config.glyphFontFamily)
     if (fontDataUrl) {
       return `@font-face { font-family: '${fontName}'; src: url('${fontDataUrl}'); }`
     }
-    ctx.logger.warn(`从 glyph 获取字体 ${config.fontFamily} 失败，回退到本地字体。`)
+    ctx.logger.warn(`从 glyph 获取字体 ${config.glyphFontFamily} 失败，回退到本地字体。`)
   }
 
   try {
@@ -327,7 +327,7 @@ export async function renderCourseTable(
       .replace('{{FONT_FACE_STYLE_TAG}}', fontStyleTag)
       .replace('{{COURSE_ITEMS}}', courseItemsHtml)
       .replace('{{FOOTER_TIME}}', escHtml(footerTime))
-      .replace('{{FOOTER_TEXT}}', config.footertext)
+      .replace('{{FOOTER_TEXT}}', config.footerText)
 
     await page.setContent(finalHtml, { waitUntil: 'domcontentloaded' })
 
@@ -340,21 +340,21 @@ export async function renderCourseTable(
 
     if (!containerBoundingBox) {
       ctx.logger.error('无法获取容器尺寸')
-      if (page && config.pageclose) await page.close()
+      if (page && config.closePageAfterRender) await page.close()
       return null
     }
 
     const image = await page.screenshot({
       clip: containerBoundingBox,
-      quality: config.screenshotquality,
+      quality: config.screenshotQuality,
       type: 'jpeg',
     })
 
-    if (page && config.pageclose) await page.close()
+    if (page && config.closePageAfterRender) await page.close()
     return h.image(image, 'image/jpeg')
 
   } catch (e) {
-    if (page && config.pageclose) await page.close().catch(() => { })
+    if (page && config.closePageAfterRender) await page.close().catch(() => { })
     ctx.logger.error('生成课程表图片失败:', e)
     return null
   }
