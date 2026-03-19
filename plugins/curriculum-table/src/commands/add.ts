@@ -11,6 +11,7 @@ export function registerAddCommand(ctx: Context, config: Config, logInfo: LogInf
   ctx.command(`${config.baseCommand}.${config.addCourseCommand} <param1:string> <param2:string> <param3:string>`)
     .option('target', '-t <target:text> 指定用户（请直接@目标用户）')
     .example(`${config.addCourseCommand} 周一周三 高等数学 8:00-9:30`)
+    .example(`${config.addCourseCommand} 周一 "大学体育 (四)" 14:30-16:10 -t @小明`)
     .action(async ({ session, options }, param1, param2, param3) => {
       if (!param1 || !param2 || !param3) {
         return '请提供所有必需的参数：日期、课程名称和时间。'
