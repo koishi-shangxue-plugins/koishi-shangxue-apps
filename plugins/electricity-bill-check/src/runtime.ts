@@ -256,7 +256,7 @@ export class ElectricityBillRuntime {
     const taskKey = this.getTaskKey(taskIndex)
     this.logger.debug(`[${taskKey}] 开始请求电费页面`)
 
-    const response = await fetch(this.resolveRequestUrl(), {
+    const response = await fetch(task.url, {
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -357,20 +357,6 @@ export class ElectricityBillRuntime {
     }
 
     return `减少 ${(previousValue - currentValue).toFixed(2)}`
-  }
-
-  private resolveRequestUrl() {
-    // 地址拆开写，避免在配置项里直接暴露。
-    return [
-      'https://epay.czu.cn',
-      '/wechat/h5/eleresult',
-      '?sysid=1',
-      '&roomid=14970',
-      '&areaid=1',
-      '&buildid=19',
-      '&buildname=%E8%8F%81%E5%9B%AD%E5%85%AC%E5%AF%935%E5%8F%B7-D',
-      '&roomname=514',
-    ].join('')
   }
 
   private getTaskKey(taskIndex: number) {

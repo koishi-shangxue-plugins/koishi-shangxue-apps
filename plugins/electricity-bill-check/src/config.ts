@@ -3,6 +3,9 @@ import type { Config as PluginConfig } from './types'
 
 export const Config: Schema<PluginConfig> = Schema.object({
   tasks: Schema.array(Schema.object({
+    url: Schema.string()
+      .description('请求地址（URL）')
+      .required().role("link"),
     regex: Schema.string()
       .description('用于提取电费结果的正则表达式，需使用捕获组')
       .default('([\\d.]+)度?'),
@@ -27,7 +30,7 @@ export const Config: Schema<PluginConfig> = Schema.object({
     enabled: Schema.boolean()
       .default(true)
       .description('是否启用该查询任务'),
-  }).description('查询任务配置')).role('table'),
+  }).description('查询任务配置')),
   loggerinfo: Schema.boolean()
     .default(false)
     .description('是否输出调试日志')

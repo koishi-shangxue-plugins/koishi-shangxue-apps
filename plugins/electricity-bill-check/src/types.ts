@@ -1,4 +1,5 @@
 export interface QueryTask {
+  url: string;
   regex: string;
   botId: string;
   channelId: string;
