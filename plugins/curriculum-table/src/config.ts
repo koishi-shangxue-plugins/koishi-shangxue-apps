@@ -32,7 +32,6 @@ export interface ScheduledPushConfig {
 
 export interface RenderSettingsConfig {
   screenshotQuality: number
-  backgroundColor: string
   footerText: string
 }
 
@@ -94,8 +93,7 @@ export const Config = Schema.intersect([
 
   Schema.object({
     screenshotQuality: Schema.number().role('slider').min(0).max(100).step(1).default(80).description('设置图片压缩保留质量（%）'),
-    backgroundColor: Schema.string().role('color').description('渲染课表底色背景色（新 UI 模板当前不使用）').default('rgba(234, 228, 225, 1)'),
-    footerText: Schema.string().role('textarea', { rows: [2, 4] }).description('页脚描述文字。换行请用 <br>').default('使用 /schedule.set 指令设置课程表'),
+    footerText: Schema.string().role('textarea', { rows: [2, 4] }).description('页脚描述文字。换行请用 <br>').default('使用 "群友课表.添加" 指令设置课程表'),
   }).description('渲染设置'),
 
   Schema.object({

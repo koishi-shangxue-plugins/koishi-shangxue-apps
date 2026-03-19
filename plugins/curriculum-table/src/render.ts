@@ -31,7 +31,6 @@ export interface CourseRenderItem {
 /** 渲染所需的 config 子集 */
 export interface RenderConfig {
   screenshotQuality: number
-  backgroundColor: string
   footerText: string
   closePageAfterRender: boolean
   useGlyphService: boolean

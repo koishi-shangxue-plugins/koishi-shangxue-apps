@@ -37,7 +37,6 @@ export async function apply(ctx: Context, config: CurriculumTableConfig) {
 
   const renderConfig: RenderConfig = {
     screenshotQuality: config.screenshotQuality,
-    backgroundColor: config.backgroundColor,
     footerText: config.footerText,
     closePageAfterRender: config.closePageAfterRender,
     useGlyphService: config.useGlyphService,
