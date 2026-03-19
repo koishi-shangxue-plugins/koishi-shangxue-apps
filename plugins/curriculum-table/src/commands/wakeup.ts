@@ -1,4 +1,3 @@
-
 import type { Context } from 'koishi'
 import type { Config } from '../config'
 import type { CurriculumTable, LogInfoFn } from '../types'
@@ -14,11 +13,12 @@ export function registerWakeupCommand(ctx: Context, config: Config, logInfo: Log
         await session.send('请输入wakeup课程表分享口令：')
         param = await session.prompt(config.interactionTimeoutSeconds * 1000)
       }
+
       const keyMatch = param.match(/分享口令为「(.*?)」/)
       if (!keyMatch) return '未检测到分享口令，请检查输入格式。'
       const shareKey = keyMatch[1]
 
-      const apiUrl = `https:
+      const apiUrl = `https://i.wakeup.fun/share_schedule/get?key=${shareKey}`
       const headers = {
         Connection: 'keep-alive',
         'Accept-Encoding': 'gzip',
@@ -45,7 +45,15 @@ export function registerWakeupCommand(ctx: Context, config: Config, logInfo: Log
 
         let timeTable: { node: number; startTime: string; endTime: string }[]
         let courseInfos: { id: number; courseName: string }[]
-        let courseDetails: { id: number; day: number; startNode: number; step: number; startWeek: number; endWeek: number; ownTime?: boolean }[]
+        let courseDetails: {
+          id: number
+          day: number
+          startNode: number
+          step: number
+          startWeek: number
+          endWeek: number
+          ownTime?: boolean
+        }[]
         let tableInfo: { startDate: string }
 
         try {
@@ -62,49 +70,59 @@ export function registerWakeupCommand(ctx: Context, config: Config, logInfo: Log
         if (!termStartDate) return 'API响应数据中缺少学期开始日期 (startDate)。'
 
         const targetUser = await resolveTargetUser(session, options.target)
-
-        const weekdayMap: Record<number, string> = { 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六', 7: '周日' }
+        const weekdayMap: Record<number, string> = {
+          1: '周一',
+          2: '周二',
+          3: '周三',
+          4: '周四',
+          5: '周五',
+          6: '周六',
+          7: '周日',
+        }
         const coursesToInsert: Omit<CurriculumTable, 'id'>[] = []
         const uniqueKeys = new Set<string>()
 
         for (const detail of courseDetails) {
           if (detail.ownTime) continue
+
           const courseInfo = courseInfos.find(info => info.id === detail.id)
           if (!courseInfo) continue
 
           const weekday = weekdayMap[detail.day]
           let startTime = ''
           let endTime = ''
+
           for (let i = detail.startNode; i < detail.startNode + detail.step; i++) {
             const slot = timeTable.find(s => s.node === i)
-            if (slot) {
-              if (!startTime) startTime = slot.startTime
-              endTime = slot.endTime
-            }
+            if (!slot) continue
+            if (!startTime) startTime = slot.startTime
+            endTime = slot.endTime
           }
+
           const curriculumtime = `${startTime.slice(0, 5)}-${endTime.slice(0, 5)}`
           const courseStartDate = calculateDate(termStartDate, detail.startWeek)
           const courseEndDate = calculateDate(termStartDate, detail.endWeek, true)
-
           const key = `${targetUser.userId}-${courseInfo.courseName}-${weekday}-${curriculumtime}-${courseStartDate}-${courseEndDate}`
-          if (!uniqueKeys.has(key)) {
-            uniqueKeys.add(key)
-            coursesToInsert.push({
-              channelId: session.channelId,
-              userid: targetUser.userId,
-              username: targetUser.username,
-              useravatar: targetUser.useravatar,
-              curriculumname: courseInfo.courseName,
-              curriculumndate: [weekday],
-              curriculumtime,
-              startDate: courseStartDate,
-              endDate: courseEndDate,
-            })
-          }
+
+          if (uniqueKeys.has(key)) continue
+
+          uniqueKeys.add(key)
+          coursesToInsert.push({
+            channelId: session.channelId,
+            userid: targetUser.userId,
+            username: targetUser.username,
+            useravatar: targetUser.useravatar,
+            curriculumname: courseInfo.courseName,
+            curriculumndate: [weekday],
+            curriculumtime,
+            startDate: courseStartDate,
+            endDate: courseEndDate,
+          })
         }
 
         let importedCount = 0
         let details = ''
+
         for (const data of coursesToInsert) {
           try {
             await ctx.database.create(TABLE_NAME, data)
@@ -116,15 +134,18 @@ export function registerWakeupCommand(ctx: Context, config: Config, logInfo: Log
         }
 
         if (importedCount > 0) {
-          if (config.autoDeduplicateOnImport) await session.execute(config.deduplicateCoursesCommand)
+          if (config.autoDeduplicateOnImport) {
+            await session.execute(config.deduplicateCoursesCommand)
+          }
           return `已成功导入 ${importedCount} 门课程：${details}`
-        } else {
-          return '课程表导入完成，但没有可导入的新课程（可能已全部导入或数据异常）。'
         }
+
+        return '课程表导入完成，但没有可导入的新课程（可能已全部导入或数据异常）。'
       } catch (apiError) {
         if (apiError instanceof Error && apiError.message === 'INVALID_TARGET_USER') {
           return '指定用户参数无效，请直接@目标用户，或省略该参数为自己导入。'
         }
+
         ctx.logger.error('WakeUp API 请求失败:', apiError)
         return '导入课程表失败，请检查网络或稍后重试。'
       }
