@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>群友课表</title>
+{{FONT_FACE_STYLE_TAG}}
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: '千图马克手写体lite', 'Microsoft YaHei', sans-serif;
+  background-color: #ffffff;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+}
+
+#container {
+  width: 480px;
+  background-color: #ffffff;
+  padding: 28px 24px 20px;
+}
+
+/* ===== 标题区域 ===== */
+.header {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.header h1 {
+  font-family: '千图马克手写体lite', sans-serif;
+  font-size: 2.2em;
+  font-weight: bold;
+  color: #111;
+  /* 带引号的标题 */
+}
+
+.header-underline {
+  height: 4px;
+  background: #3dbf9e;
+  margin-top: 6px;
+  border-radius: 2px;
+}
+
+/* ===== 装饰角块 ===== */
+.corner-tl {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 18px;
+  height: 18px;
+  background: #222;
+}
+
+.corner-br {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  background: #222;
+}
+
+/* ===== 课程列表项 ===== */
+.course-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #eee;
+  gap: 14px;
+}
+
+.course-item:last-child {
+  border-bottom: none;
+}
+
+/* 左侧头像区域 */
+.avatar-col {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 64px;
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #eee;
+}
+
+/* 双箭头装饰 */
+.chevrons {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 右侧信息区域 */
+.info-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* 昵称 */
+.nickname {
+  font-size: 1.15em;
+  font-weight: bold;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+/* 状态徽章行 */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 彩色状态徽章 */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.82em;
+  font-weight: bold;
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge-ongoing {
+  background: #e05050;
+}
+
+.badge-next {
+  background: #5b8fd9;
+}
+
+.badge-finished {
+  background: #7bbf7b;
+}
+
+.badge-nocourse {
+  background: #7bbf7b;
+}
+
+/* 课程名称 */
+.course-name {
+  font-size: 1.0em;
+  color: #e05050;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.course-name-next {
+  font-size: 1.0em;
+  color: #5b8fd9;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.course-name-finished {
+  font-size: 1.0em;
+  color: #3dbf9e;
+  font-weight: bold;
+}
+
+/* 时间信息小字 */
+.time-info {
+  font-size: 0.8em;
+  color: #888;
+}
+
+/* ===== 页脚 ===== */
+footer {
+  margin-top: 20px;
+  text-align: center;
+  color: #aaa;
+  font-size: 0.75em;
+  line-height: 1.6;
+  position: relative;
+}
+
+.corner-footer-tl {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  background: #ccc;
+}
+
+.corner-footer-br {
+  position: absolute;
+  bottom: -4px;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  background: #ccc;
+}
+</style>
+</head>
+<body>
+<div id="container">
+  <!-- 装饰角块 -->
+  <div class="corner-tl"></div>
+  <div class="corner-br"></div>
+
+  <!-- 标题 -->
+  <div class="header">
+    <h1>"群友在上什么课？"</h1>
+    <div class="header-underline"></div>
+  </div>
+
+  <!-- 课程列表 -->
+  <div id="course-list">
+    {{COURSE_ITEMS}}
+  </div>
+
+  <!-- 页脚 -->
+  <footer>
+    <div class="corner-footer-tl"></div>
+    <div class="corner-footer-br"></div>
+    <p>{{FOOTER_TIME}}</p>
+    <p>{{FOOTER_TEXT}}</p>
+  </footer>
+</div>
+</body>
+</html>
