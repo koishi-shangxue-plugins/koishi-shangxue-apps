@@ -1,6 +1,4 @@
-/**
- * commands/view.ts - 查看课程表指令（渲染并输出当日课程图片）
- */
+
 import type { Context } from 'koishi'
 import type { Config } from '../config'
 import type { LogInfoFn } from '../types'

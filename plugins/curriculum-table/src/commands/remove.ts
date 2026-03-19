@@ -1,6 +1,4 @@
-/**
- * commands/remove.ts - 移除单门课程指令
- */
+
 import { h } from 'koishi'
 import type { Context } from 'koishi'
 import type { Config } from '../config'

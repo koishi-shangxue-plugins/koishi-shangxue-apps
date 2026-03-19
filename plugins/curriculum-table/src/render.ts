@@ -1,7 +1,4 @@
-﻿/**
- * render.ts - 课程表图片渲染模块
- * 负责将课程数据渲染为 HTML 并截图
- */
+
 import { Context, h } from 'koishi'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -9,26 +6,24 @@ import * as url from 'node:url'
 import type { } from 'koishi-plugin-glyph'
 import type { } from 'koishi-plugin-puppeteer'
 
-/** 单条课程渲染数据 */
 export interface CourseRenderItem {
   userid: string
   username: string
   useravatar: string
-  /** 课程名称，无课则为 null */
+
   courseName: string | null
-  /** 上课时间字符串，如 "14:00" */
+
   startTime: string | null
-  /** 下课时间字符串，如 "15:40" */
+
   endTime: string | null
-  /** 状态: ongoing=进行中, next=下一节, finished=已结束, nocourse=无课 */
+
   status: 'ongoing' | 'next' | 'finished' | 'nocourse'
-  /** 状态辅助文字，如 "剩余 30 分钟" */
+
   statusDetail: string
-  /** 今日已上课总时长（分钟），仅 finished/nocourse 时有值 */
+
   totalMinutesToday: number
 }
 
-/** 渲染所需的 config 子集 */
 export interface RenderConfig {
   screenshotQuality: number
   footerText: string
@@ -38,7 +33,6 @@ export interface RenderConfig {
   enableDebugLogging: boolean
 }
 
-/** 加载字体 CSS 规则（优先 glyph，回退本地文件） */
 export async function getFontFaceRule(ctx: Context, config: Pick<RenderConfig, 'useGlyphService' | 'glyphFontFamily'>, fontDir: string): Promise<string> {
   const fontName = '千图马克手写体lite'
   const localFontPath = path.join(fontDir, '方正像素12.ttf')
@@ -374,4 +368,3 @@ function calcTotalMinutes(courses: { curriculumtime: string }[]): number {
   }
   return total
 }
-

@@ -1,6 +1,4 @@
-/**
- * commands/delete-user.ts - 删除个人课表指令（清除指定用户在本群的所有课程）
- */
+
 import type { Context } from 'koishi'
 import type { Config } from '../config'
 import type { LogInfoFn } from '../types'

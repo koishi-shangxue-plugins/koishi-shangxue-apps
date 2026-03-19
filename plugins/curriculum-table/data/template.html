@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>群友课表</title>
+<title>缇ゅ弸璇捐〃</title>
 {{FONT_FACE_STYLE_TAG}}
 <style>
 * {
@@ -13,7 +13,7 @@
 }
 
 body {
-  font-family: '千图马克手写体lite', 'Microsoft YaHei', sans-serif;
+  font-family: '鍗冨浘椹厠鎵嬪啓浣搇ite', 'Microsoft YaHei', sans-serif;
   background-color: #ffffff;
   color: #222;
   display: flex;
@@ -28,18 +28,18 @@ body {
   padding: 28px 24px 20px;
 }
 
-/* ===== 标题区域 ===== */
+/* ===== 鏍囬鍖哄煙 ===== */
 .header {
   margin-bottom: 24px;
   position: relative;
 }
 
 .header h1 {
-  font-family: '千图马克手写体lite', sans-serif;
+  font-family: '鍗冨浘椹厠鎵嬪啓浣搇ite', sans-serif;
   font-size: 2.2em;
   font-weight: bold;
   color: #111;
-  /* 带引号的标题 */
+  /* 甯﹀紩鍙风殑鏍囬 */
 }
 
 .header-underline {
@@ -49,7 +49,7 @@ body {
   border-radius: 2px;
 }
 
-/* ===== 装饰角块 ===== */
+/* ===== 瑁呴グ瑙掑潡 ===== */
 .corner-tl {
   position: absolute;
   top: -8px;
@@ -68,7 +68,7 @@ body {
   background: #222;
 }
 
-/* ===== 课程列表项 ===== */
+/* ===== 璇剧▼鍒楄〃椤?===== */
 .course-item {
   display: flex;
   flex-direction: row;
@@ -82,7 +82,7 @@ body {
   border-bottom: none;
 }
 
-/* 左侧头像区域 */
+/* 宸︿晶澶村儚鍖哄煙 */
 .avatar-col {
   flex-shrink: 0;
   display: flex;
@@ -99,7 +99,7 @@ body {
   border: 2px solid #eee;
 }
 
-/* 双箭头装饰 */
+/* 鍙岀澶磋楗?*/
 .chevrons {
   width: 36px;
   height: 36px;
@@ -109,7 +109,7 @@ body {
   justify-content: center;
 }
 
-/* 右侧信息区域 */
+/* 鍙充晶淇℃伅鍖哄煙 */
 .info-col {
   flex: 1;
   display: flex;
@@ -118,7 +118,7 @@ body {
   min-width: 0;
 }
 
-/* 昵称 */
+/* 鏄电О */
 .nickname {
   font-size: 1.15em;
   font-weight: bold;
@@ -129,7 +129,7 @@ body {
   max-width: 260px;
 }
 
-/* 状态徽章行 */
+/* 鐘舵€佸窘绔犺 */
 .status-row {
   display: flex;
   align-items: center;
@@ -137,7 +137,7 @@ body {
   flex-wrap: wrap;
 }
 
-/* 彩色状态徽章 */
+/* 褰╄壊鐘舵€佸窘绔?*/
 .badge {
   display: inline-block;
   padding: 2px 8px;
@@ -165,7 +165,7 @@ body {
   background: #7bbf7b;
 }
 
-/* 课程名称 */
+/* 璇剧▼鍚嶇О */
 .course-name {
   font-size: 1.0em;
   color: #e05050;
@@ -190,13 +190,13 @@ body {
   font-weight: bold;
 }
 
-/* 时间信息小字 */
+/* 鏃堕棿淇℃伅灏忓瓧 */
 .time-info {
   font-size: 0.8em;
   color: #888;
 }
 
-/* ===== 页脚 ===== */
+/* ===== 椤佃剼 ===== */
 footer {
   margin-top: 20px;
   text-align: center;
@@ -227,22 +227,22 @@ footer {
 </head>
 <body>
 <div id="container">
-  <!-- 装饰角块 -->
+  <!-- 瑁呴グ瑙掑潡 -->
   <div class="corner-tl"></div>
   <div class="corner-br"></div>
 
-  <!-- 标题 -->
+  <!-- 鏍囬 -->
   <div class="header">
-    <h1>"群友在上什么课？"</h1>
+    <h1>"缇ゅ弸鍦ㄤ笂浠€涔堣锛?</h1>
     <div class="header-underline"></div>
   </div>
 
-  <!-- 课程列表 -->
+  <!-- 璇剧▼鍒楄〃 -->
   <div id="course-list">
     {{COURSE_ITEMS}}
   </div>
 
-  <!-- 页脚 -->
+  <!-- 椤佃剼 -->
   <footer>
     <div class="corner-footer-tl"></div>
     <div class="corner-footer-br"></div>

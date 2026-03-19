@@ -1,7 +1,4 @@
-/**
- * commands/delete-channel.ts - 删除群组课表指令（清除本群所有用户的所有课程）
- * 两步确认，防止误操作
- */
+
 import type { Context } from 'koishi'
 import type { Config } from '../config'
 import type { LogInfoFn } from '../types'

@@ -1,6 +1,4 @@
-/**
- * commands/dedup.ts - 课程去重指令（移除本群当前用户的重复课程）
- */
+
 import type { Context } from 'koishi'
 import type { Config } from '../config'
 import type { CurriculumTable, LogInfoFn } from '../types'

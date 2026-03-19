@@ -1,6 +1,4 @@
-/**
- * commands/wakeup.ts - WakeUp 课程表导入指令
- */
+
 import type { Context } from 'koishi'
 import type { Config } from '../config'
 import type { CurriculumTable, LogInfoFn } from '../types'
@@ -20,7 +18,7 @@ export function registerWakeupCommand(ctx: Context, config: Config, logInfo: Log
       if (!keyMatch) return '未检测到分享口令，请检查输入格式。'
       const shareKey = keyMatch[1]
 
-      const apiUrl = `https://i.wakeup.fun/share_schedule/get?key=${shareKey}`
+      const apiUrl = `https:
       const headers = {
         Connection: 'keep-alive',
         'Accept-Encoding': 'gzip',

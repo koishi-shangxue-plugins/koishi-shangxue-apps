@@ -1,6 +1,4 @@
-/**
- * commands/add.ts - 手动添加课程指令
- */
+
 import type { Context } from 'koishi'
 import type { Config } from '../config'
 import type { LogInfoFn } from '../types'

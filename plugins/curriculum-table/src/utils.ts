@@ -1,6 +1,4 @@
-/**
- * utils.ts - 通用工具函数
- */
+
 import { h } from 'koishi'
 import type { Session } from 'koishi'
 
@@ -11,7 +9,6 @@ export interface ResolvedTargetUser {
   specified: boolean
 }
 
-/** 从 Satori at 元素或纯数字字符串中提取用户 ID */
 export function extractTargetUser(target?: string): { id: string, name?: string } | null {
   if (!target?.trim()) return null
 
@@ -31,7 +28,6 @@ export function extractTargetUser(target?: string): { id: string, name?: string 
   return null
 }
 
-/** 统一解析目标用户信息；未指定时默认当前用户 */
 export async function resolveTargetUser(session: Session, target?: string): Promise<ResolvedTargetUser> {
   if (!target?.trim()) {
     return {

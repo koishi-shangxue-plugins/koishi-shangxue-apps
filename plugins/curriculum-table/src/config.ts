@@ -1,6 +1,4 @@
-/**
- * config.ts - 插件配置项 Schema 定义
- */
+
 import { Schema } from 'koishi'
 
 export interface CommandNamesConfig {
@@ -93,7 +91,7 @@ export const Config = Schema.intersect([
 
   Schema.object({
     screenshotQuality: Schema.number().role('slider').min(0).max(100).step(1).default(80).description('设置图片压缩保留质量（%）'),
-    footerText: Schema.string().role('textarea', { rows: [2, 4] }).description('页脚描述文字。换行请用 <br>').default('使用 "群友课表.添加" 指令设置课程表'),
+    footerText: Schema.string().role('textarea', { rows: [2, 4] }).description('页脚描述文字。换行请用 &lt;br&gt;').default('使用 "群友课表.添加" 指令设置课程表'),
   }).description('渲染设置'),
 
   Schema.object({

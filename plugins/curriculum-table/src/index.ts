@@ -1,6 +1,4 @@
-/**
- * index.ts - 插件入口（纯调度层）
- */
+
 import { Context, Universal, Bot } from 'koishi'
 import type { } from 'koishi-plugin-glyph'
 import path from 'node:path'
@@ -8,6 +6,7 @@ import { name, inject, usage, Config } from './config'
 import type { Config as CurriculumTableConfig } from './config'
 import { TABLE_NAME } from './types'
 import { renderCourseTable, registerGlyphFont, type RenderConfig } from './render'
+import { resolveTemplatePath } from './template'
 import { registerAddCommand } from './commands/add'
 import { registerWakeupCommand } from './commands/wakeup'
 import { registerRemoveCommand } from './commands/remove'
@@ -33,7 +32,8 @@ export async function apply(ctx: Context, config: CurriculumTableConfig) {
   }
 
   const fontDir = path.join(__dirname, '../font')
-  const templatePath = path.join(__dirname, 'template.html')
+
+  const templatePath = resolveTemplatePath()
 
   const renderConfig: RenderConfig = {
     screenshotQuality: config.screenshotQuality,
