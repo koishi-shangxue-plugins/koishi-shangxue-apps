@@ -70,7 +70,7 @@ export async function registerGlyphFont(ctx: Context, fontDir: string): Promise<
   try {
     const ok = await ctx.glyph.checkFont(fontName, fontFileUrl)
     if (ok) {
-      ctx.logger.info(`字体 '${fontName}' 已通过 glyph 服务准备就绪。`)
+      //  ctx.logger.info(`字体 '${fontName}' 已通过 glyph 服务准备就绪。`)
     } else {
       ctx.logger.warn(`字体 '${fontName}' 未能通过 glyph 服务成功加载。`)
     }
