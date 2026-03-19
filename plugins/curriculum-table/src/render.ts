@@ -261,12 +261,44 @@ export async function renderCourseTable(ctx: Context, config: RenderConfig, chan
             .replace('{{FOOTER_TIME}}', escHtml(footerTime))
             .replace('{{FOOTER_TEXT}}', config.footerText);
         await page.setContent(finalHtml, { waitUntil: 'domcontentloaded' });
+        await page.evaluate(async () => {
+            // 等待字体和图片加载完成，避免裁剪时尺寸不稳定。
+            if ('fonts' in document) {
+                await document.fonts.ready.catch(() => { });
+            }
+            const imageTasks = Array.from(document.images, (img) => {
+                if (img.complete)
+                    return Promise.resolve();
+                return new Promise<void>((resolve) => {
+                    img.addEventListener('load', () => resolve(), { once: true });
+                    img.addEventListener('error', () => resolve(), { once: true });
+                });
+            });
+            await Promise.all(imageTasks);
+        });
         const containerBoundingBox = await page.evaluate(() => {
             const container = document.getElementById('container');
             if (!container)
                 return null;
-            const rect = container.getBoundingClientRect();
-            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+            const containerRect = container.getBoundingClientRect();
+            let bottom = containerRect.top;
+            const elements = [container, ...Array.from(container.querySelectorAll<HTMLElement>('*'))];
+            for (const element of elements) {
+                const style = window.getComputedStyle(element);
+                if (style.display === 'none' || style.visibility === 'hidden')
+                    continue;
+                const rect = element.getBoundingClientRect();
+                if (rect.width === 0 && rect.height === 0)
+                    continue;
+                bottom = Math.max(bottom, rect.bottom);
+            }
+            return {
+                x: Math.floor(containerRect.x),
+                y: Math.floor(containerRect.y),
+                width: Math.ceil(containerRect.width),
+                // 只截取实际内容底部，避免容器残留空白区域。
+                height: Math.ceil(bottom - containerRect.top),
+            };
         });
         if (!containerBoundingBox) {
             ctx.logger.error('无法获取容器尺寸');
