@@ -8,6 +8,8 @@ import { executeTemplate } from './utils'
 
 import { registerImageUploadRoute } from './upload'
 
+import { cleanupUnreferencedImages } from './cleanup'
+
 import { } from '@koishijs/plugin-console'
 
 import { } from '@koishijs/plugin-server'
@@ -205,6 +207,13 @@ export function apply(ctx: Context, config: Config) {
     })
 
     await refreshDialogues()
+
+    // 启动时清理未被任何问答引用的本地图片
+    await cleanupUnreferencedImages(ctx.baseDir, dialogueCache, {
+      debug: (message) => { if (config.debug) logger.info(message) },
+      info: (message) => logger.info(message),
+      warn: (message) => logger.warn(message),
+    }, config.debug)
 
     ctx.console.addEntry({
 
