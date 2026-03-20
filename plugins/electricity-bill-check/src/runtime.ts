@@ -3,21 +3,16 @@ import type { Context } from 'koishi'
 import { formatShanghaiTime, getNextShanghaiNoon } from './time'
 import type {
   Config,
-  QueryTask,
+  QueryResult,
   RuntimeLogger,
   TaskExecutionResult,
-  TaskStatusSnapshot,
   TaskTrigger,
 } from './types'
 
 export class ElectricityBillRuntime {
-  // 这些状态只保存在内存里，热重载后会重新建立。
-  private readonly lastResults = new Map<string, number>()
-  private readonly lastAttemptTimes = new Map<string, Date>()
-  private readonly lastSuccessTimes = new Map<string, Date>()
-  private readonly timers = new Map<string, () => void>()
-  private readonly nextRunTimes = new Map<string, Date>()
-  private readonly runningTasks = new Set<string>()
+  // 定时器和运行状态只保存在内存里。
+  private timerDispose?: () => void
+  private running = false
   private stopped = false
 
   constructor(
@@ -28,10 +23,7 @@ export class ElectricityBillRuntime {
 
   start() {
     this.stopped = false
-
-    this.config.tasks.forEach((task, index) => {
-      this.scheduleTask(task, index)
-    })
+    this.scheduleDailyBroadcast()
   }
 
   stop() {
@@ -40,154 +32,80 @@ export class ElectricityBillRuntime {
     }
 
     this.stopped = true
-
-    for (const [taskKey, dispose] of this.timers) {
-      dispose()
-      this.logger.debug(`[${taskKey}] 已停止定时器`)
-    }
-
-    this.timers.clear()
-    this.nextRunTimes.clear()
+    this.clearTimer()
   }
 
   async runManualCheck() {
-    if (this.config.tasks.length === 0) {
-      return '未配置任何查询任务。'
-    }
+    const result = await this.executeTaskWithRetry('manual')
 
-    const lines: string[] = ['正在执行电费查询...', '']
-
-    for (let index = 0; index < this.config.tasks.length; index += 1) {
-      const task = this.config.tasks[index]
-
-      if (!task.enabled) {
-        lines.push(`任务 ${index + 1}: 已禁用`)
-        continue
-      }
-
-      const result = await this.executeTaskWithRetry(task, index, 'manual')
-      lines.push(this.formatManualResult(index, result))
-    }
-
-    return lines.join('\n')
-  }
-
-  getStatusText() {
-    if (this.config.tasks.length === 0) {
-      return '未配置任何查询任务。'
-    }
-
-    let message = '电费查询状态\n\n'
-
-    this.config.tasks.forEach((task, index) => {
-      const status = this.getTaskStatus(index, task)
-
-      message += `任务 ${index + 1}: ${status.enabled ? '运行中' : '已禁用'}\n`
-      message += `  每日执行时间: 12:00（Asia/Shanghai）\n`
-      message += `  最大重试次数: ${status.maxRetries}\n`
-      message += `  下次执行时间: ${status.nextRunAt ? formatShanghaiTime(status.nextRunAt) : '暂无'}\n`
-      message += `  上次请求时间: ${status.lastAttemptAt ? formatShanghaiTime(status.lastAttemptAt) : '暂无'}\n`
-      message += `  上次成功时间: ${status.lastSuccessAt ? formatShanghaiTime(status.lastSuccessAt) : '暂无'}\n`
-      message += `  上次结果: ${status.lastValue ?? '暂无'}\n`
-      message += `  当前执行中: ${status.running ? '是' : '否'}\n`
-      message += `  Bot: ${status.botId}\n`
-      message += `  群 / 频道: ${status.channelId}\n\n`
-    })
-
-    return message
-  }
-
-  private formatManualResult(taskIndex: number, result: TaskExecutionResult) {
     if (result.success) {
-      const suffix = result.notificationSent === false ? '，但播报失败' : ''
-      return `任务 ${taskIndex + 1}: 查询成功，结果 ${result.value}${suffix}`
+      return result.resultText ?? '查询成功，但未提取到结果文本'
     }
 
-    return `任务 ${taskIndex + 1}: 查询失败，已尝试 ${result.attempts} 次，原因: ${result.error}`
+    return `查询失败，已尝试 ${result.attempts} 次，原因: ${result.error}`
   }
 
-  private getTaskStatus(taskIndex: number, task: QueryTask): TaskStatusSnapshot {
-    const taskKey = this.getTaskKey(taskIndex)
-
-    return {
-      enabled: task.enabled,
-      running: this.runningTasks.has(taskKey),
-      maxRetries: task.maxRetries,
-      lastValue: this.lastResults.get(taskKey),
-      lastAttemptAt: this.lastAttemptTimes.get(taskKey),
-      lastSuccessAt: this.lastSuccessTimes.get(taskKey),
-      nextRunAt: this.nextRunTimes.get(taskKey),
-      botId: task.botId,
-      channelId: task.channelId,
-    }
-  }
-
-  private scheduleTask(task: QueryTask, taskIndex: number) {
-    const taskKey = this.getTaskKey(taskIndex)
-    this.clearTaskTimer(taskKey)
+  private scheduleDailyBroadcast() {
+    this.clearTimer()
 
     if (this.stopped) {
       return
     }
 
-    if (!task.enabled) {
-      this.logger.debug(`[${taskKey}] 任务已禁用，跳过调度`)
+    if (!this.config.enabled) {
+      this.logger.debug('已禁用每日定时播报，跳过调度')
       return
     }
 
     const nextRun = getNextShanghaiNoon()
     const delay = Math.max(nextRun.getTime() - Date.now(), 0)
-    const dispose = this.ctx.setTimeout(() => {
-      this.timers.delete(taskKey)
-      this.nextRunTimes.delete(taskKey)
-      void this.handleScheduledTask(task, taskIndex)
+
+    this.timerDispose = this.ctx.setTimeout(() => {
+      this.timerDispose = undefined
+      void this.handleScheduledBroadcast()
     }, delay)
 
-    this.timers.set(taskKey, dispose)
-    this.nextRunTimes.set(taskKey, nextRun)
-    this.logger.info(`[${taskKey}] 已计划于 ${formatShanghaiTime(nextRun)} 执行每日查询`)
+    this.logger.info(`已计划于 ${formatShanghaiTime(nextRun)} 执行每日查询`)
   }
 
-  private clearTaskTimer(taskKey: string) {
-    const dispose = this.timers.get(taskKey)
-    if (!dispose) {
+  private clearTimer() {
+    if (!this.timerDispose) {
       return
     }
 
-    dispose()
-    this.timers.delete(taskKey)
-    this.nextRunTimes.delete(taskKey)
+    this.timerDispose()
+    this.timerDispose = undefined
+    this.logger.debug('已停止每日定时器')
   }
 
-  private async handleScheduledTask(task: QueryTask, taskIndex: number) {
+  private async handleScheduledBroadcast() {
     try {
-      await this.executeTaskWithRetry(task, taskIndex, 'schedule')
+      const result = await this.executeTaskWithRetry('schedule')
+
+      if (result.success && result.resultText) {
+        await this.sendBroadcastMessage(result.resultText)
+      }
     } finally {
       if (!this.stopped) {
-        this.scheduleTask(task, taskIndex)
+        this.scheduleDailyBroadcast()
       }
     }
   }
 
-  private async executeTaskWithRetry(
-    task: QueryTask,
-    taskIndex: number,
-    trigger: TaskTrigger
-  ): Promise<TaskExecutionResult> {
-    const taskKey = this.getTaskKey(taskIndex)
-    if (this.runningTasks.has(taskKey)) {
+  private async executeTaskWithRetry(trigger: TaskTrigger): Promise<TaskExecutionResult> {
+    if (this.running) {
       const error = '任务正在执行中，本次触发已跳过'
-      this.logger.debug(`[${taskKey}] ${error}`)
+      this.logger.debug(error)
       return { success: false, attempts: 0, error }
     }
 
-    this.runningTasks.add(taskKey)
-    const totalAttempts = task.maxRetries + 1
+    this.running = true
+    const totalAttempts = this.config.maxRetries + 1
     let lastError = '未知错误'
 
     try {
       for (let attempt = 1; attempt <= totalAttempts; attempt += 1) {
-        if (this.stopped) {
+        if (this.stopped && trigger === 'schedule') {
           return {
             success: false,
             attempts: attempt - 1,
@@ -195,44 +113,25 @@ export class ElectricityBillRuntime {
           }
         }
 
-        this.lastAttemptTimes.set(taskKey, new Date())
-        this.logger.info(
-          `[${taskKey}] 开始执行${trigger === 'manual' ? '手动' : '每日'}查询，第 ${attempt}/${totalAttempts} 次尝试`
-        )
+        this.logger.info(`开始执行${trigger === 'manual' ? '手动' : '每日'}查询，第 ${attempt}/${totalAttempts} 次尝试`)
 
         try {
-          const previousValue = this.lastResults.get(taskKey)
-          const currentValue = await this.requestCurrentValue(task, taskIndex)
-
-          this.lastResults.set(taskKey, currentValue)
-          this.lastSuccessTimes.set(taskKey, new Date())
-
-          const notificationSent = await this.sendReport(
-            task,
-            taskIndex,
-            currentValue,
-            previousValue,
-            trigger,
-            attempt
-          )
+          const result = await this.requestCurrentValue()
 
           return {
             success: true,
             attempts: attempt,
-            value: currentValue,
-            notificationSent,
-            error: notificationSent ? undefined : '查询成功，但播报失败',
+            resultText: result.text,
           }
         } catch (error) {
           lastError = error instanceof Error ? error.message : String(error)
-          this.logger.warn(`[${taskKey}] 第 ${attempt}/${totalAttempts} 次尝试失败: ${lastError}`)
+          this.logger.warn(`第 ${attempt}/${totalAttempts} 次尝试失败: ${lastError}`)
 
-          if (attempt <= task.maxRetries) {
-            const delay = task.retryDelaySeconds * 1000
-            this.logger.debug(`[${taskKey}] ${task.retryDelaySeconds} 秒后继续重试`)
+          if (attempt <= this.config.maxRetries) {
+            this.logger.debug(`${this.config.retryDelaySeconds} 秒后继续重试`)
 
             try {
-              await this.ctx.sleep(delay)
+              await this.ctx.sleep(this.config.retryDelaySeconds * 1000)
             } catch (sleepError) {
               lastError = sleepError instanceof Error ? sleepError.message : String(sleepError)
               break
@@ -241,27 +140,26 @@ export class ElectricityBillRuntime {
         }
       }
 
-      this.logger.error(`[${taskKey}] 查询失败，已达到最大重试次数: ${task.maxRetries}`)
+      this.logger.error(`查询失败，已达到最大重试次数: ${this.config.maxRetries}`)
       return {
         success: false,
         attempts: totalAttempts,
         error: lastError,
       }
     } finally {
-      this.runningTasks.delete(taskKey)
+      this.running = false
     }
   }
 
-  private async requestCurrentValue(task: QueryTask, taskIndex: number) {
-    const taskKey = this.getTaskKey(taskIndex)
-    this.logger.debug(`[${taskKey}] 开始请求电费页面`)
+  private async requestCurrentValue(): Promise<QueryResult> {
+    this.logger.debug('开始请求电费页面')
 
-    const response = await fetch(task.url, {
+    const response = await fetch(this.config.url, {
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
-      timeout: task.requestTimeoutSeconds * 1000,
+      timeout: this.config.requestTimeoutSeconds * 1000,
     })
 
     if (!response.ok) {
@@ -269,97 +167,43 @@ export class ElectricityBillRuntime {
     }
 
     const html = await response.text()
-    this.logger.debug(`[${taskKey}] 页面长度: ${html.length}`)
+    this.logger.debug(`页面长度: ${html.length}`)
 
-    const match = html.match(new RegExp(task.regex))
+    const match = html.match(new RegExp(this.config.regex))
     if (!match || !match[1]) {
-      throw new Error(`正则匹配失败，当前正则: ${task.regex}`)
+      throw new Error(`正则匹配失败，当前正则: ${this.config.regex}`)
     }
 
-    const value = Number.parseFloat(match[1])
-    if (Number.isNaN(value)) {
-      throw new Error(`提取结果无法解析为数字: ${match[1]}`)
-    }
+    const resultText = match[1].trim()
+    this.logger.debug(`本次查询结果: ${resultText}`)
 
-    this.logger.debug(`[${taskKey}] 本次查询结果: ${value}`)
-    return value
+    return { text: resultText }
   }
 
-  private async sendReport(
-    task: QueryTask,
-    taskIndex: number,
-    currentValue: number,
-    previousValue: number | undefined,
-    trigger: TaskTrigger,
-    attempt: number
-  ) {
-    const taskKey = this.getTaskKey(taskIndex)
-    const bot = this.findTaskBot(task, taskKey)
+  private async sendBroadcastMessage(resultText: string) {
+    const bot = this.findTaskBot()
     if (!bot) {
-      return false
+      return
     }
-
-    const message = this.createReportMessage(currentValue, previousValue, trigger, attempt)
 
     try {
-      await bot.sendMessage(task.channelId, message)
-      this.logger.info(`[${taskKey}] 已播报到 ${task.channelId}`)
-      return true
+      // 定时播报直接发送匹配到的结果文本。
+      await bot.sendMessage(this.config.channelId, resultText)
+      this.logger.info(`已播报到 ${this.config.channelId}`)
     } catch (error) {
-      this.logger.error(`[${taskKey}] 播报失败`, error)
-      return false
+      this.logger.error('播报失败', error)
     }
   }
 
-  private findTaskBot(task: QueryTask, taskKey: string) {
-    const bot = this.ctx.bots.find((item) => item.sid === task.botId || item.selfId === task.botId)
+  private findTaskBot() {
+    const bot = this.ctx.bots.find((item) => item.sid === this.config.botId || item.selfId === this.config.botId)
 
     if (!bot) {
       const botList = this.ctx.bots.map((item) => `${item.sid}(${item.selfId})`).join(', ')
-      this.logger.warn(`[${taskKey}] 未找到 Bot: ${task.botId}`)
-      this.logger.warn(`[${taskKey}] 当前可用 Bot: ${botList}`)
+      this.logger.warn(`未找到 Bot: ${this.config.botId}`)
+      this.logger.warn(`当前可用 Bot: ${botList}`)
     }
 
     return bot
-  }
-
-  private createReportMessage(
-    currentValue: number,
-    previousValue: number | undefined,
-    trigger: TaskTrigger,
-    attempt: number
-  ) {
-    const triggerText = trigger === 'manual' ? '手动触发' : '每日定时'
-
-    return [
-      '电费查询播报',
-      '',
-      `当前结果: ${currentValue}`,
-      `上次结果: ${previousValue ?? '暂无'}`,
-      `变化情况: ${this.describeChange(currentValue, previousValue)}`,
-      `触发方式: ${triggerText}`,
-      `成功尝试: 第 ${attempt} 次`,
-      `查询时间: ${formatShanghaiTime(new Date())}`,
-    ].join('\n')
-  }
-
-  private describeChange(currentValue: number, previousValue: number | undefined) {
-    if (previousValue === undefined) {
-      return '首次播报'
-    }
-
-    if (currentValue === previousValue) {
-      return '无变化'
-    }
-
-    if (currentValue > previousValue) {
-      return `增加 ${(currentValue - previousValue).toFixed(2)}`
-    }
-
-    return `减少 ${(previousValue - currentValue).toFixed(2)}`
-  }
-
-  private getTaskKey(taskIndex: number) {
-    return `task-${taskIndex}`
   }
 }

@@ -1,4 +1,8 @@
-export interface QueryTask {
+export interface QueryResult {
+  text: string;
+}
+
+export interface Config {
   url: string;
   regex: string;
   botId: string;
@@ -7,10 +11,6 @@ export interface QueryTask {
   retryDelaySeconds: number;
   requestTimeoutSeconds: number;
   enabled: boolean;
-}
-
-export interface Config {
-  tasks: QueryTask[];
   loggerinfo: boolean;
 }
 
@@ -24,21 +24,8 @@ export interface RuntimeLogger {
 export interface TaskExecutionResult {
   success: boolean;
   attempts: number;
-  value?: number;
-  notificationSent?: boolean;
+  resultText?: string;
   error?: string;
-}
-
-export interface TaskStatusSnapshot {
-  enabled: boolean;
-  running: boolean;
-  maxRetries: number;
-  lastValue?: number;
-  lastAttemptAt?: Date;
-  lastSuccessAt?: Date;
-  nextRunAt?: Date;
-  botId: string;
-  channelId: string;
 }
 
 export type TaskTrigger = 'schedule' | 'manual'
