@@ -14,15 +14,20 @@
 
 body {
   font-family: '千图马克手写体lite', 'Microsoft YaHei', sans-serif;
-  background-color: #ffffff;
+  background-color: transparent;
   color: #222;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   padding: 0;
+  margin: 0;
+}
+
+#capture-root {
+  display: inline-block;
+  position: relative;
+  background-color: #ffffff;
 }
 
 #container {
+  position: relative;
   width: 480px;
   background-color: #ffffff;
   padding: 28px 24px 20px;
@@ -226,6 +231,7 @@ footer {
 </style>
 </head>
 <body>
+<div id="capture-root">
 <div id="container">
   <!-- 装饰角块 -->
   <div class="corner-tl"></div>
@@ -249,6 +255,7 @@ footer {
     <p>{{FOOTER_TIME}}</p>
     <p>{{FOOTER_TEXT}}</p>
   </footer>
+</div>
 </div>
 </body>
 </html>
