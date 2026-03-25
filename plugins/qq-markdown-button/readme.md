@@ -82,7 +82,7 @@ QQ 官方机器人 Markdown / 按钮模板插件。
 
 - `json/json`
 - `markdown/markdown`
-- `raw/raw-markdown`
+- `raw/raw_markdown`
 - `raw/raw-without-keyboard`
 
 其中 `raw/xxx` 只有在 `raw/xxx.json` 和 `raw/xxx.md` 同时存在时才会出现。
@@ -112,9 +112,262 @@ QQ 官方机器人 Markdown / 按钮模板插件。
 - 只要申请到高阶能力，就可以继续衔接【按钮模板】
 - 用户先看到原生 Markdown，再立即收到按钮，交互会更顺手
 
-## `raw-without-keyboard` 默认内容
+---
+---
+---
 
-`raw/raw-without-keyboard.json`
+## 关于 `msg_id` 和 `event_id`
+
+在 JSON 配置文件中，你会看到：
+
+```json
+{
+  "msg_id": "${session.messageId}",
+  "event_id": "${INTERACTION_CREATE}"
+}
+```
+
+说明如下：
+
+- `msg_id`：用于被动消息回复
+- `event_id`：用于交互事件场景
+
+这两个字段在实际发送时是互斥的，本插件会根据会话情况自动删除不需要的字段。
+
+## 变量替换
+
+模板文件里支持这些占位符：
+
+- `${session.messageId}`
+- `${INTERACTION_CREATE}`
+- `${markdown}`
+- `${0}`、`${1}`、`${2}`...
+
+## 示例配置
+
+### 默认 JSON 按钮模板示例
+
+以下是一个默认的 JSON 按钮指令按钮模板示例。
+
+用于申请 QQ 开放平台的 json 按钮模板，或者用于原生 markdown 按钮。
+
+<details>
+<summary>点击此处————查看源码</summary>
+
+```json
+{
+  "rows": [
+    {
+      "buttons": [
+        {
+          "render_data": {
+            "label": "再来一张😽",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/再来一张",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "随机一张😼",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/随机表情包",
+            "enter": true
+          }
+        }
+      ]
+    },
+    {
+      "buttons": [
+        {
+          "render_data": {
+            "label": "返回列表😸",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/表情包列表",
+            "enter": true
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+以下是本插件的 JSON 按钮类型配置文件 `json/json.json` 示例：
+
+```json
+{
+  "msg_id": "${session.messageId}",
+  "event_id": "${INTERACTION_CREATE}",
+  "msg_type": 2,
+  "content": "",
+  "keyboard": {
+    "id": "引号内容请修改为你的json模板ID"
+  }
+}
+```
+
+</details>
+
+---
+
+### 默认 Markdown 模板示例
+
+以下是一个默认的 Markdown 模板示例。
+
+用于申请 QQ 开放平台的被动 markdown 模板。
+
+<details>
+<summary>点击此处————查看源码</summary>
+
+```markdown
+{{.text1}}
+{{.text2}}
+{{.img}}{{.url}}
+```
+
+**配置模板参数示例：**
+
+| 参数 | 示例值 |
+| --- | --- |
+| `text1` | 这是第一段文字 |
+| `text2` | 这是第二段文字 |
+| `img` | `![img]` |
+| `url` | `(https://koishi.chat/logo.png)` |
+
+</details>
+
+以下是本插件的 Markdown 模板类型配置文件 `markdown/markdown.json` 示例：
+
+<details>
+<summary>点击此处————查看源码</summary>
+
+```json
+{
+  "msg_type": 2,
+  "msg_id": "${session.messageId}",
+  "event_id": "${INTERACTION_CREATE}",
+  "markdown": {
+    "custom_template_id": "引号内容请修改为你的markdown模板ID",
+    "params": [
+      {
+        "key": "text1",
+        "values": [
+          "第一个文字参数"
+        ]
+      },
+      {
+        "key": "text2",
+        "values": [
+          "第二个文字参数"
+        ]
+      },
+      {
+        "key": "img",
+        "values": [
+          "![img#338px #250px]"
+        ]
+      },
+      {
+        "key": "url",
+        "values": [
+          "(https://i0.hdslb.com/bfs/note/457c42064e08c44ffef1b047478671db3f06412f.jpg)"
+        ]
+      }
+    ]
+  },
+  "keyboard": {
+    "id": "引号内容请修改为你的json模板ID"
+  }
+}
+```
+
+</details>
+
+---
+
+### 默认原生 Markdown 示例
+
+以下是一个默认的原生 Markdown 类型示例。
+
+<details>
+<summary>点击此处————查看源码</summary>
+
+**JSON 配置文件 `raw/raw_markdown.json`：**
+
+```json
+{
+  "msg_type": 2,
+  "msg_id": "${session.messageId}",
+  "event_id": "${INTERACTION_CREATE}",
+  "markdown": {
+    "content": "${markdown}"
+  },
+  "keyboard": {
+    "content": {
+      "rows": [
+        {
+          "buttons": [
+            {
+              "render_data": {
+                "label": "再来一次",
+                "style": 2
+              },
+              "action": {
+                "type": 2,
+                "permission": {
+                  "type": 2
+                },
+                "data": "${config.command_name}",
+                "enter": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+**Markdown 文件 `raw/raw_markdown.md`：**
+
+```markdown
+# 你好啊
+
+这是一个 markdown 消息哦~
+```
+
+</details>
+
+---
+
+### 默认原生 Markdown（无按钮）示例
+
+以下是 `raw-without-keyboard` 的默认示例。
+
+<details>
+<summary>点击此处————查看源码</summary>
+
+**JSON 配置文件 `raw/raw-without-keyboard.json`：**
 
 ```json
 {
@@ -127,25 +380,24 @@ QQ 官方机器人 Markdown / 按钮模板插件。
 }
 ```
 
-`raw/raw-without-keyboard.md`
+**Markdown 文件 `raw/raw-without-keyboard.md`：**
 
-```md
+```markdown
 # 你好啊
 
 这是第一个markdown消息哦~
 ```
 
-## 变量替换
+</details>
 
-模板文件里支持这些占位符：
-
-- `${session.messageId}`
-- `${INTERACTION_CREATE}`
-- `${markdown}`
-- `${0}`、`${1}`、`${2}`...
+---
 
 ## NPM
 
 详细更新和安装方式请查看：
 
 - [https://www.npmjs.com/package/@shangxueink/koishi-plugin-qq-markdown-button](https://www.npmjs.com/package/@shangxueink/koishi-plugin-qq-markdown-button)
+
+## 许可证
+
+本项目采用 `MIT` 许可证。
