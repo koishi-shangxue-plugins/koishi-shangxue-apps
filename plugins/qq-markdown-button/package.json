@@ -1,6 +1,6 @@
 {
   "name": "@shangxueink/koishi-plugin-qq-markdown-button",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "description": "[<ruby>**QQ机器人按钮菜单**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/@shangxueink/koishi-plugin-qq-markdown-button) 自用小插件咪~ 使用json文件设置你的机器人菜单这样就不需要一堆配置项还很烧脑了。自用插件哦~",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",

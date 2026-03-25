@@ -5,7 +5,7 @@ import { MenuType } from './types'
 const templateFiles: Record<MenuType, readonly string[]> = {
   json: ['json.json'],
   markdown: ['markdown.json'],
-  raw: ['raw_markdown.json', 'raw_markdown.md'],
+  raw: ['raw_markdown.json', 'raw_markdown.md', 'raw-without-keyboard.json', 'raw-without-keyboard.md'],
 }
 
 export function resolveBaseDir(rootDir: string, fileName: string[]): string {
@@ -31,6 +31,15 @@ export function ensureTemplateFiles(baseDir: string, templateRoot: string): void
       if (!fs.existsSync(targetPath)) {
         fs.copyFileSync(sourcePath, targetPath)
       }
+    }
+  }
+}
+
+export function ensureTemplateDirs(baseDir: string): void {
+  for (const type of Object.keys(templateFiles) as MenuType[]) {
+    const dirPath = path.join(baseDir, type)
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true })
     }
   }
 }

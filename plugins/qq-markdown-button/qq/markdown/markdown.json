@@ -3,7 +3,7 @@
     "msg_id": "${session.messageId}",
     "event_id": "${INTERACTION_CREATE}",
     "markdown": {
-        "custom_template_id": "${config.markdown_id}",
+        "custom_template_id": "引号内容请修改为你的markdown模板ID",
         "params": [
             {
                 "key": "text1",
@@ -32,6 +32,6 @@
         ]
     },
     "keyboard": {
-        "id": "${config.json_button_id}"
+        "id": "引号内容请修改为你的json模板ID"
     }
 }

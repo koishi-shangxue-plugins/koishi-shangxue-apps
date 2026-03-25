@@ -4,6 +4,6 @@
     "msg_type": 2,
     "content": "",
     "keyboard": {
-        "id": "${config.json_button_id}"
+        "id": "引号内容请修改为你的json模板ID"
     }
 }

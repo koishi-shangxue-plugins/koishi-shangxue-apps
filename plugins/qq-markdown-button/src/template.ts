@@ -12,24 +12,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-function getTemplatePaths(baseDir: string, type: MenuType): TemplatePaths {
+function parseTemplateRef(templateRef: string): { type: MenuType, name: string } {
+  const separatorIndex = templateRef.indexOf('/')
+  if (separatorIndex <= 0 || separatorIndex >= templateRef.length - 1) {
+    throw new Error(`模板引用格式无效：${templateRef}`)
+  }
+
+  const type = templateRef.slice(0, separatorIndex)
+  const name = templateRef.slice(separatorIndex + 1)
+  if (type !== 'json' && type !== 'markdown' && type !== 'raw') {
+    throw new Error(`模板类型无效：${templateRef}`)
+  }
+
+  return { type, name }
+}
+
+function getTemplatePaths(baseDir: string, templateRef: string): TemplatePaths {
+  const { type, name } = parseTemplateRef(templateRef)
   if (type === 'json') {
     return {
-      jsonFilePath: path.join(baseDir, 'json', 'json.json'),
+      jsonFilePath: path.join(baseDir, 'json', `${name}.json`),
       markdownFilePath: null,
     }
   }
 
   if (type === 'markdown') {
     return {
-      jsonFilePath: path.join(baseDir, 'markdown', 'markdown.json'),
+      jsonFilePath: path.join(baseDir, 'markdown', `${name}.json`),
       markdownFilePath: null,
     }
   }
 
   return {
-    jsonFilePath: path.join(baseDir, 'raw', 'raw_markdown.json'),
-    markdownFilePath: path.join(baseDir, 'raw', 'raw_markdown.md'),
+    jsonFilePath: path.join(baseDir, 'raw', `${name}.json`),
+    markdownFilePath: path.join(baseDir, 'raw', `${name}.md`),
   }
 }
 
@@ -85,13 +101,13 @@ function replacePlaceholders(
 
 export function buildMenuMessage(
   baseDir: string,
-  type: MenuType,
+  templateRef: string,
   session: Session,
   config: Config,
   interactionId: string,
   args: string[],
 ): unknown {
-  const { jsonFilePath, markdownFilePath } = getTemplatePaths(baseDir, type)
+  const { jsonFilePath, markdownFilePath } = getTemplatePaths(baseDir, templateRef)
   const rawJsonData = fs.readFileSync(jsonFilePath, 'utf-8')
   const variables: Record<string, unknown> = {
     INTERACTION_CREATE: interactionId,

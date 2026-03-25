@@ -5,6 +5,7 @@ import { ensureTemplateFiles, resolveBaseDir } from './files'
 import { createLogger } from './logger'
 import { getButtonData, getInteractionId, isSupportedPlatform } from './session'
 import { sendMenuSequence } from './sender'
+import { setupTemplateCatalog } from './template-catalog'
 import type { Config as PluginConfig } from './types'
 
 export const name = 'qq-markdown-button'
@@ -20,12 +21,17 @@ export function apply(ctx: Context, config: PluginConfig) {
   const baseDir = resolveBaseDir(ctx.baseDir, config.file_name)
   const templateRoot = path.resolve(__dirname, '..', 'qq')
 
-  ctx.on('ready', () => {
-    try {
-      ensureTemplateFiles(baseDir, templateRoot)
-      logger.debug(`模板目录：${baseDir}`)
-    } catch (error) {
-      logger.error('初始化模板文件时出错', error)
+  try {
+    ensureTemplateFiles(baseDir, templateRoot)
+    logger.debug(`模板目录：${baseDir}`)
+  } catch (error) {
+    logger.error('初始化模板文件时出错', error)
+  }
+
+  const disposeTemplateCatalog = setupTemplateCatalog(ctx, baseDir, logger)
+  ctx.effect(() => {
+    return () => {
+      disposeTemplateCatalog()
     }
   })
 

@@ -2,16 +2,10 @@ import { Session } from 'koishi'
 
 export type MenuType = 'json' | 'markdown' | 'raw'
 
-export interface SendStep {
-  type: MenuType
-}
-
 export interface Config {
   command_name: string
-  markdown_id: string
-  json_button_id: string
   file_name: string[]
-  send_sequence: SendStep[]
+  send_sequence: string[]
   Allow_INTERACTION_CREATE: boolean
   consoleinfo: boolean
 }
@@ -32,6 +26,13 @@ export interface SendSequenceOptions {
   config: Config
   args: string[]
   interactionId: string
+}
+
+export interface TemplateCandidate {
+  type: MenuType
+  name: string
+  value: string
+  label: string
 }
 
 declare module 'koishi' {

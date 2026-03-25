@@ -1,0 +1,8 @@
+{
+    "msg_type": 2,
+    "msg_id": "${session.messageId}",
+    "event_id": "${INTERACTION_CREATE}",
+    "markdown": {
+        "content": "${markdown}"
+    }
+}
