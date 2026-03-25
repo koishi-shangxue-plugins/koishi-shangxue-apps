@@ -23,8 +23,8 @@ QQ 官方机器人 Markdown / 按钮模板插件。
 
 - `json/json.json`
 - `markdown/markdown.json`
-- `raw/raw_markdown.json`
-- `raw/raw_markdown.md`
+- `raw/raw-markdown.json`
+- `raw/raw-markdown.md`
 - `raw/raw-without-keyboard.json`
 - `raw/raw-without-keyboard.md`
 
@@ -82,7 +82,7 @@ QQ 官方机器人 Markdown / 按钮模板插件。
 
 - `json/json`
 - `markdown/markdown`
-- `raw/raw_markdown`
+- `raw/raw-markdown`
 - `raw/raw-without-keyboard`
 
 其中 `raw/xxx` 只有在 `raw/xxx.json` 和 `raw/xxx.md` 同时存在时才会出现。

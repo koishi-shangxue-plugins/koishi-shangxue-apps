@@ -5,7 +5,7 @@ import { MenuType } from './types'
 const templateFiles: Record<MenuType, readonly string[]> = {
   json: ['json.json'],
   markdown: ['markdown.json'],
-  raw: ['raw_markdown.json', 'raw_markdown.md', 'raw-without-keyboard.json', 'raw-without-keyboard.md'],
+  raw: ['raw-markdown.json', 'raw-markdown.md', 'raw-without-keyboard.json', 'raw-without-keyboard.md'],
 }
 
 export function resolveBaseDir(rootDir: string, fileName: string[]): string {
