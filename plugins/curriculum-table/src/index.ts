@@ -31,6 +31,7 @@ export async function apply(ctx: Context, config: CurriculumTableConfig) {
     const renderConfig: RenderConfig = {
         screenshotQuality: config.screenshotQuality,
         footerText: config.footerText,
+        scheduleLayoutMode: config.scheduleLayoutMode,
         closePageAfterRender: config.closePageAfterRender,
         useGlyphService: config.useGlyphService,
         glyphFontFamily: config.glyphFontFamily,

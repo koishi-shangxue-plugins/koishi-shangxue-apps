@@ -4,18 +4,32 @@ import path from 'node:path'
 import * as url from 'node:url'
 import type {} from 'koishi-plugin-glyph'
 import type {} from 'koishi-plugin-puppeteer'
-import { TABLE_NAME } from './types'
+import type { ScheduleLayoutMode } from './config'
+import { TABLE_NAME, type CurriculumTable } from './types'
 
-export interface CourseRenderItem {
+type CourseStatus = 'ongoing' | 'next' | 'finished' | 'nocourse'
+
+interface ResolvedCourseStatus {
+  status: Exclude<CourseStatus, 'nocourse'>
+  statusDetail: string
+}
+
+interface CourseDisplayUser {
   userid: string
   username: string
   useravatar: string
+}
+
+export interface CourseRenderItem extends CourseDisplayUser {
   courseName: string | null
   startTime: string | null
   endTime: string | null
-  status: 'ongoing' | 'next' | 'finished' | 'nocourse'
+  status: CourseStatus
   statusDetail: string
   totalMinutesToday: number
+  sortStartMinutes: number
+  isSummary: boolean
+  summaryText: string
 }
 
 export interface RenderConfig {
@@ -25,17 +39,35 @@ export interface RenderConfig {
   useGlyphService: boolean
   glyphFontFamily?: string
   enableDebugLogging: boolean
+  scheduleLayoutMode: ScheduleLayoutMode
+}
+
+type PuppeteerPage = Awaited<ReturnType<NonNullable<Context['puppeteer']>['page']>>
+type PuppeteerElement = Awaited<ReturnType<PuppeteerPage['$']>>
+
+const FONT_NAME = '千图马克手写体Lite'
+const LOCAL_FONT_FILE = '方正像素12.ttf'
+const FALLBACK_AVATAR = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA='
+const DAY_OF_WEEK_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'] as const
+const STATUS_ORDER: Record<CourseStatus, number> = {
+  ongoing: 0,
+  next: 1,
+  finished: 2,
+  nocourse: 3,
 }
 
 /** 优先使用 glyph，失败后回退本地字体。 */
-export async function getFontFaceRule(ctx: Context, config: Pick<RenderConfig, 'useGlyphService' | 'glyphFontFamily'>, fontDir: string): Promise<string> {
-  const fontName = '千图马克手写体lite'
-  const localFontPath = path.join(fontDir, '方正像素12.ttf')
+export async function getFontFaceRule(
+  ctx: Context,
+  config: Pick<RenderConfig, 'useGlyphService' | 'glyphFontFamily'>,
+  fontDir: string,
+): Promise<string> {
+  const localFontPath = path.join(fontDir, LOCAL_FONT_FILE)
 
   if (config.useGlyphService && ctx.glyph && config.glyphFontFamily) {
     const fontDataUrl = ctx.glyph.getFontDataUrl(config.glyphFontFamily)
     if (fontDataUrl) {
-      return `@font-face { font-family: '${fontName}'; src: url('${fontDataUrl}'); }`
+      return `@font-face { font-family: '${FONT_NAME}'; src: url('${fontDataUrl}'); }`
     }
     ctx.logger.warn(`从 glyph 获取字体 ${config.glyphFontFamily} 失败，回退到本地字体。`)
   }
@@ -43,28 +75,27 @@ export async function getFontFaceRule(ctx: Context, config: Pick<RenderConfig, '
   try {
     const fontBuffer = await fs.promises.readFile(localFontPath)
     const base64Font = fontBuffer.toString('base64')
-    return `@font-face { font-family: '${fontName}'; src: url('data:font/ttf;base64,${base64Font}') format('truetype'); }`
+    return `@font-face { font-family: '${FONT_NAME}'; src: url('data:font/ttf;base64,${base64Font}') format('truetype'); }`
   } catch {
-    ctx.logger.error('加载本地字体文件失败，使用系统字体。')
+    ctx.logger.error('加载本地字体文件失败，将使用系统字体。')
     return ''
   }
 }
 
-/** 注册本地字体到 glyph。 */
+/** 将本地字体注册到 glyph，便于控制台直接选用。 */
 export async function registerGlyphFont(ctx: Context, fontDir: string): Promise<void> {
   if (!ctx.glyph) return
 
-  const fontName = '千图马克手写体lite'
-  const fontPath = path.join(fontDir, '方正像素12.ttf')
+  const fontPath = path.join(fontDir, LOCAL_FONT_FILE)
   const fontFileUrl = url.pathToFileURL(fontPath).href
 
   try {
-    const ok = await ctx.glyph.checkFont(fontName, fontFileUrl)
+    const ok = await ctx.glyph.checkFont(FONT_NAME, fontFileUrl)
     if (!ok) {
-      ctx.logger.warn(`字体 '${fontName}' 未能通过 glyph 服务成功加载。`)
+      ctx.logger.warn(`字体 "${FONT_NAME}" 未能通过 glyph 服务成功加载。`)
     }
   } catch (error) {
-    ctx.logger.error(`通过 glyph 检查字体 '${fontName}' 时出错:`, error)
+    ctx.logger.error(`通过 glyph 检查字体 "${FONT_NAME}" 时出错:`, error)
   }
 }
 
@@ -81,50 +112,62 @@ function formatHours(minutes: number): string {
   return `${(minutes / 60).toFixed(1)} 小时`
 }
 
+function buildCourseTimeText(item: CourseRenderItem): string {
+  if (!item.startTime || !item.endTime) {
+    if (item.totalMinutesToday > 0) {
+      return `共 ${formatHours(item.totalMinutesToday)}`
+    }
+    return ''
+  }
+
+  const courseTime = `${escHtml(item.startTime)}-${escHtml(item.endTime)}`
+  if (!item.statusDetail) {
+    return courseTime
+  }
+
+  return `${courseTime}（${escHtml(item.statusDetail)}）`
+}
+
 function renderCourseItem(item: CourseRenderItem): string {
-  let badgeClass = ''
-  let badgeText = ''
+  let badgeClass = 'badge-nocourse'
+  let badgeText = '无课'
   let chevronColor = '#aaa'
-  let courseNameHtml = ''
-  let timeHtml = ''
 
   if (item.status === 'ongoing') {
     badgeClass = 'badge-ongoing'
     badgeText = '进行中'
     chevronColor = '#e05050'
-    courseNameHtml = `<div class="course-name">${escHtml(item.courseName ?? '')}</div>`
-    timeHtml = `<div class="time-info">${escHtml(item.startTime ?? '')}-${escHtml(item.endTime ?? '')} (${escHtml(item.statusDetail)})</div>`
   } else if (item.status === 'next') {
     badgeClass = 'badge-next'
     badgeText = '下一节'
     chevronColor = '#5b8fd9'
-    courseNameHtml = `<div class="course-name-next">${escHtml(item.courseName ?? '')}</div>`
-    timeHtml = `<div class="time-info">${escHtml(item.startTime ?? '')}-${escHtml(item.endTime ?? '')} (${escHtml(item.statusDetail)})</div>`
   } else if (item.status === 'finished') {
     badgeClass = 'badge-finished'
     badgeText = '已结束'
     chevronColor = '#7bbf7b'
-    courseNameHtml = '<div class="course-name-finished">今日课程已上完</div>'
-    timeHtml = `<div class="time-info">共 ${formatHours(item.totalMinutesToday)}</div>`
-  } else {
-    badgeClass = 'badge-nocourse'
-    badgeText = '已结束'
-    chevronColor = '#7bbf7b'
-    courseNameHtml = '<div class="course-name-finished">今日课程已上完</div>'
-    timeHtml = `<div class="time-info">共 ${formatHours(item.totalMinutesToday)}</div>`
   }
+
+  const courseNameClass = item.status === 'ongoing'
+    ? 'course-name'
+    : item.status === 'next'
+      ? 'course-name-next'
+      : 'course-name-finished'
+  const courseLabel = item.isSummary ? item.summaryText : (item.courseName ?? '')
+  const timeText = buildCourseTimeText(item)
+  const avatarSrc = item.useravatar || FALLBACK_AVATAR
+  const timeHtml = timeText ? `<div class="time-info">${timeText}</div>` : ''
 
   return `
 <div class="course-item">
   <div class="avatar-col">
-    <img class="avatar" src="${escHtml(item.useravatar)}" alt="${escHtml(item.username)}">
+    <img class="avatar" src="${escHtml(avatarSrc)}" alt="${escHtml(item.username)}">
   </div>
   ${chevronSvg(chevronColor)}
   <div class="info-col">
     <div class="nickname" title="${escHtml(item.username)}">${escHtml(item.username)}</div>
     <div class="status-row">
       <span class="badge ${badgeClass}">${badgeText}</span>
-      ${courseNameHtml}
+      <div class="${courseNameClass}">${escHtml(courseLabel)}</div>
     </div>
     ${timeHtml}
   </div>
@@ -141,7 +184,7 @@ function escHtml(str: string): string {
 }
 
 /** 等待截图相关资源加载完成。 */
-async function waitForCaptureReady(page: Awaited<ReturnType<NonNullable<Context['puppeteer']>['page']>>): Promise<void> {
+async function waitForCaptureReady(page: PuppeteerPage): Promise<void> {
   await page.evaluate(async () => {
     if ('fonts' in document) {
       await document.fonts.ready.catch(() => {})
@@ -159,6 +202,219 @@ async function waitForCaptureReady(page: Awaited<ReturnType<NonNullable<Context[
   })
 }
 
+function timeToMinutes(t: string): number {
+  const [hour, minute] = t.split(':').map(Number)
+  return hour * 60 + minute
+}
+
+function calcTotalMinutes(courses: Pick<CurriculumTable, 'curriculumtime'>[]): number {
+  let total = 0
+  for (const course of courses) {
+    const [startTime, endTime] = course.curriculumtime.split('-')
+    total += Math.max(0, timeToMinutes(endTime) - timeToMinutes(startTime))
+  }
+  return total
+}
+
+function getCourseDays(course: CurriculumTable): string[] {
+  if (Array.isArray(course.curriculumndate)) {
+    return course.curriculumndate.filter((day): day is string => typeof day === 'string' && day.length > 0)
+  }
+  return []
+}
+
+function isCourseInDate(course: CurriculumTable, currentDate: string, currentDayOfWeekName: string): boolean {
+  return currentDate >= course.startDate
+    && currentDate <= course.endDate
+    && getCourseDays(course).includes(currentDayOfWeekName)
+}
+
+function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+  const remainMinutes = minutes % 60
+  if (hours > 0) {
+    return `${hours} 小时 ${remainMinutes} 分钟`
+  }
+  return `${remainMinutes} 分钟`
+}
+
+function resolveCourseStatus(
+  startMin: number,
+  endMin: number,
+  currentTimestamp: number,
+  dayOffset: number,
+): ResolvedCourseStatus {
+  if (dayOffset < 0) {
+    return { status: 'finished', statusDetail: '' }
+  }
+
+  if (dayOffset > 0) {
+    return { status: 'next', statusDetail: '' }
+  }
+
+  if (startMin <= currentTimestamp && currentTimestamp <= endMin) {
+    return {
+      status: 'ongoing',
+      statusDetail: `剩余 ${formatDuration(endMin - currentTimestamp)}`,
+    }
+  }
+
+  if (startMin > currentTimestamp) {
+    return {
+      status: 'next',
+      statusDetail: `${formatDuration(startMin - currentTimestamp)}后`,
+    }
+  }
+
+  return { status: 'finished', statusDetail: '' }
+}
+
+function createCourseRenderItem(
+  course: CurriculumTable,
+  currentTimestamp: number,
+  dayOffset: number,
+): CourseRenderItem {
+  const [startTime, endTime] = course.curriculumtime.split('-')
+  const startMin = timeToMinutes(startTime)
+  const endMin = timeToMinutes(endTime)
+  const { status, statusDetail } = resolveCourseStatus(startMin, endMin, currentTimestamp, dayOffset)
+
+  return {
+    userid: course.userid,
+    username: course.username,
+    useravatar: course.useravatar,
+    courseName: course.curriculumname,
+    startTime,
+    endTime,
+    status,
+    statusDetail,
+    totalMinutesToday: 0,
+    sortStartMinutes: startMin,
+    isSummary: false,
+    summaryText: '',
+  }
+}
+
+function createSummaryRenderItem(
+  user: CourseDisplayUser,
+  status: CourseStatus,
+  totalMinutesToday: number,
+  summaryText: string,
+): CourseRenderItem {
+  return {
+    userid: user.userid,
+    username: user.username,
+    useravatar: user.useravatar,
+    courseName: null,
+    startTime: null,
+    endTime: null,
+    status,
+    statusDetail: '',
+    totalMinutesToday,
+    sortStartMinutes: Number.MAX_SAFE_INTEGER,
+    isSummary: true,
+    summaryText,
+  }
+}
+
+function buildByUserRenderItems(
+  allCourses: CurriculumTable[],
+  validCourses: CurriculumTable[],
+  currentTimestamp: number,
+  dayOffset: number,
+): CourseRenderItem[] {
+  const allUserIds = [...new Set(allCourses.map(course => course.userid))]
+  const renderItems: CourseRenderItem[] = []
+
+  for (const userid of allUserIds) {
+    const userInfo = allCourses.find(course => course.userid === userid)
+    if (!userInfo) continue
+
+    const user = {
+      userid,
+      username: userInfo.username,
+      useravatar: userInfo.useravatar,
+    }
+    const userValidCourses = validCourses
+      .filter(course => course.userid === userid)
+      .sort((a, b) => timeToMinutes(a.curriculumtime.split('-')[0]) - timeToMinutes(b.curriculumtime.split('-')[0]))
+
+    if (userValidCourses.length === 0) {
+      renderItems.push(createSummaryRenderItem(
+        user,
+        'nocourse',
+        0,
+        dayOffset === 0 ? '今日没有课程' : '所选日期没有课程',
+      ))
+      continue
+    }
+
+    const userCourseItems = userValidCourses.map(course => createCourseRenderItem(course, currentTimestamp, dayOffset))
+    const ongoingItem = userCourseItems.find(item => item.status === 'ongoing')
+    if (ongoingItem) {
+      renderItems.push(ongoingItem)
+      continue
+    }
+
+    const nextItem = userCourseItems.find(item => item.status === 'next')
+    if (nextItem) {
+      renderItems.push(nextItem)
+      continue
+    }
+
+    renderItems.push(createSummaryRenderItem(
+      user,
+      'finished',
+      calcTotalMinutes(userValidCourses),
+      dayOffset === 0 ? '今日课程已上完' : '所选日期课程已结束',
+    ))
+  }
+
+  return renderItems.sort((a, b) => {
+    const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
+    if (statusDiff !== 0) return statusDiff
+    return a.username.localeCompare(b.username, 'zh-CN')
+  })
+}
+
+function buildByTimeRenderItems(
+  validCourses: CurriculumTable[],
+  currentTimestamp: number,
+  dayOffset: number,
+): CourseRenderItem[] {
+  return validCourses
+    .map(course => createCourseRenderItem(course, currentTimestamp, dayOffset))
+    .sort((a, b) => {
+      const timeDiff = a.sortStartMinutes - b.sortStartMinutes
+      if (timeDiff !== 0) return timeDiff
+
+      const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
+      if (statusDiff !== 0) return statusDiff
+
+      const userDiff = a.username.localeCompare(b.username, 'zh-CN')
+      if (userDiff !== 0) return userDiff
+
+      return (a.courseName ?? '').localeCompare(b.courseName ?? '', 'zh-CN')
+    })
+}
+
+function createEmptyStateItem(layoutMode: ScheduleLayoutMode, dayOffset: number): CourseRenderItem {
+  const summaryText = layoutMode === 'by-time'
+    ? (dayOffset === 0 ? '今日暂无课程安排' : '所选日期暂无课程安排')
+    : (dayOffset === 0 ? '今日没有课程' : '所选日期没有课程')
+
+  return createSummaryRenderItem(
+    {
+      userid: 'curriculum-table-empty',
+      username: '群友课表',
+      useravatar: FALLBACK_AVATAR,
+    },
+    'nocourse',
+    0,
+    summaryText,
+  )
+}
+
 export async function renderCourseTable(
   ctx: Context,
   config: RenderConfig,
@@ -173,8 +429,9 @@ export async function renderCourseTable(
     return null
   }
 
-  let page: Awaited<ReturnType<typeof ctx.puppeteer.page>> | null = null
-  let captureRoot: Awaited<ReturnType<Awaited<ReturnType<typeof ctx.puppeteer.page>>['$']>> | null = null
+  let page: PuppeteerPage | null = null
+  let captureRoot: PuppeteerElement | null = null
+  let shouldClosePage = config.closePageAfterRender
 
   try {
     page = await ctx.puppeteer.page()
@@ -185,133 +442,30 @@ export async function renderCourseTable(
       return null
     }
 
-    const now = new Date()
-    now.setDate(now.getDate() + dayOffset)
-    const currentDate = now.toISOString().split('T')[0]
-    const dayOfWeekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-    const currentDayOfWeekName = dayOfWeekNames[now.getDay()]
+    const targetDate = new Date()
+    targetDate.setDate(targetDate.getDate() + dayOffset)
 
-    const validCourses = allCourses.filter(course =>
-      currentDate >= course.startDate &&
-      currentDate <= course.endDate &&
-      course.curriculumndate.includes(currentDayOfWeekName),
+    const currentDate = targetDate.toISOString().split('T')[0]
+    const currentDayOfWeekName = DAY_OF_WEEK_NAMES[targetDate.getDay()]
+    const validCourses = allCourses.filter(course => isCourseInDate(course, currentDate, currentDayOfWeekName))
+    const currentTimestamp = new Date().getHours() * 60 + new Date().getMinutes()
+
+    logInfo(
+      `群组 ${channelId} 在 ${currentDayOfWeekName} 的有效课程 ${validCourses.length} 条，渲染模式：${config.scheduleLayoutMode}`,
     )
 
-    logInfo(`群组 ${channelId} 在 ${currentDayOfWeekName} 有效课程 ${validCourses.length} 门`)
-
-    const currentTimestamp = dayOffset === 0 ? now.getHours() * 60 + now.getMinutes() : 0
-    const allUserIds = [...new Set(allCourses.map(course => course.userid))]
-    const renderItems: CourseRenderItem[] = []
-
-    for (const userid of allUserIds) {
-      const userInfo = allCourses.find(course => course.userid === userid)
-      if (!userInfo) continue
-
-      const userValidCourses = validCourses.filter(course => course.userid === userid)
-      if (userValidCourses.length === 0) {
-        const finishedToday = allCourses.filter(course =>
-          course.userid === userid &&
-          currentDate >= course.startDate &&
-          currentDate <= course.endDate &&
-          course.curriculumndate.includes(currentDayOfWeekName),
-        )
-
-        renderItems.push({
-          userid,
-          username: userInfo.username,
-          useravatar: userInfo.useravatar,
-          courseName: null,
-          startTime: null,
-          endTime: null,
-          status: 'nocourse',
-          statusDetail: '',
-          totalMinutesToday: calcTotalMinutes(finishedToday),
-        })
-        continue
-      }
-
-      let bestItem: CourseRenderItem | null = null
-      let bestPriority = Infinity
-
-      for (const course of userValidCourses) {
-        const [startTime, endTime] = course.curriculumtime.split('-')
-        const startMin = timeToMinutes(startTime)
-        const endMin = timeToMinutes(endTime)
-
-        if (startMin <= currentTimestamp && currentTimestamp <= endMin) {
-          const remaining = endMin - currentTimestamp
-          const remainHours = Math.floor(remaining / 60)
-          const remainMinutes = remaining % 60
-          const detail = remainHours > 0
-            ? `剩余 ${remainHours} 小时 ${remainMinutes} 分钟`
-            : `剩余 ${remainMinutes} 分钟`
-
-          bestItem = {
-            userid,
-            username: course.username,
-            useravatar: course.useravatar,
-            courseName: course.curriculumname,
-            startTime,
-            endTime,
-            status: 'ongoing',
-            statusDetail: detail,
-            totalMinutesToday: 0,
-          }
-          bestPriority = -1
-          continue
-        }
-
-        if (startMin > currentTimestamp) {
-          const diff = startMin - currentTimestamp
-          if (diff < bestPriority) {
-            const diffHours = Math.floor(diff / 60)
-            const diffMinutes = diff % 60
-            const detail = diffHours > 0
-              ? `${diffHours} 小时 ${diffMinutes} 分钟后`
-              : `${diffMinutes} 分钟后`
-
-            bestPriority = diff
-            bestItem = {
-              userid,
-              username: course.username,
-              useravatar: course.useravatar,
-              courseName: course.curriculumname,
-              startTime,
-              endTime,
-              status: 'next',
-              statusDetail: detail,
-              totalMinutesToday: 0,
-            }
-          }
-        }
-      }
-
-      if (bestItem) {
-        renderItems.push(bestItem)
-        continue
-      }
-
-      renderItems.push({
-        userid,
-        username: userInfo.username,
-        useravatar: userInfo.useravatar,
-        courseName: null,
-        startTime: null,
-        endTime: null,
-        status: 'finished',
-        statusDetail: '',
-        totalMinutesToday: calcTotalMinutes(userValidCourses),
-      })
-    }
-
-    const statusOrder = { ongoing: 0, next: 1, finished: 2, nocourse: 3 }
-    renderItems.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
+    const renderItems = config.scheduleLayoutMode === 'by-time'
+      ? buildByTimeRenderItems(validCourses, currentTimestamp, dayOffset)
+      : buildByUserRenderItems(allCourses, validCourses, currentTimestamp, dayOffset)
+    const finalRenderItems = renderItems.length > 0
+      ? renderItems
+      : [createEmptyStateItem(config.scheduleLayoutMode, dayOffset)]
 
     const templateHtml = await fs.promises.readFile(templatePath, 'utf-8')
     const fontFaceRule = await getFontFaceRule(ctx, config, fontDir)
     const fontStyleTag = fontFaceRule ? `<style>${fontFaceRule}</style>` : ''
-    const courseItemsHtml = renderItems.map(renderCourseItem).join('\n')
-    const footerTime = `${now.toLocaleDateString('zh-CN')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+    const courseItemsHtml = finalRenderItems.map(renderCourseItem).join('\n')
+    const footerTime = `${targetDate.toLocaleDateString('zh-CN')} ${String(targetDate.getHours()).padStart(2, '0')}:${String(targetDate.getMinutes()).padStart(2, '0')}:${String(targetDate.getSeconds()).padStart(2, '0')}`
     const finalHtml = templateHtml
       .replace('{{FONT_FACE_STYLE_TAG}}', fontStyleTag)
       .replace('{{COURSE_ITEMS}}', courseItemsHtml)
@@ -324,6 +478,7 @@ export async function renderCourseTable(
     captureRoot = await page.$('#capture-root')
     if (!captureRoot) {
       ctx.logger.error('无法获取截图根节点。')
+      shouldClosePage = true
       return null
     }
 
@@ -332,37 +487,17 @@ export async function renderCourseTable(
       type: 'jpeg',
     })
 
-    await captureRoot.dispose()
-    captureRoot = null
-
-    if (config.closePageAfterRender) {
-      await page.close()
-      page = null
-    }
-
     return h.image(image, 'image/jpeg')
   } catch (error) {
+    shouldClosePage = true
+    ctx.logger.error('生成课程表图片失败:', error)
+    return null
+  } finally {
     if (captureRoot) {
       await captureRoot.dispose().catch(() => {})
     }
-    if (page && config.closePageAfterRender) {
+    if (page && shouldClosePage) {
       await page.close().catch(() => {})
     }
-    ctx.logger.error('生成课程表图片失败:', error)
-    return null
   }
-}
-
-function timeToMinutes(t: string): number {
-  const [h, m] = t.split(':').map(Number)
-  return h * 60 + m
-}
-
-function calcTotalMinutes(courses: { curriculumtime: string }[]): number {
-  let total = 0
-  for (const course of courses) {
-    const [startTime, endTime] = course.curriculumtime.split('-')
-    total += Math.max(0, timeToMinutes(endTime) - timeToMinutes(startTime))
-  }
-  return total
 }
