@@ -8,8 +8,18 @@ const templateFiles: Record<MenuType, readonly string[]> = {
   raw: ['raw-markdown.json', 'raw-markdown.md', 'raw-without-keyboard.json', 'raw-without-keyboard.md'],
 }
 
+const LEGACY_ROOT_NAME = 'qq-markdown-button'
+const CURRENT_ROOT_NAME = 'qq-markdown-button-v2'
+
 export function resolveBaseDir(rootDir: string, fileName: string[]): string {
-  return path.join(rootDir, ...fileName)
+  const normalizedFileName = fileName.map((segment, index) => {
+    if (index === 1 && segment === LEGACY_ROOT_NAME) {
+      return CURRENT_ROOT_NAME
+    }
+    return segment
+  })
+
+  return path.join(rootDir, ...normalizedFileName)
 }
 
 export function ensureTemplateFiles(baseDir: string, templateRoot: string): void {

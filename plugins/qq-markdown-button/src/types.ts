@@ -4,7 +4,7 @@ export type MenuType = 'json' | 'markdown' | 'raw'
 
 export interface Config {
   command_name: string
-  file_name: string[]
+  file_name_v2: string[]
   send_sequence: string[]
   Allow_INTERACTION_CREATE: boolean
   consoleinfo: boolean

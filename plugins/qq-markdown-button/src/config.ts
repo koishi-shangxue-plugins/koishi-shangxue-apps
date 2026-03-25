@@ -13,10 +13,10 @@ export const usage = `
 export const Config: Schema<PluginConfig> = Schema.intersect([
   Schema.object({
     command_name: Schema.string().default('按钮菜单').description('注册的指令名称'),
-    file_name: Schema.array(String).role('table').description('存储文件的文件夹名称<br>请依次填写 相对于koishi根目录的 **文件夹** 路径<br>本插件会自动使用对应的文件夹下的 json / markdown / raw 文件来发送消息')
+    file_name_v2: Schema.array(String).role('table').description('存储文件的文件夹名称<br>请依次填写 相对于koishi根目录的 **文件夹** 路径<br>本插件会自动使用对应的文件夹下的 json / markdown / raw 文件来发送消息')
       .default([
         'data',
-        'qq-markdown-button',
+        'qq-markdown-button-v2',
         '按钮菜单配置1',
       ]),
   }).description('基础设置'),

@@ -18,7 +18,7 @@ export { Config, usage }
 
 export function apply(ctx: Context, config: PluginConfig) {
   const logger = createLogger(ctx, config.consoleinfo)
-  const baseDir = resolveBaseDir(ctx.baseDir, config.file_name)
+  const baseDir = resolveBaseDir(ctx.baseDir, config.file_name_v2)
   const templateRoot = path.resolve(__dirname, '..', 'qq')
 
   try {
