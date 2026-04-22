@@ -1,8 +1,8 @@
-import { clone, Context, h, Logger, Schema, sleep, Universal } from 'koishi'
+import { clone, Context, h, Logger, Schema, sleep, Session } from 'koishi';
 import { } from '@koishijs/assets';
-import { } from 'koishi-plugin-puppeteer'
+import { } from 'koishi-plugin-puppeteer';
 
-export const name = 'testplugin'
+export const name = 'testplugin';
 export const inject = {
   required: ['http', 'logger', 'puppeteer', 'database'],
   optional: ['assets', 'cache']
@@ -22,14 +22,14 @@ export const Config: Schema<Config> =
     }).description('分组 1'),
     Schema.object({
     }).description('分组 2'),
-  ])
+  ]);
 
 
 export function apply(ctx: Context) {
   // write your plugin here
-  const commandName = "消息"
+  const commandName = "消息";
 
-  const command = ctx.command(commandName)
+  const command = ctx.command(commandName);
 
   // ctx.platform("pbhh").on('message', async (session) => {
   //   ctx.logger.info(session)
@@ -39,30 +39,34 @@ export function apply(ctx: Context) {
   //   ctx.logger.info('added', session)
   // })
 
-  const cmd = ctx.command('room', 'PBHH 聊天室测试')
+  const cmd = ctx.command('room', 'PBHH 聊天室测试');
   // 加入房间（建立持久 WS，开始接收消息）
   cmd.subcommand('.join <roomId:number>', '加入聊天室')
     .example('room.join 6')
     .action(async ({ session }, roomId) => {
-      if (!roomId) return '请输入房间 ID'
-      const bot = session.bot.internal
-      bot.joinRoom(roomId)
-      return `已发起加入房间 ${roomId}，等待 WS 连接建立…`
-    })
+
+      if (!session) return;
+      if (!roomId) return '请输入房间 ID';
+      const bot = session.bot.internal;
+      bot.joinRoom(roomId);
+      return `已发起加入房间 ${roomId}，等待 WS 连接建立…`;
+    });
   // 离开房间（断开 WS）
   cmd.subcommand('.leave <roomId:number>', '离开聊天室')
     .example('room.leave 6')
     .action(async ({ session }, roomId) => {
-      if (!roomId) return '请输入房间 ID'
-      const bot = session.bot.internal
-      bot.leaveRoom(roomId)
-      return `已离开房间 ${roomId}`
-    })
+
+      if (!session) return;
+      if (!roomId) return '请输入房间 ID';
+      const bot = session.bot.internal;
+      bot.leaveRoom(roomId);
+      return `已离开房间 ${roomId}`;
+    });
 
   // // 切换房间（离开旧的，加入新的）
   // cmd.subcommand('.switch <fromId:number> <toId:number>', '切换聊天室')
   //   .example('room.switch 1 6')
-  //   .action(async ({ session }, fromId, toId) => {
+  //   .action(async ({ session }: { session: Session }, fromId, toId) => {
   //     if (!toId) return '请输入要切换到的房间 ID'
   //     const bot = session.bot.internal
   //     if (fromId) {
@@ -77,49 +81,57 @@ export function apply(ctx: Context) {
   // 列出所有房间
   cmd.subcommand('.list', '列出所有聊天室')
     .action(async ({ session }) => {
-      const list = await session.bot.getGuildList()
-      const rooms = list.data.filter((g) => g.id.startsWith('room:'))
-      if (!rooms.length) return '暂无聊天室'
-      return rooms.map((r) => `[${r.id}] ${r.name}`).join('\n')
-    })
+
+      if (!session) return;
+      const list = await session.bot.getGuildList();
+      const rooms = list.data.filter((g) => g.id.startsWith('room:'));
+      if (!rooms.length) return '暂无聊天室';
+      return rooms.map((r) => `[${r.id}] ${r.name}`).join('\n');
+    });
 
   // 查看某个房间的历史消息（最近 10 条）
   cmd.subcommand('.history <roomId:number>', '查看聊天室历史消息')
     .example('room.history 6')
     .action(async ({ session }, roomId) => {
-      if (!roomId) return '请输入房间 ID'
-      const list = await session.bot.getMessageList(`room:${roomId}`)
-      if (!list.data.length) return '暂无历史消息'
+
+      if (!session) return;
+      if (!roomId) return '请输入房间 ID';
+      const list = await session.bot.getMessageList(`room:${roomId}`);
+      if (!list.data.length) return '暂无历史消息';
       const lines = list.data.slice(-10).map((m) => {
-        const who = m.user?.name ?? m.user?.id ?? '?'
-        return `[${who}] ${m.content}`
-      })
-      return lines.join('\n')
-    })
+        const who = m.user?.name ?? m.user?.id ?? '?';
+        return `[${who}] ${m.content}`;
+      });
+      return lines.join('\n');
+    });
 
   // 创建新聊天室
   cmd.subcommand('.create <name:text>', '创建聊天室')
     .example('room.create 新房间')
     .action(async ({ session }, name) => {
-      if (!name) return '请输入房间名称'
-      const bot = session.bot.internal
-      const room = await bot.createRoom(name)
-      return `已创建聊天室：ID=${room.id}  名称=${room.name}  创建者=${room.createdBy}`
-    })
+
+      if (!session) return;
+      if (!name) return '请输入房间名称';
+      const bot = session.bot.internal;
+      const room = await bot.createRoom(name);
+      return `已创建聊天室：ID=${room.id}  名称=${room.name}  创建者=${room.createdBy}`;
+    });
 
   // 向指定房间发消息（无需加入）
   cmd.subcommand('.send <roomId:number> <content:text>', '向聊天室发送消息（无需加入）')
     .example('room.send 6 你好')
     .action(async ({ session }, roomId, content) => {
-      if (!roomId || !content) return '请输入房间 ID 和消息内容'
-      const bot = session.bot.internal
-      await bot.sendRoomMessage(roomId, content)
-      return `已向房间 ${roomId} 发送：${content}`
-    })
+
+      if (!session) return;
+      if (!roomId || !content) return '请输入房间 ID 和消息内容';
+      const bot = session.bot.internal;
+      await bot.sendRoomMessage(roomId, content);
+      return `已向房间 ${roomId} 发送：${content}`;
+    });
 
   // command
   //   .subcommand('.历史记录')
-  //   .action(async ({ session }, id) => {
+  //   .action(async ({ session }: { session: Session }, id) => {
   //     const aaa = await session.bot.internal.getFriendMsgHistory(session.userId)
   //     ctx.logger.info(aaa)
   //     return
@@ -127,9 +139,11 @@ export function apply(ctx: Context) {
 
   ctx.command('test-timeout', '测试页面渲染超时')
     .action(async ({ session }) => {
-      await session.send('开始测试，页面将在1分钟后渲染完成...')
 
-      const page = await ctx.puppeteer.page()
+      if (!session) return;
+      await session.send('开始测试，页面将在1分钟后渲染完成...');
+
+      const page = await ctx.puppeteer.page();
       try {
         const html = `
         <!DOCTYPE html>
@@ -143,27 +157,29 @@ export function apply(ctx: Context) {
           <div id="content"></div>
         </body>
         </html>
-      `
+      `;
 
-        await page.setContent(html)
+        await page.setContent(html);
 
         // 使用 waitForFunction 等待1分钟
         await page.waitForFunction(() => {
           return new Promise(resolve => {
-            setTimeout(() => resolve(true), 60000)
-          })
-        })
+            setTimeout(() => resolve(true), 60000);
+          });
+        });
 
-        const screenshot = await page.screenshot()
-        await session.send(h.image(screenshot, 'image/png'))
-        return '✅ 测试完成'
+        const screenshot = await page.screenshot();
+        await session.send(h.image(screenshot, 'image/png'));
+        return '✅ 测试完成';
       } catch (error) {
-        ctx.logger.info(error)
-        return `❌ 测试失败: ${error.message}`
+        // catch 里的错误默认是 unknown，需要先做类型收窄
+        ctx.logger.info(error);
+        const message = error instanceof Error ? error.message : String(error);
+        return `❌ 测试失败: ${message}`;
       } finally {
-        await page.close()
+        await page.close();
       }
-    })
+    });
 
 
 
@@ -192,7 +208,7 @@ export function apply(ctx: Context) {
 
   // let testInterval: NodeJS.Timeout | null = null;
   // ctx.command('log-test', '压力测试日志输出')
-  //   .action(async ({ session }) => {
+  //   .action(async ({ session }: { session: Session }) => {
   //     if (testInterval) {
   //       clearInterval(testInterval);
   //       testInterval = null;
@@ -210,292 +226,429 @@ export function apply(ctx: Context) {
 
   ctx.command('这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令', "这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这一个超级长的测试指令")
     .action(async ({ session }) => {
-      ctx.assets.transform("")
-      ctx.logger.info("===")
-      return
-    })
+
+      if (!session) return;
+      ctx.assets.transform("");
+      ctx.logger.info("===");
+      return;
+    });
+  command
+    .subcommand('.按钮2')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      await session.send(h("qq:button", {
+        "render_data": {
+          "label": "再来一次",
+          "style": 2
+        },
+        "action": {
+          "type": 2,
+          "permission": {
+            "type": 2
+          },
+          "data": "消息 按钮2",
+          "enter": true
+        }
+      }))
+      return;
+    });
+  command
+    .subcommand('.按钮')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      await session.send([
+        h("markdown","# 你好"),
+        h("button", {
+        text: "消息 按钮"
+      })])
+      return;
+    });
+
 
   command
     .subcommand('.fork')
     .action(async ({ session }, id) => {
+
+      if (!session) return;
       // 手动创建一个新对象，复制 session 的主要属性
       // 这样可以避免复制不可克隆的属性（如 Proxy、函数等）
       let forksession = {
         ...session,
         content: session.content,  // 显式复制 content 字符串
-      }
+      };
 
-      ctx.logger.info("修改前 forksession.content:", forksession.content)
-      ctx.logger.info("修改前 session.content:", session.content)
+      ctx.logger.info("修改前 forksession.content:", forksession.content);
+      ctx.logger.info("修改前 session.content:", session.content);
 
-      forksession.content = "123123"
+      forksession.content = "123123";
 
-      ctx.logger.info("修改后 forksession.content:", forksession.content)
-      ctx.logger.info("修改后 session.content:", session.content)
-      return
-    })
+      ctx.logger.info("修改后 forksession.content:", forksession.content);
+      ctx.logger.info("修改后 session.content:", session.content);
+      return;
+    });
 
   command
     .subcommand('.rea')
     .action(async ({ session }) => {
-      // 解析 channelId
-      const parts = session.channelId.split(':')
-      const [repoPrefix, type, numberStr] = parts
-      const [owner, repo] = repoPrefix.split('/')
-      const issueNumber = parseInt(numberStr)
 
-      let reactionId: number
+      if (!session) return;
+      // channelId 也可能为空，这里单独收窄
+      const channelId = session.channelId;
+      if (!channelId) return;
+      const parts = channelId.split(':');
+      const [repoPrefix, type, numberStr] = parts;
+      const [owner, repo] = repoPrefix.split('/');
+      const issueNumber = parseInt(numberStr);
+
+      let reactionId: number;
 
       // 判断是评论还是 Issue/PR 本身
       if (session.messageId !== 'issue' && session.messageId !== 'pull' && session.messageId !== 'discussion') {
-        // 这是一条评论
-        const commentId = parseInt(session.messageId)
+        // 评论消息的 messageId 需要先确认存在
+        const messageId = session.messageId;
+        if (!messageId) return;
+        const commentId = parseInt(messageId);
 
         // 创建反应
         reactionId = await session.bot.internal.createIssueCommentReaction(
           owner, repo, commentId, '+1'
-        )
+        );
 
-        await session.send(`已添加反应 👍，反应 ID: ${reactionId}，5秒后自动删除...`)
+        await session.send(`已添加反应 👍，反应 ID: ${reactionId}，5秒后自动删除...`);
 
         // 等待 5 秒
-        await new Promise(resolve => setTimeout(resolve, 5 * 1000))
+        await new Promise(resolve => setTimeout(resolve, 5 * 1000));
 
         // 删除反应
         await session.bot.internal.deleteIssueCommentReaction(
           owner, repo, commentId, reactionId
-        )
+        );
 
-        return `已删除反应 ID: ${reactionId}`
+        return `已删除反应 ID: ${reactionId}`;
       } else {
         // 这是 Issue/PR 本身
         reactionId = await session.bot.internal.createIssueReaction(
           owner, repo, issueNumber, '+1'
-        )
+        );
 
-        await session.send(`已添加反应 👍，反应 ID: ${reactionId}，5秒后自动删除...`)
+        await session.send(`已添加反应 👍，反应 ID: ${reactionId}，5秒后自动删除...`);
 
         // 等待 5 秒
-        await new Promise(resolve => setTimeout(resolve, 5 * 1000))
+        await new Promise(resolve => setTimeout(resolve, 5 * 1000));
 
         // 删除反应
         await session.bot.internal.deleteIssueReaction(
           owner, repo, issueNumber, reactionId
-        )
+        );
 
-        return `已删除反应 ID: ${reactionId}`
+        return `已删除反应 ID: ${reactionId}`;
       }
-    })
+    });
 
 
   command
     .subcommand('logger')
     .action(async ({ session }, id) => {
-      logger.info("123123")
-      ctx.logger.info("123123")
-      return
-    })
+
+      if (!session) return;
+      logger.info("123123");
+      ctx.logger.info("123123");
+      return;
+    });
 
   ctx.command('trans')
     .action(async ({ session }) => {
-      ctx.assets.transform("")
-      ctx.logger.info("===")
-      return
-    })
+
+      if (!session) return;
+      ctx.assets.transform("");
+      ctx.logger.info("===");
+      return;
+    });
 
   ctx.command('aauth')
     .userFields(["authority"])
-    .action(async ({ session }) => {
-      const auth = session.user.authority
-      ctx.logger.info(auth)
-      await session.send(h.text(auth.toString()))
-      return
-    })
+    .action(async ({ session }: { session?: Session<'authority'> }) => {
+      // 这里的 session 需要显式声明 authority 字段，并处理可空类型
+      if (!session) return;
+      const user = session.user;
+      if (!user) return;
+      const auth = user.authority;
+      ctx.logger.info(auth);
+      await session.send(h.text(auth.toString()));
+      return;
+    });
 
   command
     .subcommand('.prompt [id]')
     .action(async ({ session }, id) => {
-      const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg")
-      const filedata = await file.data
-      const filemime = await file.type
-      const base64data = await Buffer.from(filedata).toString("base64")
+
+      if (!session) return;
+      const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg");
+      const filedata = await file.data;
+      const filemime = await file.type;
+      const base64data = await Buffer.from(filedata).toString("base64");
       await session.send([
         h.image(`data:${filemime};base64,` + base64data),
         "请发送文本"
-      ])
+      ]);
 
-      const a = await session.prompt(30 * 1000)
-      await session.send(a)
-      return
-    })
+      const a = await session.prompt(30 * 1000);
+      await session.send(a);
+      return;
+    });
 
   command
     .subcommand('.base [id]')
     .action(async ({ session }, id) => {
-      const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg")
-      const filedata = await file.data
-      const filemime = await file.type
-      const base64data = await Buffer.from(filedata).toString("base64")
-      await session.send(h.image(`data:${filemime};base64,` + base64data))
-      return
-    })
+
+      if (!session) return;
+      const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg");
+      const filedata = await file.data;
+      const filemime = await file.type;
+      const base64data = await Buffer.from(filedata).toString("base64");
+      await session.send(h.image(`data:${filemime};base64,` + base64data));
+      return;
+    });
 
   command
     .subcommand('.bot [id]')
     .action(async ({ session }, id) => {
-      const aaa = session.bot.getGuildMemberIter(session.guildId)
-      ctx.logger.info(aaa)
-      return
-    })
+
+      if (!session) return;
+      const guildId = session.guildId;
+      if (!guildId) return;
+      const aaa = session.bot.getGuildMemberIter(guildId);
+      ctx.logger.info(aaa);
+      return;
+    });
 
   command
     .subcommand('.sendPrivateMessage [id]')
     .action(async ({ session }, id) => {
-      const aaa = session.bot.sendPrivateMessage(session.userId, "你好啊！私聊消息！")
-      ctx.logger.info(aaa)
-      return
-    })
+
+      if (!session) return;
+      const userId = session.userId;
+      if (!userId) return;
+      const aaa = session.bot.sendPrivateMessage(userId, "你好啊！私聊消息！");
+      ctx.logger.info(aaa);
+      return;
+    });
 
   command
     .subcommand('.撤回')
     .action(async ({ session }) => {
-      const aaa = await session.send("即将执行撤回。。。")
-      ctx.logger.info(aaa)
-      const bbb = await session.bot.deleteMessage(session.channelId, aaa[0])
-      ctx.logger.info(bbb)
-      return
-    })
+
+      if (!session) return;
+      const aaa = await session.send("即将执行撤回。。。");
+      ctx.logger.info(aaa);
+      const channelId = session.channelId;
+      if (!channelId) return;
+      const bbb = await session.bot.deleteMessage(channelId, aaa[0]);
+      ctx.logger.info(bbb);
+      return;
+    });
 
   command
     .subcommand('.getGuild')
     .action(async ({ session }) => {
-      const aaa = await session.bot.getGuild(session.channelId)
-      ctx.logger.info(aaa)
-      return
-    })
+
+      if (!session) return;
+      const channelId = session.channelId;
+      if (!channelId) return;
+      const aaa = await session.bot.getGuild(channelId);
+      ctx.logger.info(aaa);
+      return;
+    });
 
   command
     .subcommand('.编辑消息.md')
     .action(async ({ session }) => {
-      const aaa = await session.send(h.text("你好，这是编辑之前的消息。"))
-      await sleep(3 * 1000)
-      await session.bot.editMessage(session.channelId, aaa[0], h("markdown", "# 你好\n## 你好啊"))
-      await session.send(h.text("我已经编辑完毕"))
-      return
-    })
+
+      if (!session) return;
+      const aaa = await session.send(h.text("你好，这是编辑之前的消息。"));
+      await sleep(3 * 1000);
+      const channelId = session.channelId;
+      if (!channelId) return;
+      await session.bot.editMessage(channelId, aaa[0], h("markdown", "# 你好\n## 你好啊"));
+      await session.send(h.text("我已经编辑完毕"));
+      return;
+    });
 
   command
     .subcommand('.编辑消息.图片')
     .action(async ({ session }) => {
-      const aaa = await session.send(h.text("你好，这是编辑之前的消息。"))
-      await sleep(3 * 1000)
-      await session.bot.editMessage(session.channelId, aaa[0], h.image("https://i1.hdslb.com/bfs/archive/ea9dc9d2d716280b673a3bd5eb21023b3a2ed2b3.jpg"))
-      await session.send(h.text("我已经编辑完毕"))
-      return
-    })
+
+      if (!session) return;
+      const aaa = await session.send(h.text("你好，这是编辑之前的消息。"));
+      await sleep(3 * 1000);
+      const channelId = session.channelId;
+      if (!channelId) return;
+      await session.bot.editMessage(channelId, aaa[0], h.image("https://i1.hdslb.com/bfs/archive/ea9dc9d2d716280b673a3bd5eb21023b3a2ed2b3.jpg"));
+      await session.send(h.text("我已经编辑完毕"));
+      return;
+    });
 
   command
     .subcommand('.编辑消息.文字')
     .action(async ({ session }) => {
-      const aaa = await session.send(h.text("你好，这是编辑之前的消息。"))
-      await sleep(3 * 1000)
-      await session.bot.editMessage(session.channelId, aaa[0], "你好，这是编辑以后的消息。")
-      await session.send(h.text("我已经编辑完毕"))
-      return
-    })
+
+      if (!session) return;
+      const aaa = await session.send(h.text("你好，这是编辑之前的消息。"));
+      await sleep(3 * 1000);
+      const channelId = session.channelId;
+      if (!channelId) return;
+      await session.bot.editMessage(channelId, aaa[0], "你好，这是编辑以后的消息。");
+      await session.send(h.text("我已经编辑完毕"));
+      return;
+    });
 
   command
     .subcommand('.html')
     .action(async ({ session }) => {
-      await session.send(h("yunhu:html", "<h1>你好</h1>"))
-      await session.send(h("html", "<h1>你好</h1>"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("yunhu:html", "<h1>你好</h1>"));
+      await session.send(h("html", "<h1>你好</h1>"));
+      return;
+    });
 
   command
     .subcommand('.a')
     .action(async ({ session }) => {
-      await session.send(h("a", "https://iirose.com/"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("a", "https://iirose.com/"));
+      return;
+    });
 
   command
     .subcommand('.del')
     .action(async ({ session }) => {
-      await session.send(h("del", "你好这是del"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("del", "你好这是del"));
+      return;
+    });
 
   command
     .subcommand('.sharp')
     .action(async ({ session }) => {
+
+      if (!session) return;
       await session.send([
         h.text("猜您在找，这个频道："),
-        h("sharp", { id: session.guildId })
-      ])
-      return
-    })
+        h("sharp", { id: session.guildId ?? session.channelId ?? '' })
+      ]);
+      return;
+    });
 
   command
     .subcommand('.md [text:text]')
     .action(async ({ session }, text) => {
+
+      if (!session) return;
       if (!text) {
-        await session.send(h("iirose:markdown", "# 你好\n## 这是markdown！"))
+        /*
+[蓝字按钮](mqqapi://aio/inlinecmd?command=消息 md&enter=false&reply=false)
+[点我私聊](https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%2Fopen%3Fuin%3D2854197108)
+
+        */
+        await session.send(h('markdown', {
+          content: `
+https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%2Fopen%3Fuin%3D2854197108
+`,
+          stream: true,
+        }));
       } else {
-        await session.send(h("iirose:markdown", text))
+        await session.send(h("markdown", text));
       }
-      return
-    })
+      return;
+    });
+
+  command
+    .subcommand('.ark24')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      const msg = h('qq:ark24', {
+        desc: '描述文本',
+        prompt: '提示文本',
+        title: '标题',
+        metaDesc: '详情描述',
+        img: 'https://forum.koishi.xyz/uploads/default/original/1X/72b32c99d52e391ce7dfc08d7fff86bd50ae1d03.png',
+        link: 'mqqapi://openhalfscreenweb/?height=1920&url=https://forum.koishi.xyz/latest',
+        subTitle: '来源',
+      });
+      await session.send(msg);
+    });
+
+  command
+    .subcommand('.name')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      await session.send(session.username);
+      ctx.logger.info(session.bot.ctx.koishi.config.autoAuthorize);
+      return;
+    });
 
   command
     .subcommand('.按钮')
     .action(async ({ session }) => {
+
+      if (!session) return;
       await session.send([
         h.text("你好啊"),
         h("button", { id: 1, type: "action", text: "action按钮" }),
         h("button", { id: 2, type: "link", text: "link按钮", href: "bilibili.com" }),
         h("button", { id: 3, type: "input", text: "input按钮" }),
-      ])
-      return
-    })
+      ]);
+      return;
+    });
 
   command
     .subcommand('.quote')
     .action(async ({ session }) => {
-      ctx.logger.info(session.quote)
+
+      if (!session) return;
+      ctx.logger.info(session.quote);
       if (session.quote) {
-        ctx.logger.info(session.quote.content)
-        ctx.logger.info(session.quote.channel)
+        ctx.logger.info(session.quote.content);
+        ctx.logger.info(session.quote.channel);
       }
-      await session.send("已经打印！")
-      return
-    })
+      await session.send("已经打印！");
+      return;
+    });
 
   command
     .subcommand('.元素 [text:text]')
     .action(async ({ session }, text) => {
+
+      if (!session) return;
       if (text) {
-        ctx.logger.info("直接输入", h.parse(text))
-        await session.send("已经打印！")
-        return
+        ctx.logger.info("直接输入", h.parse(text));
+        await session.send("已经打印！");
+        return;
       }
       if (session.quote) {
-        ctx.logger.info("引用输入", session.quote.elements)
-        await session.send("已经打印！")
-        return
+        ctx.logger.info("引用输入", session.quote.elements);
+        await session.send("已经打印！");
+        return;
       }
       if (!text) {
-        await session.send("请发送元素：")
-        const aaa = await session.prompt(30 * 1000)
-        ctx.logger.info("交互输入", h.parse(aaa))
-        await session.send("已经打印！")
+        await session.send("请发送元素：");
+        const aaa = await session.prompt(30 * 1000);
+        ctx.logger.info("交互输入", h.parse(aaa));
+        await session.send("已经打印！");
       }
-      return
-    })
+      return;
+    });
 
   // command
   //   .subcommand('.log [content:text]')
-  //   .action(async ({ session }, content) => {
+  //   .action(async ({ session }: { session: Session }, content) => {
   //     // 权限检查
   //     if (!content || !(
   //       session.userId.includes("7756242") ||
@@ -523,224 +676,289 @@ export function apply(ctx: Context) {
   command
     .subcommand('.log')
     .action(async ({ session }) => {
-      ctx.logger.info("测试打印！！！")
-      ctx.logger.info("++++++++++++++++++++")
-      await session.send("已经打印！")
-      return
-    })
+
+      if (!session) return;
+      ctx.logger.info("测试打印！！！");
+      ctx.logger.info("++++++++++++++++++++");
+      await session.send("已经打印！");
+      return;
+    });
 
 
   command
     .subcommand('.引用')
     .action(async ({ session }) => {
-      await session.send(h.quote(session.messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！")
-      return
-    })
+
+      if (!session) return;
+      const messageId = session.messageId;
+      if (!messageId) return;
+      await session.send(h.quote(messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！");
+      return;
+    });
   command
     .subcommand('.剧透')
     .action(async ({ session }) => {
-      await session.send(h("spl", "你好啊"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("spl", "你好啊"));
+      return;
+    });
   command
     .subcommand('.粗体')
     .action(async ({ session }) => {
-      await session.send(h("b", "这是粗体文本"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("b", "这是粗体文本"));
+      return;
+    });
   command
     .subcommand('.斜体')
     .action(async ({ session }) => {
-      await session.send(h("i", "这是斜体文本"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("i", "这是斜体文本"));
+      return;
+    });
   command
     .subcommand('.下划线')
     .action(async ({ session }) => {
-      await session.send(h("u", "这是下划线文本"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("u", "这是下划线文本"));
+      return;
+    });
 
   command
     .subcommand('.删除线')
     .action(async ({ session }) => {
-      await session.send(h("s", "这是删除线文本"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("s", "这是删除线文本"));
+      return;
+    });
   command
     .subcommand('.代码')
     .action(async ({ session }) => {
-      await session.send(h("code", "console.log('Hello World')"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("code", "console.log('Hello World')"));
+      return;
+    });
   command
     .subcommand('.上标')
     .action(async ({ session }) => {
-      await session.send(h("sup", "2"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("sup", "2"));
+      return;
+    });
   command
     .subcommand('.下标')
     .action(async ({ session }) => {
-      await session.send(h("sub", "2"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h("sub", "2"));
+      return;
+    });
   command
     .subcommand('.换行')
     .action(async ({ session }) => {
+
+      if (!session) return;
       await session.send([
         "第一行<br>",
         "第二行<br>",
         "第三行",
-      ])
-      return
-    })
+      ]);
+      return;
+    });
 
   command
     .subcommand('.段落')
     .action(async ({ session }) => {
+
+      if (!session) return;
       await session.send([
         h("p", "这是第一段"),
         h("p", "这是第二段")
-      ])
-      return
-    })
+      ]);
+      return;
+    });
 
   command
     .subcommand('.assets')
     .action(async ({ session }) => {
-      await session.send(`正在处理中...`)
-      const videourl = "file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"
-      const videoElement = `${h.video(videourl)}`
-      await session.send(`即将转换： ${videourl}`)
-      const videoElement2 = await ctx.assets.transform(videoElement)
-      await session.send(`${videoElement2}`)
-      return
-    })
+
+      if (!session) return;
+      await session.send(`正在处理中...`);
+      const videourl = "file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4";
+      const videoElement = `${h.video(videourl)}`;
+      await session.send(`即将转换： ${videourl}`);
+      const videoElement2 = await ctx.assets.transform(videoElement);
+      await session.send(`${videoElement2}`);
+      return;
+    });
 
   command
     .subcommand('.视频')
     .action(async ({ session }) => {
-      await session.send(`正在处理中...`)
-      await session.send(h.video("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(`正在处理中...`);
+      await session.send(h.video("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"));
+      return;
+    });
 
   command
     .subcommand('.文件')
     .action(async ({ session }) => {
-      await session.send(`正在处理中...`)
-      await session.send(h.file("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(`正在处理中...`);
+      await session.send(h.file("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"));
+      return;
+    });
 
   command
     .subcommand('.语音')
     .action(async ({ session }) => {
-      await session.send(h.audio("https://api.injahow.cn/meting/?type=url&id=2748727454"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h.audio("https://api.injahow.cn/meting/?type=url&id=2748727454"));
+      return;
+    });
 
   command
     .subcommand('.回显')
     .action(async ({ session }) => {
-      const aaa = await session.send(`你好哦`)
-      ctx.logger.info(aaa)
 
-      return
-    })
+      if (!session) return;
+      const aaa = await session.send(`你好哦`);
+      ctx.logger.info(aaa);
+
+      return;
+    });
 
   command
     .subcommand('.图片')
     .action(async ({ session }) => {
-      const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg")
-      ctx.logger.info(aaa)
-      await session.send(aaa)
-      return
-    })
+
+      if (!session) return;
+      const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg");
+      ctx.logger.info(aaa);
+      await session.send(aaa);
+      return;
+    });
 
   command
     .subcommand('.文本')
     .action(async ({ session }) => {
-      const aaa = h.text("123")
-      ctx.logger.info(aaa)
-      await session.send(aaa)
-      return
+
+      if (!session) return;
+      const aaa = h.text("123");
+      ctx.logger.info(aaa);
+      await session.send(aaa);
+      return;
     })
 
     .action(async ({ session }) => {
-      const aaa = h.text("456")
-      ctx.logger.info(aaa)
-      await session.send(aaa)
-      return
-    })
+
+      if (!session) return;
+      const aaa = h.text("456");
+      ctx.logger.info(aaa);
+      await session.send(aaa);
+      return;
+    });
 
   command
     .subcommand('.消息 [type]')
     .action(async ({ session }, type) => {
+
+      if (!session) return;
       if (type === "user") {
-        await session.bot.sendPrivateMessage(session.userId, "怎么了嘛")
+        const userId = session.userId;
+        if (!userId) return;
+        await session.bot.sendPrivateMessage(userId, "怎么了嘛");
       } else {
-        await session.bot.sendMessage(session.channelId, "怎么了嘛")
+        const channelId = session.channelId;
+        if (!channelId) return;
+        await session.bot.sendMessage(channelId, "怎么了嘛");
       }
-      return
-    })
+      return;
+    });
 
   command
     .subcommand('.att [id]')
     .action(async ({ session }, id) => {
-      await session.send(h.at("679A51F1D4893"))
-      return
-    })
+
+      if (!session) return;
+      await session.send(h.at("679A51F1D4893"));
+      return;
+    });
 
   command
     .subcommand('.回显')
     .action(async ({ session }) => {
-      const aaa = await session.send(`你好哦`)
-      ctx.logger.info(aaa)
-      return
-    })
+
+      if (!session) return;
+      const aaa = await session.send(`你好哦`);
+      ctx.logger.info(aaa);
+      return;
+    });
 
   command
     .subcommand('.at [...at]')
     .action(async ({ session }, ...at) => {
-      const aaa = h.at(session.userId)
-      ctx.logger.info(at)
-      ctx.logger.info(h.parse(session.content))
-      ctx.logger.info(`${aaa}`)
-      await session.send(aaa + "你好啊！我at你了")
-      return
-    })
+
+      if (!session) return;
+      const userId = session.userId;
+      if (!userId) return;
+      const aaa = h.at(userId);
+      ctx.logger.info(at);
+      // content 可能为空，解析前提供空字符串兜底
+      ctx.logger.info(h.parse(session.content ?? ''));
+      ctx.logger.info(`${aaa}`);
+      await session.send(aaa + "你好啊！我at你了");
+      return;
+    });
 
   command
     .subcommand('.emoji')
     .action(async ({ session }) => {
-      ctx.logger.info(session)
-      await session.send("请发送emoji：")
-      const aaa = await session.prompt(30 * 1000)
-      await session.send(aaa)
-      return
-    })
+
+      if (!session) return;
+      ctx.logger.info(session);
+      await session.send("请发送emoji：");
+      const aaa = await session.prompt(30 * 1000);
+      await session.send(aaa);
+      return;
+    });
 
   // yunhu platform
   command
     .subcommand('这是直接发的指令')
     .action(async ({ session }) => {
-      ctx.logger.info(session)
-      return 'Hello from 直接指令!'
-    })
+
+      if (!session) return;
+      ctx.logger.info(session);
+      return 'Hello from 直接指令!';
+    });
 
   command
     .subcommand('这是普通指令 [...args]')
     .action(async ({ session }, ...args) => {
-      ctx.logger.info('用户输入的参数为：', args)
-      return 'Hello from 普通指令!'
-    })
+
+      if (!session) return;
+      ctx.logger.info('用户输入的参数为：', args);
+      return 'Hello from 普通指令!';
+    });
 
   command
     .subcommand('这是自定义输入指令 [jsoninput]')
     .action(async ({ session }, jsoninput) => {
-      ctx.logger.info('用户输入的json表单内容为：', jsoninput)
-      return 'Hello from !'
-    })
+
+      if (!session) return;
+      ctx.logger.info('用户输入的json表单内容为：', jsoninput);
+      return 'Hello from !';
+    });
 }
