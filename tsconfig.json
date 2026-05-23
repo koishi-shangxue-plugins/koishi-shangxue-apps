@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "strict": false,
+    "rootDir": "src",
+    "outDir": "lib",
+    "target": "es2020",
+    "module": "ESNext",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "composite": true,
+    "incremental": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@satorijs/element",
+  },
+  "include": [
+    "src",
+  ],
+}

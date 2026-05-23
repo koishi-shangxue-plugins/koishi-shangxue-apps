@@ -257,7 +257,7 @@ export function apply(ctx: Context, config) {
       const hasPermission =
         session.user.authority > 1 ||
         session.event.member?.roles?.some((role) =>
-          ["admin", "owner"].includes(role),
+          ["admin", "owner"].includes(String(role)),
         );
       if (!hasPermission) {
         return "您没有权限执行此操作";
