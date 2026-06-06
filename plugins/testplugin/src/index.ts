@@ -207,7 +207,16 @@ export function apply(ctx: Context)
       }
     });
 
+  ctx.platform('qq').on("before-send", async (session) =>
+  {
+    ctx.logger.info(session);
+  });
 
+  // ctx.platform('qq').on('message', async (session) =>
+  // {
+  //   ctx.logger.info(session);
+  //   ctx.logger.info(session.selfId);
+  // });
 
   // ctx.on('message', async (session) => {
   //   ctx.logger.info(session.content)
