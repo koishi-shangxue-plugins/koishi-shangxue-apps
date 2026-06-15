@@ -15,12 +15,12 @@ export const usage = `
 <p> </p>
 <h2>温馨提示：</h2>
 <p><br>请勿将自定义的txt文件与本插件放置在同一目录下，以免插件更新导致文件丢失。</p>
-<p>目前EmojiHub-bili默认提供 <code>43套</code> 表情包。若您的配置内容有误差，请点击 <code>MoreEmojiHubList</code> 表格右上角按钮内的 <code>恢复默认值</code>。</p>
+<p>目前EmojiHub-bili默认提供 <code>44套</code> 表情包。若您的配置内容有误差，请点击 <code>MoreEmojiHubList</code> 表格右上角按钮内的 <code>恢复默认值</code>。</p>
 <p>若开启插件后，指令不出现，<a href="/market?keyword=commands">请重新开关commands插件</a></p>
 `;
 
 const defaultMoreEmojiHubList = [
-  // 下面实际有效为 43套
+  // 下面实际有效为 44套
   { command: '随机emojihub表情包', source_url: "无效路径/内容会调用随机表情包。注意与【随机表情包】指令的功能一致，但【随机表情包】不可被填入表格使用，【随机emojihub表情包】可以，因为在这个配置项里。" },
   { command: '本地图库示例', source_url: path.join(__dirname, 'txts') },
   { command: '网络图片示例', source_url: 'https://i0.hdslb.com/bfs/article/afc31d0e398204d94478473a497028e6352074746.gif' },
@@ -35,6 +35,7 @@ const defaultMoreEmojiHubList = [
   { command: 'fufu表情包', source_url: path.join(__dirname, '../txts/fufu.txt') },
   { command: 'girlsbandcry', source_url: path.join(__dirname, '../txts/GirlsBandCry.txt') },
   { command: 'kemomimi表情包', source_url: path.join(__dirname, '../txts/kemomimi酱表情包.txt') },
+  { command: 'PigHub表情包', source_url: path.join(__dirname, '../txts/PigHub.txt') },
   { command: 'koishi-meme表情包', source_url: path.join(__dirname, '../txts/koimeme.txt') },
   { command: 'mygo表情包', source_url: path.join(__dirname, '../txts/mygo.txt') },
   { command: 'seseren表情包', source_url: path.join(__dirname, '../txts/seseren.txt') },
@@ -107,7 +108,7 @@ export interface Config {
   allfileinfo?: boolean;
 }
 
-export const Config: Schema<Config> = Schema.intersect([
+export const Config = Schema.intersect([
   Schema.object({
     emojihub_bili_command: Schema.string().default('emojihub-bili').description('`父级指令`的指令名称').pattern(/^\S+$/),
     emojihub_onemore: Schema.string().default('再来一张').description('`再来一张`的指令名称').pattern(/^\S+$/),
@@ -886,4 +887,4 @@ export const Config: Schema<Config> = Schema.intersect([
     }),
     Schema.object({})
   ]),
-]) as any;
+]) as Schema<Config>;

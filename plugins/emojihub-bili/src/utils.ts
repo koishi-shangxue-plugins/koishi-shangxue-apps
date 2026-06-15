@@ -19,9 +19,11 @@ export function logError(message) {
   logger.error(message);
 }
 
-export function logInfo(config: Config, ...args: any[]) {
+export function logInfo(config: Config, ...args: unknown[]) {
   if (config.consoleinfo) {
-    (logger.info as (...args: any[]) => void)(...args);
+    if (args.length > 0) {
+      logger.info(args[0], ...args.slice(1));
+    }
   }
 }
 
@@ -35,7 +37,12 @@ export function replacePlaceholders(content, context, isRawMode = false) {
     const value = content.replace(/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/g, (match, p1, p2) => {
       const key = p1 || p2;
       // 从 context 中查找占位符对应的值
-      const replacement = key.split('.').reduce((obj, k) => obj?.[k], context) || match;
+      const replacement = key.split('.').reduce((obj, k) => {
+        if (typeof obj === 'object' && obj !== null && k in obj) {
+          return (obj as Record<string, unknown>)[k];
+        }
+        return undefined;
+      }, context as unknown) || match;
       return replacement;
     });
 
@@ -47,7 +54,7 @@ export function replacePlaceholders(content, context, isRawMode = false) {
     if (Array.isArray(content)) {
       return content.map(item => replacePlaceholders(item, context, isRawMode));
     } else {
-      const result = {};
+      const result: Record<string, unknown> = {};
       for (const key in content) {
         result[key] = replacePlaceholders(content[key], context, isRawMode);
       }
@@ -59,7 +66,7 @@ export function replacePlaceholders(content, context, isRawMode = false) {
   return content;
 }
 
-export function getAllFiles(dir, fileList: string[] = []) {
+export function getAllFiles(dir: string, fileList: string[] = []) {
   const files = fs.readdirSync(dir);
 
   files.forEach(file => {
@@ -74,7 +81,7 @@ export function getAllFiles(dir, fileList: string[] = []) {
   return fileList;
 }
 
-export function getVirtualFilename(filePath, rootFolderPath) {
+export function getVirtualFilename(filePath: string, rootFolderPath: string) {
   const relativePath = path.relative(rootFolderPath, filePath);
   const parts = relativePath.split(path.sep);
   const filename = parts.join(''); // 使用点号连接路径部分

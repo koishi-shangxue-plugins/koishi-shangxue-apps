@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-emojihub-bili",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "[<ruby>Emojihub-bili<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)🐱支持QQ官方json按钮！20群即可发按钮！😍可自定义添加或删除任意表情包！基本每个指令都有上千张！支持定时/定量消息触发！[点我查看食用方法](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
