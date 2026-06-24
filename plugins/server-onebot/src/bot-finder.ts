@@ -432,7 +432,7 @@ export class BotFinder {
      * @param clientState 客户端状态
      * @returns 对应的 bot 实例
      */
-    async findBot(params: any, clientState: any): Promise<Bot | null> {
+    async findBot(params: any = {}, clientState: any): Promise<Bot | null> {
         // 如果是群组相关操作，根据群组 ID 查找
         if (params.group_id) {
             // 解码数字ID为原始频道字符串ID

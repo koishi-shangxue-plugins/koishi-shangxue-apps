@@ -168,8 +168,8 @@ function createMemberChangeEvent(session: Session, baseEvent: any, configSelfId?
  * 获取成员角色
  */
 function getMemberRole(session: Session): 'owner' | 'admin' | 'member' {
-    if (session.author?.roles?.includes('owner')) return 'owner'
-    if (session.author?.roles?.includes('admin')) return 'admin'
+    if (session.author?.roles?.some(role => String(role) === 'owner')) return 'owner'
+    if (session.author?.roles?.some(role => String(role) === 'admin')) return 'admin'
     return 'member'
 }
 

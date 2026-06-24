@@ -283,8 +283,8 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string; gro
                     age: 0,
                     area: '',
                     level: '0',
-                    role: member.roles?.includes('admin') ? 'admin' :
-                        member.roles?.includes('owner') ? 'owner' : 'member',
+                    role: member.roles?.some(role => String(role) === 'admin') ? 'admin' :
+                        member.roles?.some(role => String(role) === 'owner') ? 'owner' : 'member',
                     title: '',
                     join_time: 0,
                     last_sent_time: 0,
@@ -381,8 +381,8 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string; gro
                     age: 0,
                     area: '',
                     level: '0',
-                    role: member.roles?.includes('admin') ? 'admin' :
-                        member.roles?.includes('owner') ? 'owner' : 'member',
+                    role: member.roles?.some(role => String(role) === 'admin') ? 'admin' :
+                        member.roles?.some(role => String(role) === 'owner') ? 'owner' : 'member',
                     title: '',
                     join_time: 0,
                     last_sent_time: 0,

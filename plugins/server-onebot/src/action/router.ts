@@ -19,7 +19,8 @@ export class ActionRouter {
     }
 
     async handle(request: OneBotActionRequest, clientState: ClientState): Promise<OneBotActionResponse> {
-        const { action, params, echo } = request
+        const { action, echo } = request
+        const params = request.params ?? {}
 
         // 检查 action 是否存在
         if (!action) {

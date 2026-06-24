@@ -16,7 +16,7 @@ export interface OneBotEvent {
 
 export interface OneBotActionRequest {
     action: string
-    params: Record<string, any>
+    params?: Record<string, any>
     echo?: string
     self?: {
         platform: string

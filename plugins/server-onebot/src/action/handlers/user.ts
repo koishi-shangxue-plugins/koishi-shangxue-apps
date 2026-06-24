@@ -68,11 +68,16 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string, self
 
             try {
                 const friends = await bot.getFriendList()
-                return (friends.data || []).map(friend => ({
-                    user_id: parseInt(friend.id) || friend.id,
-                    nickname: friend.name || friend.nick || '',
-                    remark: friend.name || friend.nick || '',
-                } as FriendInfo))
+                return (friends.data || []).map(friend => {
+                    const friendId = 'id' in friend ? friend.id : ('userId' in friend ? friend.userId : '')
+                    const friendName = 'name' in friend ? friend.name : ''
+                    const friendNick = 'nick' in friend ? friend.nick : ''
+                    return {
+                        user_id: parseInt(String(friendId)) || friendId,
+                        nickname: friendName || friendNick || '',
+                        remark: friendName || friendNick || '',
+                    } as FriendInfo
+                })
             } catch (error) {
                 return []
             }
