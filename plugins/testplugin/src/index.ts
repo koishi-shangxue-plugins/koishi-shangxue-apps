@@ -26,22 +26,19 @@ export const Config: Schema<Config> =
   ]);
 
 
-export function apply(ctx: Context)
-{
+export function apply(ctx: Context) {
   // write your plugin here
   const commandName = "消息";
 
   const command = ctx.command(commandName);
 
-  ctx.platform("yunhu").on('guild-role-updated', async (session) =>
-  {
+  ctx.platform("yunhu").on('guild-role-updated', async (session) => {
     ctx.logger.info(session);
 
   });
   command
     .subcommand('.updatedrole')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.bot.updateGuildRole(`${session.guildId}`, 'koishi测试2', { name: 'SVIP' });
@@ -56,8 +53,7 @@ export function apply(ctx: Context)
   // 加入房间（建立持久 WS，开始接收消息）
   cmd.subcommand('.join <roomId:number>', '加入聊天室')
     .example('room.join 6')
-    .action(async ({ session }, roomId) =>
-    {
+    .action(async ({ session }, roomId) => {
 
       if (!session) return;
       if (!roomId) return '请输入房间 ID';
@@ -68,8 +64,7 @@ export function apply(ctx: Context)
   // 离开房间（断开 WS）
   cmd.subcommand('.leave <roomId:number>', '离开聊天室')
     .example('room.leave 6')
-    .action(async ({ session }, roomId) =>
-    {
+    .action(async ({ session }, roomId) => {
 
       if (!session) return;
       if (!roomId) return '请输入房间 ID';
@@ -95,8 +90,7 @@ export function apply(ctx: Context)
 
   // 列出所有房间
   cmd.subcommand('.list', '列出所有聊天室')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const list = await session.bot.getGuildList();
@@ -108,15 +102,13 @@ export function apply(ctx: Context)
   // 查看某个房间的历史消息（最近 10 条）
   cmd.subcommand('.history <roomId:number>', '查看聊天室历史消息')
     .example('room.history 6')
-    .action(async ({ session }, roomId) =>
-    {
+    .action(async ({ session }, roomId) => {
 
       if (!session) return;
       if (!roomId) return '请输入房间 ID';
       const list = await session.bot.getMessageList(`room:${roomId}`);
       if (!list.data.length) return '暂无历史消息';
-      const lines = list.data.slice(-10).map((m) =>
-      {
+      const lines = list.data.slice(-10).map((m) => {
         const who = m.user?.name ?? m.user?.id ?? '?';
         return `[${who}] ${m.content}`;
       });
@@ -126,8 +118,7 @@ export function apply(ctx: Context)
   // 创建新聊天室
   cmd.subcommand('.create <name:text>', '创建聊天室')
     .example('room.create 新房间')
-    .action(async ({ session }, name) =>
-    {
+    .action(async ({ session }, name) => {
 
       if (!session) return;
       if (!name) return '请输入房间名称';
@@ -139,8 +130,7 @@ export function apply(ctx: Context)
   // 向指定房间发消息（无需加入）
   cmd.subcommand('.send <roomId:number> <content:text>', '向聊天室发送消息（无需加入）')
     .example('room.send 6 你好')
-    .action(async ({ session }, roomId, content) =>
-    {
+    .action(async ({ session }, roomId, content) => {
 
       if (!session) return;
       if (!roomId || !content) return '请输入房间 ID 和消息内容';
@@ -158,15 +148,13 @@ export function apply(ctx: Context)
   //   })
 
   ctx.command('test-timeout', '测试页面渲染超时')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send('开始测试，页面将在1分钟后渲染完成...');
 
       const page = await ctx.puppeteer.page();
-      try
-      {
+      try {
         const html = `
         <!DOCTYPE html>
         <html>
@@ -184,10 +172,8 @@ export function apply(ctx: Context)
         await page.setContent(html);
 
         // 使用 waitForFunction 等待1分钟
-        await page.waitForFunction(() =>
-        {
-          return new Promise(resolve =>
-          {
+        await page.waitForFunction(() => {
+          return new Promise(resolve => {
             setTimeout(() => resolve(true), 60000);
           });
         });
@@ -195,28 +181,43 @@ export function apply(ctx: Context)
         const screenshot = await page.screenshot();
         await session.send(h.image(screenshot, 'image/png'));
         return '✅ 测试完成';
-      } catch (error)
-      {
+      } catch (error) {
         // catch 里的错误默认是 unknown，需要先做类型收窄
         ctx.logger.info(error);
         const message = error instanceof Error ? error.message : String(error);
         return `❌ 测试失败: ${message}`;
-      } finally
-      {
+      } finally {
         await page.close();
       }
     });
 
-  ctx.platform('qq').on("before-send", async (session) =>
-  {
-    ctx.logger.info(session);
-  });
+
 
   // ctx.platform('qq').on('message', async (session) =>
   // {
   //   ctx.logger.info(session);
   //   ctx.logger.info(session.selfId);
   // });
+
+  // ctx.platform('qq').on("before-send", async (session) =>
+  // {
+  //   ctx.logger.info(session);
+  // });
+
+  ctx.platform('qq').on("message", async (session) => {
+    ctx.logger.info(session);
+  });
+  ctx.platform('qq').on('guild-member-added', async (session) => {
+    ctx.logger.info('[guild-member-added] %o', session);
+  });
+
+  ctx.platform('qq').on('guild-member-updated', async (session) => {
+    ctx.logger.info('[guild-member-updated] %o', session);
+  });
+
+  ctx.platform('qq').on('guild-member-removed', async (session) => {
+    ctx.logger.info('[guild-member-removed] %o', session);
+  });
 
   // ctx.on('message', async (session) => {
   //   ctx.logger.info(session.content)
@@ -259,20 +260,19 @@ export function apply(ctx: Context)
   //     }
   //   });
 
-  command
-    .subcommand('.@')
-    .action(async ({ session }) =>
-    {
+  // command
+  //   .subcommand('.@')
+  //   .action(async ({ session }) =>
+  //   {
 
-      if (!session) return;
-      await session.send("你好啊，你被艾特了！" + h.at(session.userId) + "你好啊，你被艾特了！");
-      return;
-    });
+  //     if (!session) return;
+  //     await session.send("你好啊，你被艾特了！" + h.at(session.userId) + "你好啊，你被艾特了！");
+  //     return;
+  //   });
 
 
   ctx.command('这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令', "这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这一个超级长的测试指令")
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       ctx.assets.transform("");
@@ -281,8 +281,7 @@ export function apply(ctx: Context)
     });
   command
     .subcommand('.按钮2')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("qq:button", {
@@ -303,8 +302,7 @@ export function apply(ctx: Context)
     });
   command
     .subcommand('.按钮')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send([
@@ -318,8 +316,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.fork')
-    .action(async ({ session }, id) =>
-    {
+    .action(async ({ session }, id) => {
 
       if (!session) return;
       // 手动创建一个新对象，复制 session 的主要属性
@@ -341,8 +338,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.rea')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       // channelId 也可能为空，这里单独收窄
@@ -356,8 +352,7 @@ export function apply(ctx: Context)
       let reactionId: number;
 
       // 判断是评论还是 Issue/PR 本身
-      if (session.messageId !== 'issue' && session.messageId !== 'pull' && session.messageId !== 'discussion')
-      {
+      if (session.messageId !== 'issue' && session.messageId !== 'pull' && session.messageId !== 'discussion') {
         // 评论消息的 messageId 需要先确认存在
         const messageId = session.messageId;
         if (!messageId) return;
@@ -379,8 +374,7 @@ export function apply(ctx: Context)
         );
 
         return `已删除反应 ID: ${reactionId}`;
-      } else
-      {
+      } else {
         // 这是 Issue/PR 本身
         reactionId = await session.bot.internal.createIssueReaction(
           owner, repo, issueNumber, '+1'
@@ -403,8 +397,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('logger')
-    .action(async ({ session }, id) =>
-    {
+    .action(async ({ session }, id) => {
 
       if (!session) return;
       logger.info("123123");
@@ -413,8 +406,7 @@ export function apply(ctx: Context)
     });
 
   ctx.command('trans')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       ctx.assets.transform("");
@@ -424,8 +416,7 @@ export function apply(ctx: Context)
 
   ctx.command('aauth')
     .userFields(["authority"])
-    .action(async ({ session }: { session?: Session<'authority'>; }) =>
-    {
+    .action(async ({ session }: { session?: Session<'authority'>; }) => {
       // 这里的 session 需要显式声明 authority 字段，并处理可空类型
       if (!session) return;
       const user = session.user;
@@ -438,8 +429,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.prompt [id]')
-    .action(async ({ session }, id) =>
-    {
+    .action(async ({ session }, id) => {
 
       if (!session) return;
       const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg");
@@ -458,8 +448,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.base [id]')
-    .action(async ({ session }, id) =>
-    {
+    .action(async ({ session }, id) => {
 
       if (!session) return;
       const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg");
@@ -472,8 +461,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.bot [id]')
-    .action(async ({ session }, id) =>
-    {
+    .action(async ({ session }, id) => {
 
       if (!session) return;
       const guildId = session.guildId;
@@ -485,8 +473,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.sendPrivateMessage [id]')
-    .action(async ({ session }, id) =>
-    {
+    .action(async ({ session }, id) => {
 
       if (!session) return;
       const userId = session.userId;
@@ -498,8 +485,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.撤回')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const aaa = await session.send("即将执行撤回。。。");
@@ -513,11 +499,11 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.getGuild')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const channelId = session.channelId;
+      ctx.logger.info(channelId);
       if (!channelId) return;
       const aaa = await session.bot.getGuild(channelId);
       ctx.logger.info(aaa);
@@ -526,8 +512,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.编辑消息.md')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const aaa = await session.send(h.text("你好，这是编辑之前的消息。"));
@@ -541,8 +526,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.编辑消息.图片')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const aaa = await session.send(h.text("你好，这是编辑之前的消息。"));
@@ -556,8 +540,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.编辑消息.文字')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const aaa = await session.send(h.text("你好，这是编辑之前的消息。"));
@@ -571,8 +554,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.html')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("yunhu:html", "<h1>你好</h1>"));
@@ -582,8 +564,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.a')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("a", "https://iirose.com/"));
@@ -592,8 +573,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.del')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("del", "你好这是del"));
@@ -602,8 +582,7 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.sharp')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send([
@@ -615,12 +594,10 @@ export function apply(ctx: Context)
 
   command
     .subcommand('.md [text:text]')
-    .action(async ({ session }, text) =>
-    {
+    .action(async ({ session }, text) => {
 
       if (!session) return;
-      if (!text)
-      {
+      if (!text) {
         /*
 [蓝字按钮](mqqapi://aio/inlinecmd?command=消息 md&enter=false&reply=false)
 [点我私聊](https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%2Fopen%3Fuin%3D2854197108)
@@ -632,8 +609,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 `,
           stream: true,
         }));
-      } else
-      {
+      } else {
         await session.send(h("markdown", text));
       }
       return;
@@ -641,8 +617,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.ark24')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const msg = h('qq:ark24', {
@@ -659,8 +634,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.name')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(session.username);
@@ -672,9 +646,18 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
 
   command
+    .subcommand('.username')
+    .action(async ({ session }) => {
+      if (!session) return;
+      const rawData = session.username;
+      ctx.logger.info(rawData);
+      await session.send(rawData);
+      return;
+    });
+
+  command
     .subcommand('.按钮')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send([
@@ -688,40 +671,37 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.quote')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
+      await session.send(h.quote(session.messageId ?? '') + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！");
+      return;
+    });
 
-      if (!session) return;
-      ctx.logger.info(session.quote);
-      if (session.quote)
-      {
-        ctx.logger.info(session.quote.content);
-        ctx.logger.info(session.quote.channel);
-      }
+
+  command
+    .subcommand('.session')
+    .action(async ({ session }) => {
+      ctx.logger.info(session);
       await session.send("已经打印！");
       return;
     });
 
+
   command
     .subcommand('.元素 [text:text]')
-    .action(async ({ session }, text) =>
-    {
+    .action(async ({ session }, text) => {
 
       if (!session) return;
-      if (text)
-      {
+      if (text) {
         ctx.logger.info("直接输入", h.parse(text));
         await session.send("已经打印！");
         return;
       }
-      if (session.quote)
-      {
+      if (session.quote) {
         ctx.logger.info("引用输入", session.quote.elements);
         await session.send("已经打印！");
         return;
       }
-      if (!text)
-      {
+      if (!text) {
         await session.send("请发送元素：");
         const aaa = await session.prompt(30 * 1000);
         ctx.logger.info("交互输入", h.parse(aaa));
@@ -759,8 +739,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.log')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       ctx.logger.info("测试打印！！！");
@@ -772,8 +751,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.引用')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const messageId = session.messageId;
@@ -783,8 +761,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.剧透')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("spl", "你好啊"));
@@ -792,8 +769,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.粗体')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("b", "这是粗体文本"));
@@ -801,8 +777,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.斜体')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("i", "这是斜体文本"));
@@ -810,8 +785,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.下划线')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("u", "这是下划线文本"));
@@ -820,8 +794,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.删除线')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("s", "这是删除线文本"));
@@ -829,8 +802,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.代码')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("code", "console.log('Hello World')"));
@@ -838,8 +810,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.上标')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("sup", "2"));
@@ -847,8 +818,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.下标')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h("sub", "2"));
@@ -856,8 +826,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.换行')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send([
@@ -870,8 +839,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.段落')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send([
@@ -883,8 +851,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.assets')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -898,8 +865,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.视频')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -909,8 +875,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.文件')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -920,8 +885,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.语音')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       await session.send(h.audio("https://api.injahow.cn/meting/?type=url&id=2748727454"));
@@ -930,8 +894,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.回显')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const aaa = await session.send(`你好哦`);
@@ -942,8 +905,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.图片')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg");
@@ -954,8 +916,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.文本')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const aaa = h.text("123");
@@ -964,8 +925,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       return;
     })
 
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const aaa = h.text("456");
@@ -976,17 +936,14 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.消息 [type]')
-    .action(async ({ session }, type) =>
-    {
+    .action(async ({ session }, type) => {
 
       if (!session) return;
-      if (type === "user")
-      {
+      if (type === "user") {
         const userId = session.userId;
         if (!userId) return;
         await session.bot.sendPrivateMessage(userId, "怎么了嘛");
-      } else
-      {
+      } else {
         const channelId = session.channelId;
         if (!channelId) return;
         await session.bot.sendMessage(channelId, "怎么了嘛");
@@ -996,8 +953,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.att [id]')
-    .action(async ({ session }, id) =>
-    {
+    .action(async ({ session }, id) => {
 
       if (!session) return;
       await session.send(h.at("679A51F1D4893"));
@@ -1006,8 +962,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.回显')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       const aaa = await session.send(`你好哦`);
@@ -1017,8 +972,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.at [...at]')
-    .action(async ({ session }, ...at) =>
-    {
+    .action(async ({ session }, ...at) => {
 
       if (!session) return;
       const userId = session.userId;
@@ -1034,8 +988,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.emoji')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       ctx.logger.info(session);
@@ -1048,8 +1001,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
   // yunhu platform
   command
     .subcommand('这是直接发的指令')
-    .action(async ({ session }) =>
-    {
+    .action(async ({ session }) => {
 
       if (!session) return;
       ctx.logger.info(session);
@@ -1058,8 +1010,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('这是普通指令 [...args]')
-    .action(async ({ session }, ...args) =>
-    {
+    .action(async ({ session }, ...args) => {
 
       if (!session) return;
       ctx.logger.info('用户输入的参数为：', args);
@@ -1068,8 +1019,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('这是自定义输入指令 [jsoninput]')
-    .action(async ({ session }, jsoninput) =>
-    {
+    .action(async ({ session }, jsoninput) => {
 
       if (!session) return;
       ctx.logger.info('用户输入的json表单内容为：', jsoninput);

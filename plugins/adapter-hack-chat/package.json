@@ -1,0 +1,51 @@
+{
+  "name": "koishi-plugin-adapter-hack-chat",
+  "description": "hack.chat",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "templates",
+    "client",
+    "dist",
+    "lib",
+    "src"
+  ],
+  "license": "MIT",
+  "contributors": [
+    "shangxue <1919892171@qq.com>"
+  ],
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps",
+  "bugs": {
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
+  },
+  "keywords": [
+    "koishi",
+    "bot",
+    "hack.chat",
+    "satori",
+    "chatbot"
+  ],
+  "koishi": {
+    "preview": true,
+    "hidden": false,
+    "description": {
+      "zh-TW": "[hack.chat](https://hack.chat/)適配器",
+      "zh": "[hack.chat](https://hack.chat/)适配器",
+      "ja": "[hack.chat](https://hack.chat/) アダプター",
+      "fr": "[hack.chat](https://hack.chat/) Adaptateur",
+      "es": "[hack.chat](https://hack.chat/) Adaptador",
+      "pt": "[hack.chat](https://hack.chat/) Adaptador",
+      "ru": "[hack.chat](https://hack.chat/) Адаптер",
+      "en": "[hack.chat](https://hack.chat/) Adapter",
+      "de": "[hack.chat](https://hack.chat/) Adapter",
+      "ko": "[hack.chat](https://hack.chat/) 어댑터"
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.16.0"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}
