@@ -1,5 +1,5 @@
 {
-  "name": "koishi-plugin-adapter-hack-chat",
+  "name": "koishi-plugin-adapter-hackchat",
   "description": "hack.chat",
   "version": "0.0.1",
   "main": "lib/index.js",

@@ -2,7 +2,7 @@ import { Context, Logger } from 'koishi'
 import { Config } from './config'
 import { HackChatBot } from './bot'
 
-export const name = 'adapter-hack-chat'
+export const name = 'adapter-hackchat'
 export const reusable = true
 export const filter = false
 export const inject = {
@@ -12,7 +12,7 @@ export const inject = {
 export const usage = `
 ---
 
-### adapter-hack-chat
+### adapter-hackchat
 
 适配 https://hack.chat 纯文本聊天平台的 Koishi 机器人适配器。
 
@@ -30,7 +30,7 @@ export interface HackChatLogger {
   child: (suffix: string) => HackChatLogger
 }
 
-export function createHackChatLogger(ctx: Context, config: Config, scope = 'adapter-hack-chat'): HackChatLogger {
+export function createHackChatLogger(ctx: Context, config: Config, scope = 'adapter-hackchat'): HackChatLogger {
   const prefix = `[${scope}]`
   const logger = ctx.logger
   const createChild = (childScope: string): HackChatLogger => createHackChatLogger(ctx, config, `${scope}:${childScope}`)
