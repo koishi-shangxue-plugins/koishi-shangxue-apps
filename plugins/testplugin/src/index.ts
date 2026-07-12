@@ -864,6 +864,16 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
 
   command
+    .subcommand('.音频')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      await session.send(`正在处理中...`);
+      await session.send(h.audio("file:///D:/Music/%E4%B8%8D%E5%86%8D%E6%9B%BC%E6%B3%A2.mp3"));
+      return;
+    });
+
+  command
     .subcommand('.视频')
     .action(async ({ session }) => {
 
@@ -900,6 +910,18 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       const aaa = await session.send(`你好哦`);
       ctx.logger.info(aaa);
 
+      return;
+    });
+
+
+  command
+    .subcommand('.图文')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg");
+      const bbb = h.text("123" + "456" + "\n" + "789");
+      await session.send([aaa, bbb]);
       return;
     });
 
