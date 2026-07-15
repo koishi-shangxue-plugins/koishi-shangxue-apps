@@ -36,6 +36,27 @@ export function apply(ctx: Context) {
     ctx.logger.info(session);
 
   });
+
+  command
+    .subcommand('.下班提醒')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      if (session.platform !== 'onebot') return;
+      await session.send(h("at", { type: "all" }) + " 下班！打卡！日报！");
+      return;
+    });
+
+  command
+    .subcommand('.上班提醒')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      if (session.platform !== 'onebot') return;
+      await session.send(h("at", { type: "all" }) + " 上班！打卡！");
+      return;
+    });
+
   command
     .subcommand('.updatedrole')
     .action(async ({ session }) => {
