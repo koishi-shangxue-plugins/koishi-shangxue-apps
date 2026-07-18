@@ -486,7 +486,7 @@ export class BilibiliParser {
         }
 
         // 合并转发处理
-        if (this.config.isfigure && (session.platform === "onebot" || session.platform === "red")) {
+        if (this.config.isfigure && (session.platform === "onebot" || session.platform === "red" || session.platform === "napcat" || session.platform === "yunhu")) {
             this.logInfo(`使用合并转发，正在合并消息。`);
 
             // 创建 figure 元素

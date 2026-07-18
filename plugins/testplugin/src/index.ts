@@ -885,6 +885,19 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
 
   command
+    .subcommand('.合并转发')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      await session.send(`<message forward>` +
+        h("message", [h.text("你好啊"), h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg")])
+        + h("message", [h.text("第二条消息")])
+        + h("message", [h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg")])
+        + `</message>`);
+      return;
+    });
+
+  command
     .subcommand('.音频')
     .action(async ({ session }) => {
 
