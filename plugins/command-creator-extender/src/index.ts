@@ -47,6 +47,18 @@ export const usage = `
 4. 插件启动时会自动创建定时任务
 `;
 
+type ScheduleEvery =
+  | 'once'
+  | 'sec'
+  | 'min'
+  | 'hour'
+  | 'day'
+  | 'weekday'
+  | 'saturday'
+  | 'week'
+  | 'month'
+  | 'year';
+
 export const Config = Schema.intersect([
 
   Schema.object({
@@ -114,6 +126,8 @@ export const Config = Schema.intersect([
             Schema.const('min').description('每/分钟'),
             Schema.const('hour').description('每/小时'),
             Schema.const('day').description('每/天'),
+            Schema.const('weekday').description('每/天（周一到周五）'),
+            Schema.const('saturday').description('每/天（周一到周六）'),
             Schema.const('week').description('每/周'),
             Schema.const('month').description('每/月'),
             Schema.const('year').description('每/年'),
@@ -291,7 +305,7 @@ export async function apply(ctx: Context, config) {
     }
 
 
-    function getNextTime(task, now) {
+    function getNextTime(task: { scheduletime: string; every: ScheduleEvery; cycletime?: number }, now: Date) {
       const normalizedTime = task.scheduletime.replace(/\//g, '-');
       const [datePart, timePart] = normalizedTime.split(' ');
       const [hours, minutes, seconds] = timePart.split(':').map(Number);
@@ -312,6 +326,16 @@ export async function apply(ctx: Context, config) {
       // 计算下一个执行时间
       let nextTime = new Date(baseTime);
       const cycleTime = task.cycletime || 1;
+      const advanceOneDay = () => {
+        nextTime.setDate(nextTime.getDate() + 1);
+        nextTime.setHours(hours, minutes, seconds, 0);
+      };
+      const isAllowedDay = () => {
+        const day = nextTime.getDay();
+        if (task.every === 'weekday') return day >= 1 && day <= 5;
+        if (task.every === 'saturday') return day >= 1 && day <= 6;
+        return true;
+      };
 
       // 如果基准时间已经过去，计算下一个周期的时间
       while (nextTime <= now) {
@@ -326,7 +350,16 @@ export async function apply(ctx: Context, config) {
             nextTime = new Date(nextTime.getTime() + cycleTime * 3600000);
             break;
           case 'day':
-            nextTime.setDate(nextTime.getDate() + cycleTime);
+            for (let i = 0; i < cycleTime; i++) advanceOneDay();
+            break;
+          case 'weekday':
+          case 'saturday':
+            for (let i = 0; i < cycleTime; i++) {
+              advanceOneDay();
+              while (!isAllowedDay()) {
+                advanceOneDay();
+              }
+            }
             break;
           case 'week':
             nextTime.setDate(nextTime.getDate() + cycleTime * 7);

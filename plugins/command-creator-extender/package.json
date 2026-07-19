@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-command-creator-extender",
   "description": "创建和扩展指令！可以实现 [一键打卡](https://i0.hdslb.com/bfs/article/c3a90e76082632cd5321d23582f9bc0d312276085.png)、[分群调用](https://i0.hdslb.com/bfs/article/b130e445dcfe99a89e841ee7615a4e61312276085.png)、[定时执行](https://i0.hdslb.com/bfs/article/82c273ef4d4eda1e8523686e8be524d3312276085.png)，一键触发多指令~ 灵感来自[command-creator](https://www.npmjs.com/package/koishi-plugin-command-creater)",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
