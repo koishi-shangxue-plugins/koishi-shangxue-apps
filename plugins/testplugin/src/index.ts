@@ -923,7 +923,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
       if (!session) return;
       await session.send(`正在处理中...`);
-      await session.send(h.file("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"));
+      await session.send(h.file("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.zip"));
       return;
     });
 
@@ -935,7 +935,14 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       await session.send(h.audio("https://api.injahow.cn/meting/?type=url&id=2748727454"));
       return;
     });
+  command
+    .subcommand('.本地语音')
+    .action(async ({ session }) => {
 
+      if (!session) return;
+      await session.send(h.audio("file:///D:/Music/%E4%B8%8D%E5%86%8D%E6%9B%BC%E6%B3%A2.mp3"));
+      return;
+    });
   command
     .subcommand('.回显')
     .action(async ({ session }) => {
@@ -966,6 +973,35 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       if (!session) return;
       const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg");
       ctx.logger.info(aaa);
+      await session.send(aaa);
+      return;
+    });
+
+
+  command
+    .subcommand('.html视频')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      const aaa = h("yunhu:html", `
+        <video controls preload="metadata" style="max-width:100%;height:auto;">
+  <source src="https://chat-video1.jwznb.com/9cdd0c79f8495e946c8ca7a3a77779ed.mp4" type="video/mp4" />
+</video>
+        `);
+      await session.send(aaa);
+      return;
+    });
+
+  command
+    .subcommand('.html语音')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      const aaa = h("yunhu:html", `
+    <audio controls preload="metadata" style="max-width:100%;">
+      <source src="https://m701.music.126.net/20260719153646/26d88c566e4ceeaee605513d41da3a02/jdymusic/obj/wo3DlMOGwrbDjj7DisKw/31051165276/3841/8a5d/244f/6383fbc8fc516e53fdaac969390dda46.mp3?vuutv=GpSMVKpcGALtdkJ1Ujg25q0ZTMQhwuFHtyQhZK29gXX/bFcs08e9ARdO3s/bjtYyHNc82FlejMzy6p/2Et2jNHYSWgYOeo/FDcYSbf25jwU=" type="audio/mpeg" />
+
+  `);
       await session.send(aaa);
       return;
     });
