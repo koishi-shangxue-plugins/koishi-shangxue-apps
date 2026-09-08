@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-lmarena-api",
   "description": "rryth系列？一个简单的AI绘图插件，一键配置、开箱即用。通过配置 API 使用。设定参考自astrbot_plugin_shoubanhua。",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

@@ -9,6 +9,8 @@ import type { AppLogger } from "./logger"
 import { prepareImageForApi } from "./media"
 
 export const AGENT_VIDEO_COMMAND = "Agent视频生成"
+export const VIDEO_SECONDS_V2 = [3, 5, 10, 18] as const
+export const VIDEO_SECONDS_FLASH = [5, 10, 12] as const
 
 const MAX_FLASH_REFERENCE_IMAGES = 5
 // 状态接口存在查询限流，轮询保持低频，并在 429/rate limit 时继续退避
@@ -66,6 +68,7 @@ export async function generateVideo(
   prompt: string,
   config: Config,
   log: AppLogger,
+  videoSeconds?: string | number,
 ): Promise<boolean> {
   const quote = h.quote(session.messageId)
   let processingMessageId: string | undefined
@@ -85,16 +88,19 @@ export async function generateVideo(
       config.agnesVideoModel,
     )
     const resolvedImages = await prepareVideoImages(ctx, images, config, log)
+    const seconds = resolveVideoSeconds(videoSeconds, config.agnesVideoModel)
     const requestBody = buildVideoRequestBody(
       config.agnesVideoModel,
       prompt,
       resolvedImages,
+      seconds,
     )
 
     if (log.enabled) {
       log.info("提交视频生成任务:", {
         model: config.agnesVideoModel,
         imageCount: resolvedImages.length,
+        seconds,
         prompt: prompt.substring(0, 200),
       })
     }
@@ -206,12 +212,13 @@ function buildVideoRequestBody(
   model: AgnesVideoModel,
   prompt: string,
   images: string[],
+  seconds: number,
 ): Record<string, unknown> {
   if (model === "agnes-video-2.5-flash") {
     const body: Record<string, unknown> = {
       model,
       prompt,
-      seconds: "5",
+      seconds: String(seconds),
       mode: "text",
       size: "720P",
       aspect_ratio: "16:9",
@@ -237,7 +244,7 @@ function buildVideoRequestBody(
   const body: Record<string, unknown> = {
     model,
     prompt,
-    num_frames: 121,
+    num_frames: secondsToFrameCount(seconds),
     frame_rate: 24,
     width: 1152,
     height: 768,
@@ -253,6 +260,35 @@ function buildVideoRequestBody(
   }
 
   return body
+}
+
+export function resolveVideoSeconds(
+  value: string | number | undefined,
+  model: AgnesVideoModel,
+): number {
+  const parsed = Number(value)
+  const requested = Number.isFinite(parsed) ? parsed : 5
+  const presets = model === "agnes-video-v2.0"
+    ? [...VIDEO_SECONDS_V2]
+    : [...VIDEO_SECONDS_FLASH]
+
+  let result = presets[0]
+  for (const preset of presets) {
+    if (Math.abs(requested - preset) < Math.abs(requested - result)) {
+      result = preset
+    }
+  }
+  return result
+}
+
+function secondsToFrameCount(seconds: number): number {
+  const frameCounts: Record<number, number> = {
+    3: 81,
+    5: 121,
+    10: 241,
+    18: 441,
+  }
+  return frameCounts[seconds] ?? 121
 }
 
 function buildReferencePrompt(prompt: string, count: number): string {

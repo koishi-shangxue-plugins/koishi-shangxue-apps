@@ -170,12 +170,14 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
         basename: AGENT_VIDEO_COMMAND,
       }
 
-      ctx.command(`${AGENT_VIDEO_COMMAND} [...args]`, "AI 视频生成", {
+      const videoCommand = ctx.command(`${AGENT_VIDEO_COMMAND} [...args]`, "AI 视频生成", {
         authority: config.commandAuthority,
       })
-        .usage("生成视频：使用 -d 可直接输入提示词；也可以附带参考图片后输入动作提示词")
+        .usage("生成视频：使用 -d 可直接输入提示词，-s 指定目标秒数（自动按当前模型可用时长取档）；也可以附带参考图片后输入动作提示词")
         .option("d", "-d 直接按文字提示词生成，跳过图片输入")
-        .userFields(["id"])
+        .option("s", "-s <seconds> 指定目标秒数（自动按当前模型可用时长取档）")
+      videoCommand.removeOption("n")
+      videoCommand.userFields(["id"])
         .action(async ({ session, options }, ...args: string[]) => {
           if (!session) return
           if (!(await checkCurrency(ctx, session, config, log))) return
@@ -184,13 +186,13 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
           if (options.d) {
             const prompt = await collectDirectPrompt(session, extraContent, videoConfig, log)
             if (!prompt) return
-            await generateVideo(ctx, session, [], prompt, config, log)
+            await generateVideo(ctx, session, [], prompt, config, log, options.s)
             return
           }
 
           const input = await collectParentInput(session, extraContent, videoConfig, log)
           if (!input) return
-          await generateVideo(ctx, session, input.images, input.prompt, config, log)
+          await generateVideo(ctx, session, input.images, input.prompt, config, log, options.s)
         })
     }
   })
