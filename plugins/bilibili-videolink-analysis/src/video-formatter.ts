@@ -1,6 +1,6 @@
 import { h } from 'koishi'
 import type { BiliVideoView } from './bilibili-api'
-import type { Config } from './config'
+import type { Config, VideoParseMode } from './config'
 
 function toHttps(url: string): string {
   return url.replace(/^http:\/\//i, 'https://')
@@ -61,8 +61,17 @@ function applyPlaceholders(template: string, config: Config, view: BiliVideoView
 }
 
 // 返回多条消息，${~~~} 用于把模板拆成独立消息
-export function buildVideoMessages(config: Config, view: BiliVideoView, page: number): h[][] {
-  const parts = config.bVideo_area.split(/\$\{~~~\}/g)
+export function buildVideoMessages(
+  config: Config,
+  view: BiliVideoView,
+  page: number,
+  mode: VideoParseMode = 'link',
+): h[][] {
+  // 升级前没有卡片模板配置时继续使用原模板，避免旧配置失效
+  const template = mode === 'card'
+    ? config.bVideoCard_area ?? config.bVideo_area
+    : config.bVideo_area
+  const parts = template.split(/\$\{~~~\}/g)
   const messages: h[][] = []
 
   for (const part of parts) {
@@ -73,4 +82,3 @@ export function buildVideoMessages(config: Config, view: BiliVideoView, page: nu
   }
   return messages
 }
-

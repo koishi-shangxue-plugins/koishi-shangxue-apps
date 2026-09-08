@@ -1,5 +1,10 @@
 import { Schema } from 'koishi'
 
+export type VideoParseMode = 'link' | 'card'
+
+// 链接与卡片默认使用同一套消息模板，便于升级后分别定制
+const DEFAULT_VIDEO_MESSAGE_TEMPLATE = '${标题} ${tab} ${UP主}\n${简介}\n点赞：${点赞} ${tab} 投币：${投币}\n收藏：${收藏} ${tab} 转发：${转发}\n观看：${观看} ${tab} 弹幕：${弹幕}\n播放链接：${播放链接}\n视频地址：${视频地址}\n${封面}'
+
 export interface Config {
   demand: boolean
   timeout?: number
@@ -8,13 +13,14 @@ export interface Config {
 
   enablebilianalysis: boolean
   waitTip_Switch: string | null
-  videoParseMode: ('link' | 'card')[]
+  videoParseMode: VideoParseMode[]
   middleware: boolean
   MinimumTimeInterval: number
   preventSingleUserListAttack: boolean
   parseLimit: number
 
   bVideo_area: string
+  bVideoCard_area?: string
   bVideoShowIntroductionTofixed: number
   useNumeral: boolean
   bVideoIDPreference: 'bv' | 'av'
@@ -62,8 +68,11 @@ export const Config = Schema.intersect([
 
   Schema.object({
     bVideo_area: Schema.string().role('textarea', { rows: [10, 16] })
-      .default('${标题} ${tab} ${UP主}\n${简介}\n点赞：${点赞} ${tab} 投币：${投币}\n收藏：${收藏} ${tab} 转发：${转发}\n观看：${观看} ${tab} 弹幕：${弹幕}\n播放链接：${播放链接}\n视频地址：${视频地址}\n${封面}')
-      .description('消息模板。`${~~~}` 会把模板拆成多条消息；`${播放链接}` 是网页播放器，`${视频地址}` 是普通视频页'),
+      .default(DEFAULT_VIDEO_MESSAGE_TEMPLATE)
+      .description('链接 / 独立 BV / AV / 点播结果的消息模板。`${~~~}` 会把模板拆成多条消息；`${播放链接}` 是网页播放器，`${视频地址}` 是普通视频页'),
+    bVideoCard_area: Schema.string().role('textarea', { rows: [10, 16] })
+      .default(DEFAULT_VIDEO_MESSAGE_TEMPLATE)
+      .description('QQ 分享卡片消息模板。默认与链接模板保持一致，可单独编辑'),
     bVideoShowIntroductionTofixed: Schema.number().default(50).description('简介最大字符长度'),
     useNumeral: Schema.boolean().default(true).hidden().description('大数字是否缩写'),
     bVideoIDPreference: Schema.union([

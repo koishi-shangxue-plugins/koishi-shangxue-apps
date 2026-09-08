@@ -1,7 +1,7 @@
 import type { Context, Session } from 'koishi'
 import { h } from 'koishi'
 import type { BilibiliApi } from './bilibili-api'
-import type { Config } from './config'
+import type { Config, VideoParseMode } from './config'
 import type { PluginLogger } from './logger'
 import type { BilibiliTarget, ResolvedVideoTarget } from './link-parser'
 import { targetFromResolvedUrl } from './link-parser'
@@ -12,6 +12,7 @@ interface SessionTask {
   session: Session
   content: string
   targets: BilibiliTarget[]
+  source: VideoParseMode
   timestamp: number
 }
 
@@ -39,7 +40,12 @@ export class VideoParseService {
   }
 
   // 中间件把同一条消息里的链接加入串行队列
-  async enqueue(session: Session, content: string, targets: BilibiliTarget[]): Promise<BlockReason | null> {
+  async enqueue(
+    session: Session,
+    content: string,
+    targets: BilibiliTarget[],
+    source: VideoParseMode,
+  ): Promise<BlockReason | null> {
     if (this.disposed || targets.length === 0) return null
 
     const reason = this.rateLimiter.checkNewMessage(session.channelId, session.userId, targets.length)
@@ -52,7 +58,7 @@ export class VideoParseService {
     }
 
     this.rateLimiter.reserveMessage(session.channelId, session.userId, targets.length)
-    this.sessionQueue.push({ session, content, targets, timestamp: Date.now() })
+    this.sessionQueue.push({ session, content, targets, source, timestamp: Date.now() })
     this.logger.debug(`收到解析消息，队列长度：${this.sessionQueue.length}`)
     this.processSessionQueue()
     return null
@@ -61,7 +67,7 @@ export class VideoParseService {
   // 点播等入口直接处理单个目标
   async processTarget(session: Session, target: ResolvedVideoTarget): Promise<boolean> {
     if (this.disposed) return false
-    return this.processOneTarget(session, target)
+    return this.processOneTarget(session, target, 'link')
   }
 
   private async processSessionQueue() {
@@ -110,9 +116,9 @@ export class VideoParseService {
       this.rateLimiter.startChannelVideo(task.session.channelId)
       try {
         if (target.kind === 'video') {
-          await this.processOneTarget(task.session, target)
+          await this.processOneTarget(task.session, target, task.source)
         } else {
-          await this.processShortTarget(task.session, target)
+          await this.processShortTarget(task.session, target, task.source)
         }
       } finally {
         this.rateLimiter.endChannelVideo(task.session.channelId)
@@ -124,7 +130,11 @@ export class VideoParseService {
     }
   }
 
-  private async processShortTarget(session: Session, target: Extract<BilibiliTarget, { kind: 'short' }>) {
+  private async processShortTarget(
+    session: Session,
+    target: Extract<BilibiliTarget, { kind: 'short' }>,
+    source: VideoParseMode,
+  ) {
     const url = await this.api.resolveShortLink(target.host, target.code)
     if (!url) {
       this.logger.debug(`短链解析失败：${target.host}/${target.code}`)
@@ -136,7 +146,7 @@ export class VideoParseService {
       return false
     }
     resolved.page = resolved.page || target.page
-    return this.processOneTarget(session, resolved)
+    return this.processOneTarget(session, resolved, source)
   }
 
   private isProcessedRecently(target: ResolvedVideoTarget, channelId: string): boolean {
@@ -165,7 +175,11 @@ export class VideoParseService {
     return `${id}:${target.page}`
   }
 
-  private async processOneTarget(session: Session, target: ResolvedVideoTarget): Promise<boolean> {
+  private async processOneTarget(
+    session: Session,
+    target: ResolvedVideoTarget,
+    source: VideoParseMode,
+  ): Promise<boolean> {
     if (this.disposed || this.isProcessedRecently(target, session.channelId)) return false
 
     let view = null
@@ -191,7 +205,7 @@ export class VideoParseService {
 
     this.logger.debug(`解析结果：${view.title} ${view.bvid} p=${target.page}`)
 
-    const messages = buildVideoMessages(this.config, view, target.page)
+    const messages = buildVideoMessages(this.config, view, target.page, source)
     if (messages.length === 0) return false
     if (this.disposed) return false
     if (this.config.loggerinfofulljson) {

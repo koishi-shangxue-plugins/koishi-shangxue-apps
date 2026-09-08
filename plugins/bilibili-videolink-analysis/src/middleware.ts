@@ -32,7 +32,8 @@ export function registerLinkMiddleware(
     if (targets.length === 0) return next()
 
     const limited = targets.slice(0, config.parseLimit)
-    const reason = await service.enqueue(session, content, limited)
+    // 按消息来源决定使用链接模板还是卡片模板
+    const reason = await service.enqueue(session, content, limited, isCard ? 'card' : 'link')
     if (reason) {
       logger.debug(`频率限制：${reason}`)
     }
