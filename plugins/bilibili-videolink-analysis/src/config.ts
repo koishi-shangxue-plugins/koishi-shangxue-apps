@@ -78,13 +78,13 @@ export const Config = Schema.intersect([
   }).description('API 解析来源'),
 
   Schema.object({
+    bVideoShowIntroductionTofixed: Schema.number().default(50).description('简介最大字符长度'),
     bVideo_area: Schema.string().role('textarea', { rows: [10, 16] })
       .default(DEFAULT_VIDEO_MESSAGE_TEMPLATE)
       .description('链接 / 独立 BV / AV / 点播结果的消息模板。`${~~~}` 会把模板拆成多条消息；`${播放链接}` 是网页播放器，`${视频地址}` 是普通视频页'),
     bVideoCard_area: Schema.string().role('textarea', { rows: [10, 16] })
       .default(DEFAULT_VIDEO_MESSAGE_TEMPLATE_CARD)
       .description('QQ 分享卡片消息模板。默认与链接模板保持一致，可单独编辑'),
-    bVideoShowIntroductionTofixed: Schema.number().default(50).description('简介最大字符长度'),
     useNumeral: Schema.boolean().default(true).hidden().description('大数字是否缩写'),
     bVideoIDPreference: Schema.union([
       Schema.const('bv').description('BV 号'),
