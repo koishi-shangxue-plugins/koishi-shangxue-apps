@@ -1,9 +1,10 @@
 import { Schema } from 'koishi'
 
 export type VideoParseMode = 'link' | 'card'
+export type VideoApiMode = 'official' | 'external' | 'external-first'
 
-// 链接与卡片默认使用同一套消息模板，便于升级后分别定制
-const DEFAULT_VIDEO_MESSAGE_TEMPLATE = '${标题} ${tab} ${UP主}\n${简介}\n点赞：${点赞} ${tab} 投币：${投币}\n收藏：${收藏} ${tab} 转发：${转发}\n观看：${观看} ${tab} 弹幕：${弹幕}\n播放链接：${播放链接}\n视频地址：${视频地址}\n${封面}'
+const DEFAULT_VIDEO_MESSAGE_TEMPLATE = "${标题} ${tab} ${UP主}\n${简介}\n点赞：${点赞} ${tab} 投币：${投币}\n收藏：${收藏} ${tab} 转发：${转发}\n观看：${观看} ${tab} 弹幕：${弹幕}\n视频地址：${视频地址}\n${封面}"
+const DEFAULT_VIDEO_MESSAGE_TEMPLATE_CARD = "${标题}\n${简介}\n投币：${投币} ${tab} 收藏：${收藏} ${tab} 转发：${转发}\n播放链接：${播放链接}\n视频地址：${视频地址}\n${封面}"
 
 export interface Config {
   demand: boolean
@@ -14,6 +15,7 @@ export interface Config {
   enablebilianalysis: boolean
   waitTip_Switch: string | null
   videoParseMode: VideoParseMode[]
+  videoApiMode: VideoApiMode
   middleware: boolean
   MinimumTimeInterval: number
   preventSingleUserListAttack: boolean
@@ -67,11 +69,20 @@ export const Config = Schema.intersect([
   }).description('触发设置'),
 
   Schema.object({
+    videoApiMode: Schema.union([
+      Schema.const('official').description('官方'),
+      Schema.const('external').description('外置api'),
+      Schema.const('external-first').description('优先外置api，无法使用后使用官方api'),
+    ]).role('radio').default('external-first')
+      .description('使用外置 API 还是使用 B 站官方 API 解析<br>第三方 API 可能失效，但 B 站官方 API 请求多了会风控'),
+  }).description('API 解析来源'),
+
+  Schema.object({
     bVideo_area: Schema.string().role('textarea', { rows: [10, 16] })
       .default(DEFAULT_VIDEO_MESSAGE_TEMPLATE)
       .description('链接 / 独立 BV / AV / 点播结果的消息模板。`${~~~}` 会把模板拆成多条消息；`${播放链接}` 是网页播放器，`${视频地址}` 是普通视频页'),
     bVideoCard_area: Schema.string().role('textarea', { rows: [10, 16] })
-      .default(DEFAULT_VIDEO_MESSAGE_TEMPLATE)
+      .default(DEFAULT_VIDEO_MESSAGE_TEMPLATE_CARD)
       .description('QQ 分享卡片消息模板。默认与链接模板保持一致，可单独编辑'),
     bVideoShowIntroductionTofixed: Schema.number().default(50).description('简介最大字符长度'),
     useNumeral: Schema.boolean().default(true).hidden().description('大数字是否缩写'),

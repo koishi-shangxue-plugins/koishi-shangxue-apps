@@ -189,7 +189,7 @@ export class VideoParseService {
         ? await this.api.fetchVideoView({ bvid: target.bvid })
         : await this.api.fetchVideoView({ aid: target.aid })
     } catch (error) {
-      this.logger.warn('请求 B 站官方接口失败', error)
+      this.logger.warn('请求视频解析 API 失败', error)
     } finally {
       if (waitTipId) {
         await session.bot.deleteMessage(session.channelId, waitTipId).catch(() => undefined)
