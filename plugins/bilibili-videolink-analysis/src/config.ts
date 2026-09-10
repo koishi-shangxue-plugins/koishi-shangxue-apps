@@ -3,7 +3,7 @@ import { Schema } from 'koishi'
 export type VideoParseMode = 'link' | 'card'
 export type VideoApiMode = 'official' | 'external' | 'external-first'
 
-const DEFAULT_VIDEO_MESSAGE_TEMPLATE = "${标题} ${tab} ${UP主}\n${简介}\n点赞：${点赞} ${tab} 投币：${投币}\n收藏：${收藏} ${tab} 转发：${转发}\n观看：${观看} ${tab} 弹幕：${弹幕}\n视频地址：${视频地址}\n${封面}"
+const DEFAULT_VIDEO_MESSAGE_TEMPLATE = "${标题} ${tab} ${UP主}\n${简介}\n点赞：${点赞} ${tab} 投币：${投币}\n收藏：${收藏} ${tab} 转发：${转发}\n观看：${观看} ${tab} 弹幕：${弹幕}\n播放链接：${播放链接}\n${封面}"
 const DEFAULT_VIDEO_MESSAGE_TEMPLATE_CARD = "${标题}\n${简介}\n投币：${投币} ${tab} 收藏：${收藏} ${tab} 转发：${转发}\n播放链接：${播放链接}\n视频地址：${视频地址}\n${封面}"
 
 export interface Config {
