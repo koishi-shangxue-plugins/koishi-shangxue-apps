@@ -1,5 +1,4 @@
 import type { Context } from 'koishi'
-import type { VideoApiMode } from './config'
 import type { PluginLogger } from './logger'
 
 export interface BiliVideoStat {
@@ -32,17 +31,13 @@ export interface BiliVideoView {
   }
   stat: BiliVideoStat
   pages: BiliVideoPage[]
-}
-
-interface BiliApiResponse<T> {
-  code: number
-  message: string
-  data: T
+  videoUrl: string
 }
 
 interface VideoViewTarget {
   bvid?: string
   aid?: string | number
+  page?: number
 }
 
 interface ExternalApiResponse {
@@ -73,6 +68,7 @@ interface ExternalApiResponse {
       title?: string
       desc?: string
       fm?: string
+      url?: string
     }
   }
 }
@@ -92,7 +88,6 @@ export class BilibiliApi {
   constructor(
     private readonly ctx: Context,
     private readonly userAgent: string,
-    private readonly videoApiMode: VideoApiMode,
     private readonly logger: PluginLogger,
   ) {}
 
@@ -104,48 +99,12 @@ export class BilibiliApi {
     }
   }
 
-  // 统一入口：按配置决定官方、外置或外置优先
+  // 使用旧版外置接口解析视频信息和视频直链
   async fetchVideoView(target: VideoViewTarget): Promise<BiliVideoView | null> {
-    if (this.videoApiMode === 'official') return this.fetchOfficialVideoView(target)
-    if (this.videoApiMode === 'external') return this.fetchExternalVideoView(target)
-    return this.fetchExternalFirstVideoView(target)
-  }
-
-  // 官方公开接口，按 BV 或 AV 获取视频信息
-  private async fetchOfficialVideoView(target: VideoViewTarget): Promise<BiliVideoView | null> {
-    const params = target.bvid
-      ? `bvid=${encodeURIComponent(target.bvid)}`
-      : `aid=${encodeURIComponent(String(target.aid))}`
-    const url = `https://api.bilibili.com/x/web-interface/view?${params}`
-    const response = await this.ctx.http.get<BiliApiResponse<BiliVideoView>>(url, {
-      headers: this.headers(),
-    })
-    if (response.code !== 0 || !response.data) {
-      return null
-    }
-    return response.data
-  }
-
-  // 外置接口优先，请求失败或未返回有效数据时回退官方接口
-  private async fetchExternalFirstVideoView(target: VideoViewTarget): Promise<BiliVideoView | null> {
-    try {
-      const view = await this.fetchExternalVideoView(target)
-      if (view) {
-        this.logger.debug('使用外置 API 解析成功')
-        return view
-      }
-      this.logger.warn('外置 API 未返回有效视频数据，回退到 B 站官方 API')
-    } catch (error) {
-      this.logger.warn('外置 API 请求失败，回退到 B 站官方 API', error)
-    }
-    return this.fetchOfficialVideoView(target)
-  }
-
-  // 外置接口来自旧版解析服务，返回字段与官方接口略有差异，这里统一为 BiliVideoView
-  private async fetchExternalVideoView(target: VideoViewTarget): Promise<BiliVideoView | null> {
-    const videoUrl = target.bvid
+    const baseUrl = target.bvid
       ? `https://www.bilibili.com/video/${target.bvid}`
       : `https://www.bilibili.com/video/av${target.aid}`
+    const videoUrl = target.page && target.page > 1 ? `${baseUrl}?p=${target.page}` : baseUrl
     const url = `https://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(videoUrl)}`
     const response = await this.ctx.http.get<ExternalApiResponse>(url, {
       headers: this.headers(),
@@ -179,6 +138,38 @@ export class BilibiliApi {
         danmaku: toNumber(data.stat?.danmuku ?? data.stat?.danmaku),
       },
       pages: [],
+      videoUrl: data.video?.url ?? '',
+    }
+  }
+
+  // 按模板变量需要下载视频，返回 Buffer 和 MIME 类型供 h.video 使用
+  async downloadVideo(url: string): Promise<{ data: Buffer; type: string } | null> {
+    const controller = new AbortController()
+    const clearTimer = this.ctx.setTimeout(() => controller.abort(), 120000)
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': this.userAgent,
+          'Referer': 'https://www.bilibili.com/',
+          'Accept': 'video/*,*/*;q=0.8',
+        },
+        signal: controller.signal,
+      })
+      if (!response.ok) {
+        this.logger.warn(`下载视频失败：HTTP ${response.status}`)
+        return null
+      }
+
+      const contentType = response.headers.get('content-type')?.split(';')[0].trim() ?? ''
+      const type = contentType.startsWith('video/') ? contentType : 'video/mp4'
+      const data = Buffer.from(await response.arrayBuffer())
+      this.logger.debug(`视频下载完成，大小：${(data.length / 1024 / 1024).toFixed(2)}MB`)
+      return { data, type }
+    } catch (error) {
+      this.logger.warn('下载视频失败', error)
+      return null
+    } finally {
+      clearTimer()
     }
   }
 

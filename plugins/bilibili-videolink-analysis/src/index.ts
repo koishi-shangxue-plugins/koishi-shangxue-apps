@@ -15,7 +15,7 @@ export const inject = {
 
 export function apply(ctx: Context, config: Config) {
   const logger = new PluginLogger(new Logger('bilibili-videolink-analysis'), config.loggerinfo)
-  const api = new BilibiliApi(ctx, config.userAgent, config.videoApiMode, logger)
+  const api = new BilibiliApi(ctx, config.userAgent, logger)
   const rateLimiter = new VideoRateLimiter(ctx, config)
   const service = new VideoParseService(ctx, config, api, logger, rateLimiter)
 

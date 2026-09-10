@@ -6,7 +6,7 @@ import type { PluginLogger } from './logger'
 import type { BilibiliTarget, ResolvedVideoTarget } from './link-parser'
 import { targetFromResolvedUrl } from './link-parser'
 import type { BlockReason, VideoRateLimiter } from './rate-limiter'
-import { buildVideoMessages } from './video-formatter'
+import { buildVideoMessages, hasVideoPlaceholder } from './video-formatter'
 
 interface SessionTask {
   session: Session
@@ -186,8 +186,8 @@ export class VideoParseService {
     const waitTipId = await this.sendWaitTip(session)
     try {
       view = target.bvid
-        ? await this.api.fetchVideoView({ bvid: target.bvid })
-        : await this.api.fetchVideoView({ aid: target.aid })
+        ? await this.api.fetchVideoView({ bvid: target.bvid, page: target.page })
+        : await this.api.fetchVideoView({ aid: target.aid, page: target.page })
     } catch (error) {
       this.logger.warn('请求视频解析 API 失败', error)
     } finally {
@@ -205,7 +205,16 @@ export class VideoParseService {
 
     this.logger.debug(`解析结果：${view.title} ${view.bvid} p=${target.page}`)
 
-    const messages = buildVideoMessages(this.config, view, target.page, source)
+    let videoElement: h | null = null
+    if (hasVideoPlaceholder(this.config, source) && view.videoUrl) {
+      const video = await this.api.downloadVideo(view.videoUrl)
+      if (video) {
+        videoElement = h.video(video.data, video.type)
+      }
+    }
+    if (this.disposed) return false
+
+    const messages = buildVideoMessages(this.config, view, target.page, source, videoElement ?? undefined)
     if (messages.length === 0) return false
     if (this.disposed) return false
     if (this.config.loggerinfofulljson) {

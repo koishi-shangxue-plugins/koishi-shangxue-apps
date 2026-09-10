@@ -32,7 +32,23 @@ function playerLink(view: BiliVideoView, page: number): string {
   return `https://www.bilibili.com/blackboard/webplayer/mbplayer.html?bvid=${view.bvid}&p=${page}&autoplay=true`
 }
 
-function applyPlaceholders(template: string, config: Config, view: BiliVideoView, page: number): string {
+function getMessageTemplate(config: Config, mode: VideoParseMode): string {
+  return mode === 'card'
+    ? config.bVideoCard_area ?? config.bVideo_area
+    : config.bVideo_area
+}
+
+export function hasVideoPlaceholder(config: Config, mode: VideoParseMode): boolean {
+  return getMessageTemplate(config, mode).includes('${视频}')
+}
+
+function applyPlaceholders(
+  template: string,
+  config: Config,
+  view: BiliVideoView,
+  page: number,
+  videoElement?: h,
+): string {
   const maxLength = config.bVideoShowIntroductionTofixed
   const description = view.desc.length > maxLength
     ? `${view.desc.slice(0, maxLength)}...`
@@ -49,6 +65,7 @@ function applyPlaceholders(template: string, config: Config, view: BiliVideoView
     '${观看}': numeral(view.stat.view ?? 0, config.useNumeral),
     '${弹幕}': numeral(view.stat.danmaku ?? 0, config.useNumeral),
     '${封面}': view.pic ? h.image(toHttps(view.pic)).toString() : '',
+    '${视频}': videoElement?.toString() ?? '',
     '${播放链接}': `${playerLink(view, page)}`,
     '${视频地址}': `${pageLink(view, config)}`,
     '${tab}': '\t',
@@ -66,16 +83,15 @@ export function buildVideoMessages(
   view: BiliVideoView,
   page: number,
   mode: VideoParseMode = 'link',
+  videoElement?: h,
 ): h[][] {
   // 升级前没有卡片模板配置时继续使用原模板，避免旧配置失效
-  const template = mode === 'card'
-    ? config.bVideoCard_area ?? config.bVideo_area
-    : config.bVideo_area
+  const template = getMessageTemplate(config, mode)
   const parts = template.split(/\$\{~~~\}/g)
   const messages: h[][] = []
 
   for (const part of parts) {
-    const rendered = applyPlaceholders(part, config, view, page).trim()
+    const rendered = applyPlaceholders(part, config, view, page, videoElement).trim()
     if (!rendered) continue
     const parsed = h.parse(rendered)
     if (parsed.length > 0) messages.push(parsed)
