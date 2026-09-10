@@ -1093,6 +1093,20 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
 
   command
+    .subcommand('.文件名称')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      const url = "file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.zip";
+      await session.send(`正在处理中...`);
+      await session.send(h("file", {
+        name: "特定的文件名称",
+        url,
+      }));
+      return;
+    });
+
+  command
     .subcommand('.语音')
     .action(async ({ session }) => {
 
