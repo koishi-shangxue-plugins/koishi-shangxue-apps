@@ -24,6 +24,7 @@ export interface Config {
   bVideoShowIntroductionTofixed: number
   useNumeral: boolean
   bVideoIDPreference: 'bv' | 'av'
+  isfigure: boolean
 
   userAgent: string
   showError: boolean
@@ -80,6 +81,11 @@ export const Config = Schema.intersect([
       Schema.const('av').description('AV 号'),
     ]).default('bv').hidden().description('${视频地址} 使用的视频号'),
   }).description('消息模板'),
+
+  Schema.object({
+    isfigure: Schema.boolean().default(true)
+      .description('开启合并转发<br>仅支持 onebot、red、napcat、yunhu、telegram、discord 等支持 figure 的平台；其他平台会自动改为普通消息发送'),
+  }).description('合并转发'),
 
   Schema.object({
     MinimumTimeInterval: Schema.number().default(180).min(1).description('同一链接最小处理间隔（秒）'),

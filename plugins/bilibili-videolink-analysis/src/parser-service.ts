@@ -5,6 +5,7 @@ import type { Config, VideoParseMode } from './config'
 import type { PluginLogger } from './logger'
 import type { BilibiliTarget, ResolvedVideoTarget } from './link-parser'
 import { targetFromResolvedUrl } from './link-parser'
+import { sendParsedMessages } from './message-sender'
 import type { BlockReason, VideoRateLimiter } from './rate-limiter'
 import { buildVideoMessages, hasVideoPlaceholder } from './video-formatter'
 
@@ -220,10 +221,8 @@ export class VideoParseService {
     if (this.config.loggerinfofulljson) {
       this.logger.debug(messages.map((message) => message.map((element) => element.toString()).join('')).join('\n'))
     }
-    for (const message of messages) {
-      if (this.disposed) return false
-      await session.send(message)
-    }
+    const sent = await sendParsedMessages(session, messages, this.config, () => this.disposed)
+    if (!sent) return false
     this.logger.debug(`发送完成：${view.bvid}`)
     return true
   }
