@@ -208,7 +208,7 @@ export class VideoParseService {
 
     let videoElement: h | null = null
     if (hasVideoPlaceholder(this.config, source) && view.videoUrl) {
-      const video = await this.api.downloadVideo(view.videoUrl)
+      const video = await this.api.downloadVideo(view.videoUrl, this.config.MaximumFileSizeMB)
       if (video) {
         videoElement = h.video(video.data, video.type)
       }

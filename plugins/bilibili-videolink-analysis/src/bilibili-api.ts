@@ -142,10 +142,11 @@ export class BilibiliApi {
     }
   }
 
-  // 按模板变量需要下载视频，返回 Buffer 和 MIME 类型供 h.video 使用
-  async downloadVideo(url: string): Promise<{ data: Buffer; type: string } | null> {
+  // 按模板变量需要下载视频，超过大小上限时中止并返回 null
+  async downloadVideo(url: string, maxSizeMB: number): Promise<{ data: Buffer; type: string } | null> {
     const controller = new AbortController()
     const clearTimer = this.ctx.setTimeout(() => controller.abort(), 120000)
+    const maxBytes = maxSizeMB > 0 ? maxSizeMB * 1024 * 1024 : 0
     try {
       const response = await fetch(url, {
         headers: {
@@ -162,7 +163,16 @@ export class BilibiliApi {
 
       const contentType = response.headers.get('content-type')?.split(';')[0].trim() ?? ''
       const type = contentType.startsWith('video/') ? contentType : 'video/mp4'
-      const data = Buffer.from(await response.arrayBuffer())
+
+      const declaredSize = Number(response.headers.get('content-length') ?? '')
+      if (maxBytes > 0 && Number.isFinite(declaredSize) && declaredSize > maxBytes) {
+        this.logger.debug(`视频大小 ${(declaredSize / 1024 / 1024).toFixed(2)}MB 超过 ${maxSizeMB}MB，跳过下载`)
+        await response.body?.cancel()
+        return null
+      }
+
+      const data = await this.readVideoBody(response, maxBytes, maxSizeMB)
+      if (!data) return null
       this.logger.debug(`视频下载完成，大小：${(data.length / 1024 / 1024).toFixed(2)}MB`)
       return { data, type }
     } catch (error) {
@@ -171,6 +181,33 @@ export class BilibiliApi {
     } finally {
       clearTimer()
     }
+  }
+
+  // 流式读取视频，缺少 Content-Length 时也能及时中止超限文件
+  private async readVideoBody(response: Response, maxBytes: number, maxSizeMB: number): Promise<Buffer | null> {
+    if (!response.body) return null
+
+    const reader = response.body.getReader()
+    const chunks: Buffer[] = []
+    let totalBytes = 0
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (!value) continue
+
+        totalBytes += value.byteLength
+        if (maxBytes > 0 && totalBytes > maxBytes) {
+          this.logger.debug(`视频大小超过 ${maxSizeMB}MB，跳过下载`)
+          await reader.cancel()
+          return null
+        }
+        chunks.push(Buffer.from(value))
+      }
+    } finally {
+      reader.releaseLock()
+    }
+    return Buffer.concat(chunks, totalBytes)
   }
 
   // 短链重定向使用原生 fetch 手动读取 Location，避免额外依赖

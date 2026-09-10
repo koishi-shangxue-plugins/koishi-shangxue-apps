@@ -24,6 +24,7 @@ export interface Config {
   bVideoShowIntroductionTofixed: number
   useNumeral: boolean
   bVideoIDPreference: 'bv' | 'av'
+  MaximumFileSizeMB: number
   isfigure: boolean
 
   userAgent: string
@@ -81,6 +82,11 @@ export const Config = Schema.intersect([
       Schema.const('av').description('AV 号'),
     ]).default('bv').hidden().description('${视频地址} 使用的视频号'),
   }).description('消息模板'),
+
+  Schema.object({
+    MaximumFileSizeMB: Schema.number().default(50).min(0).max(200)
+      .description('视频最大下载大小（MB）<br>超过此大小时不下载、不发送视频，仅发送图文；`0` 表示不限制'),
+  }).description('视频下载限制'),
 
   Schema.object({
     isfigure: Schema.boolean().default(true)
