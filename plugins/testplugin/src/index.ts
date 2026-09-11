@@ -1063,6 +1063,38 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
 
   command
+    .subcommand('.合并转发测试')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      const imageUrl = "file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg";
+      const audioUrl = "file:///D:/Music/%E4%B8%8D%E5%86%8D%E6%9B%BC%E6%B3%A2.mp3";
+      const videoUrl = "file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4";
+      const fileUrl = "file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.zip";
+
+      await session.send(`<message forward>` +
+        h("message", [h.text("文本消息")]) +
+        h("message", [
+          h.text("本地图片"),
+          h.image(imageUrl, { name: "本地图片" }),
+        ]) +
+        h("message", [
+          h.text("本地语音"),
+          h.audio(audioUrl, { name: "本地语音" }),
+        ]) +
+        h("message", [
+          h.text("本地视频"),
+          h.video(videoUrl, { name: "本地视频" }),
+        ]) +
+        h("message", [
+          h.text("本地压缩包"),
+          h.file(fileUrl, { name: "合并转发测试压缩包" }),
+        ]) +
+        `</message>`);
+      return;
+    });
+
+  command
     .subcommand('.音频')
     .action(async ({ session }) => {
 

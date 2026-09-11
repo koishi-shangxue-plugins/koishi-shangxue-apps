@@ -461,7 +461,7 @@ export function parseCQ(data: any) {
 */
 function parsePreviewMarkup(source: string): MsgItemElem[] {
     const result: MsgItemElem[] = []
-    const tagPattern = /<(img|image|face|mface|file|audio|video|at|quote|sharp)\s+([^>]*?)\/?>/gi
+    const tagPattern = /<([a-z][\w:-]*)\s+([^>]*?)\/?>/gi
     let last = 0
     let match: RegExpExecArray | null
     while ((match = tagPattern.exec(source)) !== null) {
@@ -478,6 +478,12 @@ function parsePreviewMarkup(source: string): MsgItemElem[] {
         const id = attrs.match(/id\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[1]
             ?? attrs.match(/id\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[2]
             ?? ''
+        const content = attrs.match(/content\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[1]
+            ?? attrs.match(/content\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[2]
+            ?? ''
+        const data = attrs.match(/data\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[1]
+            ?? attrs.match(/data\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[2]
+            ?? ''
         const tag = String(match[1] ?? '').toLowerCase()
         if (tag === 'at') {
             result.push({ type: 'at', qq: id, text: name || id })
@@ -485,7 +491,9 @@ function parsePreviewMarkup(source: string): MsgItemElem[] {
             result.push({ type: 'reply', id })
         } else if (tag === 'sharp') {
             result.push({ type: 'text', text: name ? `#${name}` : `#${id}` })
-        } else {
+        } else if (tag === 'text') {
+            result.push({ type: 'text', text: content })
+        } else if (['img', 'image', 'face', 'mface', 'file', 'audio', 'video'].includes(tag)) {
             const type = tag === 'file'
                 ? 'file'
                 : tag === 'audio'
@@ -498,6 +506,14 @@ function parsePreviewMarkup(source: string): MsgItemElem[] {
                 file: src,
                 url: src,
                 ...(name ? { name } : {}),
+            })
+        } else {
+            result.push({
+                type: tag,
+                ...(src ? { src, file: src, url: src } : {}),
+                ...(name ? { name } : {}),
+                ...(content ? { content } : {}),
+                ...(data ? { data } : {}),
             })
         }
         last = match.index + match[0].length

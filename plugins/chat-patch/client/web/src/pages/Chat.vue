@@ -376,21 +376,80 @@
             </div>
             <!-- 消息发送框 -->
             <div>
-                <div v-menu.prevent="_=>moreFunClick()"
-                    @click="moreFunClick(settingsStore.sysConfig.quick_send)">
-                    <font-awesome-icon v-if="tags.showMoreDetail || details.find(item => item.open)" :icon="['fas', 'minus']" />
-                    <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'default'" :icon="['fas', 'plus']" />
-                    <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'img'" :icon="['fas', 'image']" />
-                    <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'file'" :icon="['fas', 'folder']" />
+                <div class="send-tool-buttons">
+                    <div class="send-tool-button"
+                        v-menu.prevent="_=>moreFunClick()"
+                        @click="moreFunClick(settingsStore.sysConfig.quick_send)">
+                        <font-awesome-icon v-if="tags.showMoreDetail || details.find(item => item.open)" :icon="['fas', 'minus']" />
+                        <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'default'" :icon="['fas', 'plus']" />
+                        <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'img'" :icon="['fas', 'image']" />
+                        <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'file'" :icon="['fas', 'folder']" />
+                    </div>
+                    <div
+                        class="send-tool-button custom-element-toggle"
+                        :class="{ active: customElementMode }"
+                        :title="$t('自定义元素')"
+                        :aria-pressed="customElementMode"
+                        role="button"
+                        @click="toggleCustomElementMode">
+                        <font-awesome-icon :icon="['fas', 'code']" />
+                    </div>
                 </div>
                 <div>
-                    <form @submit="mainSubmit">
+                    <form
+                        :class="{ 'custom-element-form': customElementMode }"
+                        @submit="mainSubmit">
                         <template v-if="pendingVoice">
                             <div id="voice-pending-input" class="voice-pending" role="button"
                                 @click="cancelPendingVoice">
                                 <span>[{{ $t('语音') }}]</span>
                                 <font-awesome-icon :icon="['fas', 'xmark']" />
                             </div>
+                        </template>
+                        <template v-else-if="customElementMode">
+                            <label for="custom-element-type" class="sr-only">{{ $t('元素类型') }}</label>
+                            <input
+                                id="custom-element-type"
+                                ref="customElementTypeInput"
+                                v-model="customElementType"
+                                class="custom-element-type-input"
+                                type="text"
+                                autocomplete="off"
+                                placeholder="text / img / file"
+                                :disabled="uiStore.openSideBar || chat.info.me_info.shut_up_timestamp > 0">
+                            <template v-if="settingsStore.sysConfig.send_key === 'none'">
+                                <label for="main-input" class="sr-only">{{ $t('消息输入框') }}</label>
+                                <input
+                                    id="main-input"
+                                    ref="mainInput"
+                                    v-model="msg"
+                                    class="custom-element-content-input"
+                                    type="text"
+                                    autocomplete="off"
+                                    placeholder="URL / content"
+                                    :disabled="uiStore.openSideBar || chat.info.me_info.shut_up_timestamp > 0"
+                                    @keydown="mainAtKey"
+                                    @keyup="mainKeyUp"
+                                    @click="selectSQIn"
+                                    @input="handleInput">
+                            </template>
+                            <template v-else>
+                                <label for="main-input-ex" class="sr-only">{{ $t('消息输入框') }}</label>
+                                <textarea
+                                    id="main-input-ex"
+                                    ref="mainInput"
+                                    v-model="msg"
+                                    class="custom-element-content-input"
+                                    type="text"
+                                    placeholder="URL / content"
+                                    :disabled="uiStore.openSideBar"
+                                    @keydown="mainKey"
+                                    @keyup="mainKeyUp"
+                                    @click="selectSQIn"
+                                    @input="handleInput"
+                                    @compositionstart="handleCompositionStart"
+                                    @compositionend="handleCompositionEnd" />
+                            </template>
                         </template>
                         <template v-else>
                         <template v-if="settingsStore.sysConfig.send_key === 'none'">
@@ -557,6 +616,7 @@
 import app from '../main'
 import { i18n } from '../main'
 import SendUtil from '../function/sender'
+import { buildCustomElement } from '../function/custom-element'
 import Option, { get } from '../function/option'
 import Info from '../pages/Info.vue'
 import MsgBody from '../components/MsgBody.vue'
@@ -650,6 +710,7 @@ const msgPan = useTemplateRef<HTMLDivElement>('msgPan')
 const chatPadding = useTemplateRef<HTMLSpanElement>('chatPadding')
 const sendMore = useTemplateRef<HTMLDivElement>('sendMore')
 const mainInput = useTemplateRef<HTMLInputElement | HTMLTextAreaElement>('mainInput')
+const customElementTypeInput = useTemplateRef<HTMLInputElement>('customElementTypeInput')
 
 type ForwardAction = 'single-message' | 'individual-messages' | 'merged-messages'
 
@@ -706,6 +767,8 @@ const details = ref([
 const msgMenus = ref<any[]>([])
 const NewMsgNum = ref(0)
 const msg = ref('')
+const customElementMode = ref(false)
+const customElementType = ref('')
 const oldMsg = ref('')
 const imgCache = ref(new Map<number, string>())
 const voiceRecording = ref(false)
@@ -842,6 +905,8 @@ const chatMoveOptions: VMoveOptions<HTMLDivElement> = {
 
 function resetState() {
     NewMsgNum.value = 0
+    customElementMode.value = false
+    customElementType.value = ''
     tags.value = {
         sendTag: 'REFUSE',
         showBottomButton: false,
@@ -2871,6 +2936,44 @@ function sendMsg(echo = 'sendMsgBack') {
         return
     }
 
+    if (customElementMode.value) {
+        const customElement = buildCustomElement(
+            customElementType.value,
+            msg.value,
+        )
+        if (!customElement) {
+            new PopInfo().add(PopType.ERR, $t('请输入元素类型和内容'))
+            return
+        }
+        const parsedMsg = customElement.toString()
+        if (chat.show.temp) {
+            sendMsgRaw(
+                chat.show.id + '/' + chat.show.temp,
+                chat.show.type,
+                parsedMsg,
+                true,
+                echo,
+            )
+        } else {
+            sendMsgRaw(
+                chat.show.id,
+                chat.show.type,
+                parsedMsg,
+                true,
+                echo,
+            )
+        }
+        customElementType.value = ''
+        msg.value = ''
+        sendCache.value = []
+        imgCache.value.clear()
+        scrollBottom()
+        cancelReply()
+        scheduleResizeMainInput(undefined, true)
+        nextTick(() => customElementTypeInput.value?.focus())
+        return
+    }
+
     for (const [key, base64data] of imgCache.value) {
         sendCache.value[key] = {
             type: 'image',
@@ -3289,6 +3392,24 @@ function viewerEssImg(url: string) {
     viewerRef.value.open(new Img(url))
 }
 
+function toggleCustomElementMode() {
+    if (pendingVoice.value) return
+    customElementMode.value = !customElementMode.value
+    details.value.forEach((item) => {
+        item.open = false
+    })
+    tags.value.showMoreDetail = false
+    voiceMenuShow.value = false
+    tags.value.onAtFind = false
+    nextTick(() => {
+        const input = customElementMode.value
+            ? customElementTypeInput.value
+            : mainInput.value
+        input?.focus()
+        scheduleResizeMainInput()
+    })
+}
+
 function moreFunClick(type = 'default') {
     let hasOpen = false
     details.value.forEach((item) => {
@@ -3384,6 +3505,14 @@ function exitWin() {
 
     .more-detail.voice-menu-open {
         overflow: visible;
+    }
+
+    .send-tool-button.custom-element-toggle.active {
+        background: var(--color-main);
+    }
+
+    .send-tool-button.custom-element-toggle.active > svg {
+        color: #fff;
     }
 
     .voice-menu-wrap {
