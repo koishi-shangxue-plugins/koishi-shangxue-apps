@@ -15,6 +15,7 @@ import { ChatDatabase } from './database'
 import { MediaManager } from './media'
 import { PluginLogger } from './logger'
 import { ContactCacheItem, MessageRecord, SelfMessagePayload, SelfMessageRecord } from './types'
+import { registerWebErrorFilter } from './web-error-filter'
 
 interface ViteConsoleServer {
   config?: {
@@ -37,6 +38,7 @@ export function registerWeb(
   media: MediaManager,
   logger: PluginLogger,
 ) {
+  registerWebErrorFilter(ctx)
   const webRoot = path.resolve(__dirname, '..', 'client', 'web', 'dist')
   const webSource = path.resolve(__dirname, '..', 'client', 'web', 'src')
   const webPublic = path.resolve(__dirname, '..', 'client', 'web', 'public')
