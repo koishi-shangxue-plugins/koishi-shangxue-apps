@@ -1,6 +1,7 @@
 import { Schema } from 'koishi'
 
 export type VideoParseMode = 'link' | 'card'
+export type RequestMode = 'proxy' | 'direct' | 'parallel'
 
 const DEFAULT_VIDEO_MESSAGE_TEMPLATE = "${标题} ${tab} ${UP主}\n${简介}\n点赞：${点赞} ${tab} 投币：${投币}\n收藏：${收藏} ${tab} 转发：${转发}\n观看：${观看} ${tab} 弹幕：${弹幕}\n播放链接：${播放链接}\n${封面}\n${视频}"
 const DEFAULT_VIDEO_MESSAGE_TEMPLATE_CARD = "${标题}\n${简介}\n投币：${投币} ${tab} 收藏：${收藏} ${tab} 转发：${转发}\n播放链接：${播放链接}\n视频地址：${视频地址}\n${封面}\n${视频}"
@@ -32,6 +33,7 @@ export interface Config {
   loggerinfo: boolean
   loggerinfofulljson: boolean
   pageclose: boolean
+  requestMode: RequestMode
 }
 
 export const Config = Schema.intersect([
@@ -99,6 +101,12 @@ export const Config = Schema.intersect([
   }).description('频率限制'),
 
   Schema.object({
+    requestMode: Schema.union([
+      Schema.const('proxy').description('代理'),
+      Schema.const('direct').description('直连'),
+      Schema.const('parallel').description('并行请求'),
+    ]).role('radio').default('parallel')
+      .description('视频解析 API 请求模式<br>代理模式通过 Apifox 请求代理访问；并行请求会同时发起直连和代理，取最先成功的结果'),
     userAgent: Schema.string().default('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
       .description('请求 B 站 API 时使用的 User-Agent'),
     showError: Schema.boolean().default(false).hidden().description('解析失败时是否提示'),

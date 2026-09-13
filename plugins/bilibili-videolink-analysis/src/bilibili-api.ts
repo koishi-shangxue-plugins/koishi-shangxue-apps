@@ -1,5 +1,7 @@
 import type { Context } from 'koishi'
 import type { PluginLogger } from './logger'
+import type { RequestMode } from './config'
+import { RequestManager } from './request-manager'
 
 export interface BiliVideoStat {
   view: number
@@ -85,11 +87,20 @@ function toNumber(value: string | number | undefined): number {
 }
 
 export class BilibiliApi {
+  private readonly requestManager: RequestManager
+
   constructor(
     private readonly ctx: Context,
     private readonly userAgent: string,
+    private readonly requestMode: RequestMode,
     private readonly logger: PluginLogger,
-  ) {}
+  ) {
+    this.requestManager = new RequestManager(ctx, logger)
+  }
+
+  dispose() {
+    this.requestManager.dispose()
+  }
 
   private headers() {
     return {
@@ -106,16 +117,19 @@ export class BilibiliApi {
       : `https://www.bilibili.com/video/av${target.aid}`
     const videoUrl = target.page && target.page > 1 ? `${baseUrl}?p=${target.page}` : baseUrl
     const url = `https://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(videoUrl)}`
-    const response = await this.ctx.http.get<ExternalApiResponse>(url, {
-      headers: this.headers(),
-    })
+    const response = await this.requestManager.request(
+      url,
+      this.requestMode,
+      this.headers(),
+      10000,
+      (content) => this.parseExternalApiResponse(content),
+      '视频解析 API',
+    )
     const data = response.data
-    const bvid = data?.bvid ?? ''
-    const aid = toNumber(data?.aid)
-    const title = data?.title ?? data?.video?.title ?? ''
-    if (response.code !== 0 || !data || !bvid || !aid || !title) {
-      return null
-    }
+    if (!data) return null
+    const bvid = data.bvid ?? ''
+    const aid = toNumber(data.aid)
+    const title = data.title ?? data.video?.title ?? ''
 
     return {
       bvid,
@@ -139,6 +153,23 @@ export class BilibiliApi {
       },
       pages: [],
       videoUrl: data.video?.url ?? '',
+    }
+  }
+
+  // 只有结构完整且可用的响应才能作为并行请求的成功结果
+  private parseExternalApiResponse(content: string): ExternalApiResponse | null {
+    try {
+      const response = JSON.parse(content) as ExternalApiResponse
+      const data = response?.data
+      const bvid = data?.bvid ?? ''
+      const aid = toNumber(data?.aid)
+      const title = data?.title ?? data?.video?.title ?? ''
+      if (response?.code !== 0 || !data || !bvid || !aid || !title) {
+        return null
+      }
+      return response
+    } catch {
+      return null
     }
   }
 
