@@ -5,6 +5,8 @@
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
+    "client",
+    "dist",
     "lib",
     "font",
     "src",
@@ -22,7 +24,21 @@
     "定时渲染"
   ],
   "license": "MIT",
+  "koishi": {
+    "browser": true,
+    "service": {
+      "required": [
+        "database",
+        "console",
+        "puppeteer"
+      ],
+      "optional": [
+        "glyph"
+      ]
+    }
+  },
   "peerDependencies": {
+    "@koishijs/plugin-console": "^5.11.0",
     "koishi": "^4.18.0"
   }
 }

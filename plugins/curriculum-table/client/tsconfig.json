@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": false,
+    "skipLibCheck": true,
+    "jsx": "preserve",
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
+    "baseUrl": "../..",
+    "paths": {
+      "@koishijs/*": [
+        "node_modules/@koishijs/*"
+      ]
+    }
+  },
+  "include": [
+    "./**/*.ts",
+    "./**/*.vue"
+  ]
+}
