@@ -28,6 +28,7 @@
               :key="schedule.id"
               :class="{ active: schedule.id === selectedScheduleId, draft: schedule.id < 0 }"
               @click="selectSchedule(schedule.id)"
+              @contextmenu.prevent="openScheduleMenu($event, schedule.id)"
             >
               <span class="ct-list-name">{{ schedule.name }}</span>
               <span>{{ schedule.channelId || '未设群组' }}</span>
@@ -45,11 +46,11 @@
               <input v-model="scheduleDraft.name" />
             </label>
             <label>
-              <span>课表所属群组 ID *</span>
+              <span>课表所属群组 ID <b class="ct-required">*</b></span>
               <input v-model="scheduleDraft.channelId" />
             </label>
             <label>
-              <span>课表所属用户 ID *</span>
+              <span>课表所属用户 ID <b class="ct-required">*</b></span>
               <input v-model="scheduleDraft.userId" />
             </label>
             <label>
@@ -69,8 +70,9 @@
           <div class="ct-guide">
             <span>单击或拖动选择单元格</span>
             <span>选中后直接在右侧编辑</span>
+            <span>Ctrl+C / Ctrl+V 复制粘贴</span>
             <span>Ctrl+M 合并</span>
-            <span>Delete 删除单元格</span>
+            <span>Delete 清空单元格</span>
             <span>Ctrl+S 保存</span>
           </div>
 
@@ -161,7 +163,7 @@
             </div>
             <div class="ct-form-actions vertical">
               <button class="primary" :disabled="busy" @click="saveCourse(selectedCourse)">保存课程</button>
-              <button class="danger" :disabled="busy" @click="clearSelection">删除单元格</button>
+              <button class="danger" :disabled="busy" @click="clearSelection">清空单元格</button>
             </div>
           </template>
           <div v-else class="ct-cell-empty">
@@ -224,7 +226,7 @@
               </label>
             </template>
             <label>
-              <span>推送目标群组 ID *</span>
+              <span>推送目标群组 ID <b class="ct-required">*</b></span>
               <input v-model="pushDraft.channelId" />
             </label>
             <label>
@@ -263,25 +265,6 @@
             </div>
           </div>
 
-          <div class="ct-subsection">
-            <div class="ct-subsection-title">
-              <strong>汇总课表</strong>
-              <span>{{ pushDraft.scheduleIds.length ? `已选 ${pushDraft.scheduleIds.length} 份` : '全部课表' }}</span>
-            </div>
-            <div class="ct-schedule-options">
-              <label v-for="schedule in pushScheduleOptions" :key="schedule.id">
-                <input
-                  type="checkbox"
-                  :checked="pushDraft.scheduleIds.includes(schedule.id)"
-                  @change="togglePushSchedule(schedule.id, $event)"
-                />
-                <span>{{ schedule.name }}</span>
-                <small>{{ schedule.channelId }} / {{ schedule.userId }}</small>
-              </label>
-              <div v-if="pushScheduleOptions.length === 0" class="ct-empty">当前群组没有可选课表</div>
-            </div>
-          </div>
-
           <div class="ct-form-actions">
             <button class="primary" :disabled="busy" @click="savePush">保存推送</button>
             <button v-if="pushDraft.id" class="danger" :disabled="busy" @click="deletePush">删除</button>
@@ -308,14 +291,30 @@
       :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
       @pointerdown.stop
     >
-      <button @click="contextEdit">编辑单元格</button>
-      <button @click="contextMerge">合并单元格</button>
-      <button class="danger-text" @click="contextDelete">删除单元格</button>
+      <button v-if="contextMenu.canMerge" @click="contextMerge">合并单元格</button>
+      <button class="danger-text" @click="contextClear">清空单元格</button>
+    </div>
+
+    <div
+      v-if="scheduleContextMenu"
+      class="ct-context-menu"
+      :style="{ left: `${scheduleContextMenu.x}px`, top: `${scheduleContextMenu.y}px` }"
+      @pointerdown.stop
+    >
+      <button @click="cloneSchedule(scheduleContextMenu.scheduleId)">克隆课表</button>
     </div>
 
     <datalist id="ct-course-names">
       <option v-for="name in courseNameOptions" :key="name" :value="name"></option>
     </datalist>
+
+    <div v-if="notice" class="ct-notice-mask" @click.self="notice = undefined">
+      <div class="ct-notice" :class="{ error: notice.error }">
+        <strong>{{ notice.error ? '无法继续' : '提示' }}</strong>
+        <p>{{ notice.message }}</p>
+        <button class="primary" @click="notice = undefined">知道了</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -364,6 +363,24 @@ interface CellRange {
 interface ContextMenuState {
   x: number
   y: number
+  canMerge: boolean
+}
+
+interface NoticeState {
+  message: string
+  error: boolean
+}
+
+interface ScheduleContextMenuState {
+  x: number
+  y: number
+  scheduleId: number
+}
+
+interface ClipboardCourse {
+  name: string
+  slotStart: number
+  slotEnd: number
 }
 
 const view = ref<'schedule' | 'push'>('schedule')
@@ -386,9 +403,12 @@ const busy = ref(false)
 const editorDirty = ref(false)
 const statusText = ref('就绪')
 const hasError = ref(false)
+const notice = ref<NoticeState>()
 const dragActive = ref(false)
 const draggingCourseId = ref<number>()
 const contextMenu = ref<ContextMenuState>()
+const scheduleContextMenu = ref<ScheduleContextMenuState>()
+const courseClipboard = ref<ClipboardCourse[]>([])
 
 let tempId = -1
 let slotPress:
@@ -444,10 +464,6 @@ const selectionLabel = computed(() => {
   const start = minutesToTime(range.slotStart * 30)
   const end = minutesToTime(Math.min((range.slotEnd + 1) * 30, 23 * 60 + 59))
   return `${dayLabel} ${start}-${end}`
-})
-
-const pushScheduleOptions = computed(() => {
-  return state.value.schedules.filter(schedule => schedule.id > 0)
 })
 
 onMounted(async () => {
@@ -526,6 +542,7 @@ function createCourseDraft(scheduleId = selectedScheduleId.value || 0): CourseDr
         ? Math.min((range.slotEnd + 1) * 30, 23 * 60 + 59)
         : 9 * 60,
     ),
+    stackIndex: 0,
   }
 }
 
@@ -537,8 +554,7 @@ function createPushDraft(): PushDraft {
     botId: firstBot?.selfId || '',
     guildId: '',
     channelId: '',
-    scheduleIds: [],
-    weekdays: [],
+    weekdays: [1, 2, 3, 4, 5, 6, 7],
     dayOffset: 0,
     pushTime: '07:30',
     sendWhenEmpty: true,
@@ -578,12 +594,42 @@ async function saveSchedule(): Promise<void> {
   busy.value = true
   const temporaryId = scheduleDraft.value.id
   try {
+    const localCourses = temporaryId && temporaryId < 0
+      ? state.value.courses.filter(course => course.scheduleId === temporaryId && course.id < 0)
+      : []
     const payload = {
       ...scheduleDraft.value,
       id: temporaryId && temporaryId > 0 ? temporaryId : undefined,
     }
     const result = await send('curriculum-table/schedule/save', payload)
     if (!result.success || !result.data) throw new Error(result.message || '保存失败')
+    const persistedCourses: CurriculumCourseV2[] = []
+    for (const course of localCourses) {
+      const courseResult = await send('curriculum-table/course/save', {
+        ...course,
+        id: undefined,
+        scheduleId: result.data.id,
+      })
+      if (!courseResult.success || !courseResult.data) {
+        throw new Error(courseResult.message || `保存课程“${course.name}”失败`)
+      }
+      persistedCourses.push(courseResult.data)
+    }
+    if (temporaryId && temporaryId < 0) {
+      state.value.courses = [
+        ...state.value.courses.filter(course => course.scheduleId !== temporaryId),
+        ...persistedCourses,
+      ]
+      if (selectedCourse.value?.scheduleId === temporaryId) {
+        const savedCourse = persistedCourses.find(course => (
+          course.weekday === selectedCourse.value?.weekday
+          && course.startTime === selectedCourse.value?.startTime
+          && course.endTime === selectedCourse.value?.endTime
+          && course.name === selectedCourse.value?.name
+        ))
+        if (savedCourse) selectedCourse.value = { ...savedCourse }
+      }
+    }
     state.value.schedules = state.value.schedules.map(schedule => (
       schedule.id === temporaryId ? result.data : schedule
     ))
@@ -607,6 +653,7 @@ async function deleteSchedule(): Promise<void> {
   try {
     if (id < 0) {
       state.value.schedules = state.value.schedules.filter(schedule => schedule.id !== id)
+      state.value.courses = state.value.courses.filter(course => course.scheduleId !== id)
     } else {
       const result = await send('curriculum-table/schedule/delete', id)
       if (!result.success) throw new Error(result.message || '删除失败')
@@ -731,6 +778,7 @@ function openContextMenu(event: MouseEvent, course?: CurriculumCourseV2): void {
   contextMenu.value = {
     x: Math.min(event.clientX, window.innerWidth - 180),
     y: Math.min(event.clientY, window.innerHeight - 210),
+    canMerge: canMergeSelection(),
   }
 }
 
@@ -745,16 +793,64 @@ function openContextMenuAt(clientX: number, clientY: number, course?: Curriculum
   contextMenu.value = {
     x: Math.min(clientX, window.innerWidth - 180),
     y: Math.min(clientY, window.innerHeight - 210),
+    canMerge: canMergeSelection(),
   }
+}
+
+function canMergeSelection(): boolean {
+  const range = selectedRange.value
+  if (!range || (range.slotStart === range.slotEnd && range.weekdayStart === range.weekdayEnd)) {
+    return false
+  }
+  return !activeCourses.value.some(course => rangesEqual(courseToCellRange(course), range))
 }
 
 function closeContextMenu(): void {
   contextMenu.value = undefined
+  scheduleContextMenu.value = undefined
 }
 
-function contextEdit(): void {
-  syncEditorToSelection()
+function openScheduleMenu(event: MouseEvent, scheduleId: number): void {
+  contextMenu.value = undefined
+  scheduleContextMenu.value = {
+    x: Math.min(event.clientX, window.innerWidth - 180),
+    y: Math.min(event.clientY, window.innerHeight - 80),
+    scheduleId,
+  }
+}
+
+function cloneSchedule(scheduleId: number): void {
+  const source = state.value.schedules.find(schedule => schedule.id === scheduleId)
+  if (!source) return
+  const id = nextTempId()
+  const now = Date.now()
+  const name = uniqueName(
+    `${source.name} (副本)`,
+    state.value.schedules.map(schedule => schedule.name),
+  )
+  const clone: CurriculumScheduleV2 = {
+    ...source,
+    id,
+    name,
+    createdAt: now,
+    updatedAt: now,
+  }
+  const courseClones = state.value.courses
+    .filter(course => course.scheduleId === scheduleId)
+    .map(course => ({
+      ...course,
+      id: nextTempId(),
+      scheduleId: id,
+      createdAt: now,
+      updatedAt: now,
+    }))
+  state.value.schedules = [clone, ...state.value.schedules]
+  state.value.courses = [...courseClones, ...state.value.courses]
+  selectedScheduleId.value = id
+  scheduleDraft.value = { ...clone }
+  setDefaultSelection()
   closeContextMenu()
+  setStatus('已克隆课表')
 }
 
 function contextMerge(): void {
@@ -762,7 +858,7 @@ function contextMerge(): void {
   closeContextMenu()
 }
 
-function contextDelete(): void {
+function contextClear(): void {
   closeContextMenu()
   void clearSelection()
 }
@@ -834,8 +930,10 @@ async function mergeSelection(): Promise<void> {
   try {
     const removedIds = new Set<number>()
     for (const course of intersecting.slice(1)) {
-      const result = await send('curriculum-table/course/delete', course.id)
-      if (!result.success) throw new Error(result.message || '合并失败')
+      if (course.id > 0) {
+        const result = await send('curriculum-table/course/delete', course.id)
+        if (!result.success) throw new Error(result.message || '合并失败')
+      }
       removedIds.add(course.id)
     }
     state.value.courses = state.value.courses.filter(course => !removedIds.has(course.id))
@@ -881,8 +979,10 @@ async function clearSelection(): Promise<void> {
   try {
     const removedIds = new Set<number>()
     for (const course of courses) {
-      const result = await send('curriculum-table/course/delete', course.id)
-      if (!result.success) throw new Error(result.message || '清除失败')
+      if (course.id > 0) {
+        const result = await send('curriculum-table/course/delete', course.id)
+        if (!result.success) throw new Error(result.message || '清除失败')
+      }
       removedIds.add(course.id)
     }
     state.value.courses = state.value.courses.filter(course => !removedIds.has(course.id))
@@ -895,10 +995,75 @@ async function clearSelection(): Promise<void> {
   }
 }
 
+function copySelection(): void {
+  const range = selectedRange.value
+  if (!range) return
+  const courses = activeCourses.value
+    .filter(course => {
+      const courseRange = courseToCellRange(course)
+      return courseRange.weekdayStart === range.weekdayStart
+        && courseRange.slotStart >= range.slotStart
+        && courseRange.slotEnd <= range.slotEnd
+    })
+    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
+  if (courses.length === 0) {
+    setStatus('当前选区没有可复制的课程', true)
+    return
+  }
+  courseClipboard.value = courses.map(course => {
+    const courseRange = courseToCellRange(course)
+    return {
+      name: course.name,
+      slotStart: courseRange.slotStart - range.slotStart,
+      slotEnd: courseRange.slotEnd - range.slotStart,
+    }
+  })
+  setStatus(`已复制 ${courses.length} 个单元格`)
+}
+
+async function pasteClipboard(): Promise<void> {
+  const range = selectedRange.value
+  if (!range) return
+  if (courseClipboard.value.length === 0) {
+    setStatus('剪贴板中没有课程', true)
+    return
+  }
+  for (const item of courseClipboard.value) {
+    const slotStart = clamp(range.slotStart + item.slotStart, 0, 47)
+    const slotEnd = clamp(range.slotStart + item.slotEnd, slotStart, 47)
+    const stackIndex = Math.max(
+      0,
+      ...activeCourses.value
+        .filter(course => {
+          const courseRange = courseToCellRange(course)
+          return courseRange.weekdayStart === range.weekdayStart
+            && courseRange.slotStart <= slotEnd
+            && courseRange.slotEnd >= slotStart
+        })
+        .map(course => course.stackIndex + 1),
+    )
+    const course: CourseDraft = {
+      ...createCourseDraft(),
+      name: item.name,
+      weekday: range.weekdayStart,
+      weekdayEnd: range.weekdayStart,
+      startTime: minutesToTime(slotStart * 30),
+      endTime: minutesToTime(Math.min((slotEnd + 1) * 30, 23 * 60 + 59)),
+      stackIndex,
+    }
+    await saveCourse(course, false, true)
+  }
+  setStatus(`已粘贴 ${courseClipboard.value.length} 个单元格`)
+}
+
 /** 处理 Excel 风格的保存、合并和清除快捷键。 */
 function handleKeyboardShortcut(event: KeyboardEvent): void {
   if (view.value !== 'schedule') return
   const modifier = event.ctrlKey || event.metaKey
+  const target = event.target
+  const editing = target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement
   if (modifier && event.key.toLowerCase() === 's') {
     event.preventDefault()
     void saveAll()
@@ -909,11 +1074,20 @@ function handleKeyboardShortcut(event: KeyboardEvent): void {
     void mergeSelection()
     return
   }
-  if (event.key !== 'Delete') return
-  const target = event.target
-  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+  if (modifier && (event.code === 'KeyC' || event.key.toLowerCase() === 'c')) {
+    if (editing) return
+    event.preventDefault()
+    copySelection()
     return
   }
+  if (modifier && (event.code === 'KeyV' || event.key.toLowerCase() === 'v')) {
+    if (editing) return
+    event.preventDefault()
+    void pasteClipboard()
+    return
+  }
+  if (event.key !== 'Delete') return
+  if (editing) return
   event.preventDefault()
   void clearSelection()
 }
@@ -924,9 +1098,8 @@ async function saveAll(): Promise<void> {
 }
 
 function ensureSavedSchedule(): boolean {
-  if (selectedScheduleId.value && selectedScheduleId.value > 0) return true
-  setStatus('请先保存课表', true)
-  return false
+  if (!selectedScheduleId.value) newSchedule()
+  return Boolean(selectedScheduleId.value)
 }
 
 function editCourse(course: CurriculumCourseV2): void {
@@ -1092,7 +1265,11 @@ function stopResize(save: boolean): void {
   if (save && course) void saveCourse({ ...course })
 }
 
-async function saveCourse(course: CourseDraft, updateEditor = true): Promise<void> {
+async function saveCourse(
+  course: CourseDraft,
+  updateEditor = true,
+  allowOverlap = false,
+): Promise<void> {
   if (!ensureSavedSchedule()) return
   if (!course.name.trim()) {
     busy.value = true
@@ -1100,8 +1277,8 @@ async function saveCourse(course: CourseDraft, updateEditor = true): Promise<voi
       if (course.id && course.id > 0) {
         const result = await send('curriculum-table/course/delete', course.id)
         if (!result.success) throw new Error(result.message || '保存失败')
-        state.value.courses = state.value.courses.filter(item => item.id !== course.id)
       }
+      if (course.id) state.value.courses = state.value.courses.filter(item => item.id !== course.id)
       editorDirty.value = false
       syncEditorToSelection()
       setStatus('当前单元格为空')
@@ -1113,11 +1290,33 @@ async function saveCourse(course: CourseDraft, updateEditor = true): Promise<voi
     return
   }
   const targetRange = courseToCellRange(course)
-  const hasConflict = activeCourses.value.some(item => (
+  const hasConflict = !allowOverlap && activeCourses.value.some(item => (
     item.id !== course.id && courseIntersectsRange(item, targetRange)
   ))
   if (hasConflict) {
     setStatus('课程范围与已有单元格重叠，请先调整或删除重叠课程', true)
+    return
+  }
+  if (selectedScheduleId.value && selectedScheduleId.value < 0) {
+    const now = Date.now()
+    const localCourse: CurriculumCourseV2 = {
+      ...course,
+      id: course.id && course.id < 0 ? course.id : nextTempId(),
+      scheduleId: selectedScheduleId.value,
+      weekdayEnd: course.weekday,
+      createdAt: course.id ? Date.now() : now,
+      updatedAt: now,
+    }
+    state.value.courses = [
+      ...state.value.courses.filter(item => item.id !== localCourse.id),
+      localCourse,
+    ]
+    editorDirty.value = false
+    if (updateEditor) {
+      selectedCourse.value = { ...localCourse }
+      selectCourseRange(localCourse)
+    }
+    setStatus('课程已添加到未保存课表')
     return
   }
   busy.value = true
@@ -1148,9 +1347,12 @@ async function saveCourse(course: CourseDraft, updateEditor = true): Promise<voi
 
 function courseStyle(course: CurriculumCourseV2): Record<string, string> {
   const range = courseToCellRange(course)
+  const stack = Math.min(3, Math.max(0, course.stackIndex || 0))
   return {
     gridColumn: `${range.weekdayStart + 1} / span ${range.weekdayEnd - range.weekdayStart + 1}`,
     gridRow: `${range.slotStart + 2} / span ${range.slotEnd - range.slotStart + 1}`,
+    zIndex: String(2 + stack),
+    transform: `translate(${stack * 3}px, ${stack * 3}px)`,
   }
 }
 
@@ -1227,7 +1429,6 @@ function rangesEqual(left: CellRange, right: CellRange): boolean {
 function selectPush(push: CurriculumPushV2): void {
   pushDraft.value = {
     ...push,
-    scheduleIds: [...push.scheduleIds],
     weekdays: [...push.weekdays],
   }
   const bot = state.value.bots.find(item => item.selfId === push.botId)
@@ -1277,15 +1478,6 @@ function togglePushWeekday(weekday: number): void {
     pushDraft.value.weekdays = pushDraft.value.weekdays.filter(day => day !== weekday)
   } else {
     pushDraft.value.weekdays = [...pushDraft.value.weekdays, weekday].sort()
-  }
-}
-
-function togglePushSchedule(id: number, event: Event): void {
-  const checked = (event.target as HTMLInputElement).checked
-  if (checked) {
-    pushDraft.value.scheduleIds = [...new Set([...pushDraft.value.scheduleIds, id])]
-  } else {
-    pushDraft.value.scheduleIds = pushDraft.value.scheduleIds.filter(scheduleId => scheduleId !== id)
   }
 }
 
@@ -1363,6 +1555,7 @@ function validateSchedule(): boolean {
 function setStatus(message: string, error = false): void {
   statusText.value = message
   hasError.value = error
+  if (error) notice.value = { message, error }
 }
 
 function uniqueName(rawName: string, existingNames: string[]): string {
@@ -1730,6 +1923,11 @@ textarea:focus {
 .ct-check input {
   width: 16px;
   height: 16px;
+}
+
+.ct-required {
+  color: var(--ct-danger);
+  font-weight: 700;
 }
 
 .ct-form-actions {
@@ -2161,6 +2359,44 @@ button:disabled {
 
 .ct-context-menu .danger-text {
   color: var(--ct-danger);
+}
+
+.ct-notice-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(18, 30, 26, 0.32);
+}
+
+.ct-notice {
+  width: min(420px, 92vw);
+  padding: 20px;
+  color: var(--ct-text);
+  background: var(--ct-panel);
+  border: 1px solid var(--ct-border);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(18, 30, 26, 0.28);
+}
+
+.ct-notice strong {
+  color: var(--ct-accent);
+  font-size: 16px;
+}
+
+.ct-notice.error strong {
+  color: var(--ct-danger);
+}
+
+.ct-notice p {
+  margin: 12px 0 18px;
+  line-height: 1.7;
+}
+
+.ct-notice button {
+  float: right;
 }
 
 @media (max-width: 1100px) {

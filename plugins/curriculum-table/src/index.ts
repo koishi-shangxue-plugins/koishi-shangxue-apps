@@ -46,9 +46,9 @@ export function apply(ctx: Context, config: CurriculumTableConfig): void {
   const renderConfig: RenderConfig = {
     screenshotQuality: config.screenshotQuality,
     footerText: config.footerText,
-    useGlyphService: config.useGlyphService,
     glyphFontFamily: config.glyphFontFamily,
     enableDebugLogging: config.enableDebugLogging,
+    hideFinishedCourses: config.hideFinishedCourses,
   }
   const scheduler = new PushScheduler(
     ctx,

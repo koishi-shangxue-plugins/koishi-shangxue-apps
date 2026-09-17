@@ -25,11 +25,12 @@ export interface CurriculumCourseV2 {
   weekdayEnd: number
   startTime: string
   endTime: string
+  stackIndex: number
   createdAt: number
   updatedAt: number
 }
 
-/** V2 推送闹钟，空 scheduleIds 表示汇总群组内全部课表。 */
+/** V2 推送闹钟，始终汇总目标群组内全部课表。 */
 export interface CurriculumPushV2 {
   id: number
   name: string
@@ -37,7 +38,6 @@ export interface CurriculumPushV2 {
   botId: string
   guildId: string
   channelId: string
-  scheduleIds: number[]
   weekdays: number[]
   dayOffset: number
   pushTime: string
@@ -54,6 +54,7 @@ export interface CurriculumCourseView {
   scheduleId: number
   scheduleName: string
   channelId: string
+  guildId: string
   userid: string
   username: string
   useravatar: string

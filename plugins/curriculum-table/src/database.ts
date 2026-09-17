@@ -16,7 +16,6 @@ import { getLocalDate, normalizeTime, numberToWeekday } from './schedule'
 export interface CourseViewQuery {
   channelId?: string
   scheduleId?: number
-  scheduleIds?: number[]
 }
 
 export class CurriculumDatabase {
@@ -51,6 +50,7 @@ export class CurriculumDatabase {
       weekdayEnd: 'unsigned',
       startTime: 'string',
       endTime: 'string',
+      stackIndex: 'unsigned',
       createdAt: 'unsigned',
       updatedAt: 'unsigned',
     }, {
@@ -65,7 +65,6 @@ export class CurriculumDatabase {
       botId: 'string',
       guildId: 'string',
       channelId: 'string',
-      scheduleIds: 'json',
       weekdays: 'json',
       dayOffset: 'integer',
       pushTime: 'string',
@@ -139,20 +138,6 @@ export class CurriculumDatabase {
   async deleteSchedule(id: number): Promise<void> {
     await this.ctx.database.remove(COURSE_TABLE, { scheduleId: id })
     await this.ctx.database.remove(SCHEDULE_TABLE, { id })
-
-    const pushes = await this.listPushes()
-    for (const push of pushes) {
-      if (!push.scheduleIds.includes(id)) continue
-      const scheduleIds = push.scheduleIds.filter(scheduleId => scheduleId !== id)
-      if (scheduleIds.length === 0) {
-        await this.ctx.database.remove(PUSH_TABLE, { id: push.id })
-      } else {
-        await this.ctx.database.set(PUSH_TABLE, { id: push.id }, {
-          scheduleIds,
-          updatedAt: Date.now(),
-        })
-      }
-    }
   }
 
   async saveCourse(input: CurriculumCourseInput): Promise<CurriculumCourseV2> {
@@ -171,6 +156,7 @@ export class CurriculumDatabase {
       ),
       startTime,
       endTime,
+      stackIndex: Math.max(0, Math.trunc(input.stackIndex || 0)),
       updatedAt: now,
     }
 
@@ -204,7 +190,6 @@ export class CurriculumDatabase {
       botId: input.botId.trim(),
       guildId: input.guildId.trim(),
       channelId: input.channelId.trim(),
-      scheduleIds: normalizeIds(input.scheduleIds),
       weekdays: normalizeWeekdays(input.weekdays),
       dayOffset: Math.max(-1, Math.min(1, Math.trunc(input.dayOffset || 0))),
       pushTime: normalizeTime(input.pushTime) || '07:30',
@@ -240,10 +225,7 @@ export class CurriculumDatabase {
 
   async getCourseViews(query: CourseViewQuery = {}): Promise<CurriculumCourseView[]> {
     let schedules = await this.listSchedules()
-    if (query.scheduleIds?.length) {
-      const ids = new Set(query.scheduleIds)
-      schedules = schedules.filter(schedule => ids.has(schedule.id))
-    } else if (query.channelId) {
+    if (query.channelId) {
       schedules = schedules.filter(schedule => schedule.channelId === query.channelId)
     }
     if (query.scheduleId) {
@@ -260,6 +242,7 @@ export class CurriculumDatabase {
           scheduleId: schedule.id,
           scheduleName: schedule.name,
           channelId: schedule.channelId,
+          guildId: schedule.guildId,
           userid: schedule.userId,
           username: schedule.username,
           useravatar: schedule.userAvatar,
@@ -325,11 +308,6 @@ function addDays(dateString: string, days: number): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-
-function normalizeIds(ids: number[]): number[] {
-  if (!Array.isArray(ids)) return []
-  return [...new Set(ids.map(id => Math.trunc(Number(id))).filter(id => Number.isFinite(id) && id > 0))]
 }
 
 function normalizeWeekdays(weekdays: number[]): number[] {

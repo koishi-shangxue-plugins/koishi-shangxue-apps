@@ -37,17 +37,17 @@ interface CourseRenderItem extends CourseDisplayUser {
 export interface RenderConfig {
   screenshotQuality: number
   footerText: string
-  useGlyphService: boolean
   glyphFontFamily?: string
   enableDebugLogging: boolean
+  hideFinishedCourses: boolean
 }
 
 export interface RenderOptions {
   channelId: string
   dayOffset: number
-  scheduleIds?: number[]
   title?: string
   allowEmpty?: boolean
+  courses?: CurriculumCourseView[]
 }
 
 type PuppeteerPage = Awaited<ReturnType<NonNullable<Context['puppeteer']>['page']>>
@@ -67,27 +67,34 @@ const STATUS_ORDER: Record<CourseStatus, number> = {
 /** 优先使用 glyph，失败后回退本地字体。 */
 export async function getFontFaceRule(
   ctx: Context,
-  config: Pick<RenderConfig, 'useGlyphService' | 'glyphFontFamily'>,
+  config: Pick<RenderConfig, 'glyphFontFamily'>,
   fontDir: string,
   logger: LogInfo,
-): Promise<string> {
+): Promise<{ rule: string; family: string }> {
   const localFontPath = path.join(fontDir, LOCAL_FONT_FILE)
+  const selectedFont = config.glyphFontFamily?.trim() || FONT_NAME
 
-  if (config.useGlyphService && ctx.glyph && config.glyphFontFamily) {
-    const fontDataUrl = ctx.glyph.getFontDataUrl(config.glyphFontFamily)
+  if (ctx.glyph) {
+    const fontDataUrl = ctx.glyph.getFontDataUrl(selectedFont)
     if (fontDataUrl) {
-      return `@font-face { font-family: '${FONT_NAME}'; src: url('${fontDataUrl}'); }`
+      return {
+        rule: `@font-face { font-family: '${selectedFont}'; src: url('${fontDataUrl}'); }`,
+        family: selectedFont,
+      }
     }
-    logger.warn(`从 glyph 获取字体 ${config.glyphFontFamily} 失败，回退到本地字体。`)
+    logger.warn(`从 glyph 获取字体 ${selectedFont} 失败，回退到本地字体。`)
   }
 
   try {
     const fontBuffer = await fs.promises.readFile(localFontPath)
     const base64Font = fontBuffer.toString('base64')
-    return `@font-face { font-family: '${FONT_NAME}'; src: url('data:font/ttf;base64,${base64Font}') format('truetype'); }`
+    return {
+      rule: `@font-face { font-family: '${FONT_NAME}'; src: url('data:font/ttf;base64,${base64Font}') format('truetype'); }`,
+      family: FONT_NAME,
+    }
   } catch {
     logger.error('加载本地字体文件失败，将使用系统字体。')
-    return ''
+    return { rule: '', family: 'Microsoft YaHei' }
   }
 }
 
@@ -361,9 +368,8 @@ export async function renderCourseTable(
 
   try {
     page = await ctx.puppeteer.page()
-    const allCourses = await database.getCourseViews({
+    const allCourses = options.courses ?? await database.getCourseViews({
       channelId: options.channelId,
-      scheduleIds: options.scheduleIds,
     })
 
     if (allCourses.length === 0 && !options.allowEmpty) {
@@ -375,10 +381,16 @@ export async function renderCourseTable(
     targetDate.setDate(targetDate.getDate() + options.dayOffset)
     const currentDate = formatLocalDate(targetDate)
     const currentDayOfWeekName = DAY_OF_WEEK_NAMES[targetDate.getDay()]
-    const validCourses = allCourses.filter(course => (
+    const currentTimestamp = new Date().getHours() * 60 + new Date().getMinutes()
+    let validCourses = allCourses.filter(course => (
       isCourseInDate(course, currentDate, currentDayOfWeekName)
     ))
-    const currentTimestamp = new Date().getHours() * 60 + new Date().getMinutes()
+    if (config.hideFinishedCourses && options.dayOffset <= 0) {
+      validCourses = validCourses.filter(course => {
+        const endTime = course.curriculumtime.split('-')[1]
+        return timeToMinutes(endTime) > currentTimestamp
+      })
+    }
 
     logger.info(
       `群组 ${options.channelId} 在 ${currentDayOfWeekName} 的有效课程 ${validCourses.length} 条`,
@@ -390,15 +402,18 @@ export async function renderCourseTable(
       : [createEmptyStateItem(options.dayOffset)]
 
     const templateHtml = await fs.promises.readFile(templatePath, 'utf-8')
-    const fontFaceRule = await getFontFaceRule(ctx, config, fontDir, logger)
-    const fontStyleTag = fontFaceRule ? `<style>${fontFaceRule}</style>` : ''
+    const font = await getFontFaceRule(ctx, config, fontDir, logger)
+    const fontStyleTag = font.rule ? `<style>${font.rule}</style>` : ''
     const courseItemsHtml = finalRenderItems.map(renderCourseItem).join('\n')
     const footerTime = `${targetDate.toLocaleDateString('zh-CN')} ${String(targetDate.getHours()).padStart(2, '0')}:${String(targetDate.getMinutes()).padStart(2, '0')}:${String(targetDate.getSeconds()).padStart(2, '0')}`
     const finalHtml = templateHtml
       .replace('{{FONT_FACE_STYLE_TAG}}', fontStyleTag)
       .replace('{{COURSE_ITEMS}}', courseItemsHtml)
       .replace('{{FOOTER_TIME}}', escHtml(footerTime))
-      .replace('{{FOOTER_TEXT}}', config.footerText)
+      .replace('{{FONT_FAMILY}}', escHtml(font.family))
+      .replace('{{FOOTER_TEXT}}', renderMultilineText(
+        config.footerText || '群友课程表\nkoishi-plugin-curriculum-table',
+      ))
       .replace('{{TITLE}}', escHtml(options.title || '群友在上什么课？'))
 
     await page.setContent(finalHtml, { waitUntil: 'domcontentloaded' })
@@ -434,4 +449,11 @@ function formatLocalDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function renderMultilineText(value: string): string {
+  return value
+    .split(/\r?\n/)
+    .map(line => escHtml(line))
+    .join('<br>')
 }
