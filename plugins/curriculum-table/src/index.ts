@@ -10,6 +10,7 @@ import { createPluginLogger } from './logger'
 import { registerGlyphFont, type RenderConfig } from './render'
 import { PushScheduler } from './scheduler'
 import { resolveTemplatePath } from './template'
+import { registerScheduleQueryCommand } from './commands/schedule-query'
 
 export { name, inject, Config }
 export {
@@ -65,6 +66,14 @@ export function apply(ctx: Context, config: CurriculumTableConfig): void {
   })
 
   registerConsoleEvents(ctx, database, logger)
+  registerScheduleQueryCommand(
+    ctx,
+    database,
+    renderConfig,
+    fontDir,
+    templatePath,
+    logger,
+  )
 
   ctx.on('ready', async () => {
     await registerGlyphFont(ctx, fontDir, logger)
