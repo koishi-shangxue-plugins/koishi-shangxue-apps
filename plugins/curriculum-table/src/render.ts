@@ -410,7 +410,7 @@ export async function renderCourseTable(
       .replace('{{FONT_FACE_STYLE_TAG}}', fontStyleTag)
       .replace('{{COURSE_ITEMS}}', courseItemsHtml)
       .replace('{{FOOTER_TIME}}', escHtml(footerTime))
-      .replace('{{FONT_FAMILY}}', escHtml(font.family))
+      .split('{{FONT_FAMILY}}').join(escHtml(font.family))
       .replace('{{FOOTER_TEXT}}', renderMultilineText(
         config.footerText || '群友课程表\nkoishi-plugin-curriculum-table',
       ))
