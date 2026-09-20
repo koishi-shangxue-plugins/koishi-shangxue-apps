@@ -14,16 +14,20 @@ function getPublicImageUrl(rawUrl: string): string {
   return `${rawUrl}&response-content-type=image%2Fjpeg`
 }
 
+function extractImageUrl(transformed: string): string {
+  const source = h.parse(transformed)[0]?.attrs.src
+  if (typeof source !== 'string' || !source) {
+    throw new Error(`assets.transform did not return an image url: ${transformed}`)
+  }
+  return source
+}
+
 async function resolveAssetsPublicUrl(ctx: Context, imageDataUrl: string): Promise<string> {
   if (!ctx.assets) throw new Error('assets service not available')
 
   // 使用 Data URL 让 assets 直接读取 Buffer，避免 HTTP 适配器 fetch 本地路径
   const transformed = await ctx.assets.transform(String(h.image(imageDataUrl, { file: 'jrys-prpr-background.png' })))
-  const match = transformed.match(/<img\s+src="([^"]+)"/i)
-  if (!match?.[1]) {
-    throw new Error(`assets.transform did not return an image url: ${transformed}`)
-  }
-  return h.unescape(match[1])
+  return extractImageUrl(transformed)
 }
 
 function getSimpleFortuneText(dJson: JrysData): string {
@@ -88,12 +92,8 @@ export async function sendImageMessage(
   if (config.markdown_button_mode === 'raw' && session.platform === 'qq') {
     const renderDataUrl = bufferToDataUrl(renderBuffer, 'image/png')
     const transformed = await ctx.assets.transform(String(h.image(renderDataUrl, { file: 'jrys-prpr-card.png' })))
-    const match = transformed.match(/<img\s+src="([^"]+)"/i)
-    if (!match?.[1]) {
-      throw new Error(`assets.transform did not return an image url: ${transformed}`)
-    }
 
-    const publicUrl = getPublicImageUrl(h.unescape(match[1]))
+    const publicUrl = getPublicImageUrl(extractImageUrl(transformed))
     const qqmarkdownmessage = await markdown(ctx, session, messageTime, publicUrl, renderDataUrl, dJson, config, logInfo)
     const sentMessage = await sendmarkdownMessage(ctx, session, qqmarkdownmessage, logInfo)
 
