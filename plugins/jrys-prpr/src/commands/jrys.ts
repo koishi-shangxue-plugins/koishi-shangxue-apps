@@ -3,8 +3,7 @@ import type { Config } from '../types'
 import { getRandomBackground } from '../utils/background'
 import { getJrys } from '../utils/jrys'
 import { alreadySignedInToday, recordSignIn, updateUserCurrency } from '../utils/database'
-import { convertToBase64image } from '../utils/image'
-import { generateFortuneHTML, getImageBuffer } from '../utils/render'
+import { convertToBase64image, getImageFile } from '../utils/image'
 import { sendImageMessage } from '../utils/message-sender'
 
 /**
@@ -26,7 +25,6 @@ export function registerJrysCommand(
       let Checkin_HintText_messageid: any
       let backgroundImage = getRandomBackground(config)
       let BackgroundURL = backgroundImage.replace(/\\/g, '/')
-      let imageBuffer: Buffer
       const dJson = await getJrys(session, config, logInfo)
 
       if (options.split) {
@@ -75,15 +73,14 @@ ${dJson.unsignText}\n
 
       let page: any
       try {
-
-        imageBuffer = await getImageBuffer(ctx, BackgroundURL)
+        const { buffer: imageBuffer, mimeType: imageMimeType } = await getImageFile(ctx, BackgroundURL)
 
         if (config.enablecurrency && !hasSignedInToday) {
           await updateUserCurrency(ctx, String(session.user.id), config.maintenanceCostPerUnit, config.currency, logInfo)
         }
 
         // 发送图片消息
-        await sendImageMessage(ctx, session, config, dJson, imageBuffer, BackgroundURL, hasSignedInToday, jsonFilePath, logInfo)
+        await sendImageMessage(ctx, session, config, dJson, imageBuffer, imageMimeType, BackgroundURL, hasSignedInToday, jsonFilePath, logInfo)
 
 
         if (Checkin_HintText_messageid && config.recallCheckin_HintText) {

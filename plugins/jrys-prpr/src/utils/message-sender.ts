@@ -1,12 +1,10 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { h } from 'koishi'
 import type { Context, Session } from 'koishi'
+import type { } from '@koishijs/assets'
 import type { Config, JrysData } from '../types'
 import { recordOriginalImage } from './database'
 import { markdown, plainTextImageMarkdown, sendmarkdownMessage } from './markdown'
-import { encodeTimestamp } from './image'
+import { bufferToDataUrl, encodeTimestamp, isHttpUrl } from './image'
 import { renderFortuneCardImage } from './render-card'
 
 function getPublicImageUrl(rawUrl: string): string {
@@ -16,23 +14,11 @@ function getPublicImageUrl(rawUrl: string): string {
   return `${rawUrl}&response-content-type=image%2Fjpeg`
 }
 
-function isHttpUrl(url: string): boolean {
-  return /^https?:\/\//i.test(url)
-}
+async function resolveAssetsPublicUrl(ctx: Context, imageDataUrl: string): Promise<string> {
+  if (!ctx.assets) throw new Error('assets service not available')
 
-function getImageMimeType(source: string): string {
-  const lower = source.split('?')[0].toLowerCase()
-  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
-  if (lower.endsWith('.webp')) return 'image/webp'
-  if (lower.endsWith('.gif')) return 'image/gif'
-  return 'image/png'
-}
-
-async function resolveAssetsPublicUrl(ctx: Context, source: string): Promise<string> {
-  const assets = (ctx as any).assets
-  if (!assets) throw new Error('assets service not available')
-
-  const transformed = await assets.transform(String(h.image(source)))
+  // 使用 Data URL 让 assets 直接读取 Buffer，避免 HTTP 适配器 fetch 本地路径
+  const transformed = await ctx.assets.transform(String(h.image(imageDataUrl, { file: 'jrys-prpr-background.png' })))
   const match = transformed.match(/<img\s+src="([^"]+)"/i)
   if (!match?.[1]) {
     throw new Error(`assets.transform did not return an image url: ${transformed}`)
@@ -58,6 +44,7 @@ export async function sendImageMessage(
   config: Config,
   dJson: JrysData,
   imageBuffer: Buffer,
+  imageMimeType: string,
   BackgroundURL: string,
   hasSignedInToday: boolean,
   jsonFilePath: string,
@@ -70,10 +57,11 @@ export async function sendImageMessage(
     const simpleText = getSimpleFortuneText(dJson)
 
     if (config.markdown_button_mode === 'raw' && session.platform === 'qq') {
+      const backgroundDataUrl = bufferToDataUrl(imageBuffer, imageMimeType)
       const publicUrl = isHttpUrl(BackgroundURL)
         ? BackgroundURL
-        : await resolveAssetsPublicUrl(ctx, BackgroundURL)
-      const qqmarkdownmessage = await plainTextImageMarkdown(ctx, session, publicUrl, BackgroundURL, dJson, logInfo)
+        : await resolveAssetsPublicUrl(ctx, backgroundDataUrl)
+      const qqmarkdownmessage = await plainTextImageMarkdown(ctx, session, publicUrl, backgroundDataUrl, dJson, logInfo)
       const sentMessage = await sendmarkdownMessage(ctx, session, qqmarkdownmessage, logInfo)
 
       await recordOriginalImage(ctx, jsonFilePath, {
@@ -84,7 +72,7 @@ export async function sendImageMessage(
       return
     }
 
-    const imageMessage = h.image(imageBuffer, getImageMimeType(BackgroundURL))
+    const imageMessage = h.image(imageBuffer, imageMimeType)
     const sentMessage = await session.send(`${simpleText}\n${imageMessage}`)
     await recordOriginalImage(ctx, jsonFilePath, {
       messageId: sentMessage,
@@ -94,42 +82,26 @@ export async function sendImageMessage(
     return
   }
 
-  const renderBuffer = await renderFortuneCardImage(ctx, session, config, dJson, BackgroundURL, logInfo)
+  const renderBuffer = await renderFortuneCardImage(ctx, session, config, dJson, imageBuffer, imageMimeType, logInfo)
   const imageMessage = h.image(renderBuffer, 'image/png')
 
   if (config.markdown_button_mode === 'raw' && session.platform === 'qq') {
-    const assets = (ctx as any).assets
-    if (!assets) throw new Error('assets service not available')
-
-    const cacheDir = path.join(path.dirname(jsonFilePath), '.assets-cache')
-    if (!fs.existsSync(cacheDir)) {
-      fs.mkdirSync(cacheDir, { recursive: true })
+    const renderDataUrl = bufferToDataUrl(renderBuffer, 'image/png')
+    const transformed = await ctx.assets.transform(String(h.image(renderDataUrl, { file: 'jrys-prpr-card.png' })))
+    const match = transformed.match(/<img\s+src="([^"]+)"/i)
+    if (!match?.[1]) {
+      throw new Error(`assets.transform did not return an image url: ${transformed}`)
     }
 
-    const tempFile = path.join(cacheDir, `${session.userId}-${Date.now()}-${Math.random().toString(36).slice(2)}.png`)
-    fs.writeFileSync(tempFile, renderBuffer)
+    const publicUrl = getPublicImageUrl(h.unescape(match[1]))
+    const qqmarkdownmessage = await markdown(ctx, session, messageTime, publicUrl, renderDataUrl, dJson, config, logInfo)
+    const sentMessage = await sendmarkdownMessage(ctx, session, qqmarkdownmessage, logInfo)
 
-    try {
-      const transformed = await assets.transform(String(h.image(pathToFileURL(tempFile).href)))
-      const match = transformed.match(/<img\s+src="([^"]+)"/i)
-      if (!match?.[1]) {
-        throw new Error(`assets.transform did not return an image url: ${transformed}`)
-      }
-
-      const publicUrl = getPublicImageUrl(h.unescape(match[1]))
-      const qqmarkdownmessage = await markdown(ctx, session, messageTime, publicUrl, tempFile, dJson, config, logInfo)
-      const sentMessage = await sendmarkdownMessage(ctx, session, qqmarkdownmessage, logInfo)
-
-      await recordOriginalImage(ctx, jsonFilePath, {
-        messageId: sentMessage,
-        messageTime,
-        backgroundURL: BackgroundURL,
-      }, logInfo)
-    } finally {
-      try {
-        fs.unlinkSync(tempFile)
-      } catch { }
-    }
+    await recordOriginalImage(ctx, jsonFilePath, {
+      messageId: sentMessage,
+      messageTime,
+      backgroundURL: BackgroundURL,
+    }, logInfo)
     return
   }
 

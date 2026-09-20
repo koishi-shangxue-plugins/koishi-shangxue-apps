@@ -28,6 +28,46 @@ export const Config: Schema<Config> =
 
 
 export function apply(ctx: Context) {
+  // 发送云湖 A2UI 语音测试消息
+  ctx.command('A2UI消息测试', '发送云湖 A2UI 语音测试消息')
+    .action(async ({ session }) =>
+    {
+      if (!session) return;
+      if (session.platform !== 'yunhu') return '该指令仅支持云湖平台';
+
+      await session.send(h('a2ui', {
+        content: [
+          {
+            version: 'v0.9',
+            createSurface: {
+              surfaceId: 'audio-1789828320832-2k7bc7',
+              catalogId: 'https://a2ui.org/specification/v0_9/basic_catalog.json',
+              sendDataModel: true,
+            },
+          },
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'audio-1789828320832-2k7bc7',
+              components: [
+                {
+                  id: 'root',
+                  component: 'Column',
+                  children: ['player'],
+                },
+                {
+                  id: 'player',
+                  component: 'AudioPlayer',
+                  url: 'https://yunhu.zhyxulei.top/?url=https%3A%2F%2Fchat-file.jwznb.com%2F96e661bfbd3ad8761ed759c9772be896.mp4',
+                  description: '不再曼波',
+                },
+              ],
+            },
+          },
+        ],
+      }));
+    });
+
   // write your plugin here
   const commandName = "消息";
 

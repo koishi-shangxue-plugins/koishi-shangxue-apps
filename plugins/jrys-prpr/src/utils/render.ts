@@ -1,5 +1,3 @@
-import fs from 'node:fs'
-import { URL, pathToFileURL, fileURLToPath } from 'node:url'
 import type { Context, Session } from 'koishi'
 import type { Config, JrysData } from '../types'
 import { getFontDataUrl, getFontFormatFromDataUrl } from './font'
@@ -195,39 +193,4 @@ ${dJson.unsignText}
   logInfo(`虚线框颜色: ${config.HTML_setting.Dashedboxcolor}`)
 
   return HTMLsource
-}
-
-/**
- * 获取图片 Buffer（用于 raw_jrys 模式）
- */
-export async function getImageBuffer(ctx: Context, rawUrl: string): Promise<Buffer> {
-  // 首先检查是否为 data URL
-  if (rawUrl.startsWith('data:image/')) {
-    const base64Data = rawUrl.split(',')[1]
-    return Buffer.from(base64Data, 'base64')
-  }
-
-  // 检查是否为网络 URL
-  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-    const response = await ctx.http.get(rawUrl, { responseType: 'arraybuffer' })
-    return Buffer.from(response)
-  }
-
-  // 否则，视为本地路径（可能是 file:/// URL 或普通文件系统路径）
-  let localPath: string;
-  if (rawUrl.startsWith('file:///')) {
-    try {
-      localPath = fileURLToPath(rawUrl)
-    } catch (error) {
-      throw new Error(`无效的 file URL: ${rawUrl}`)
-    }
-  } else {
-    localPath = rawUrl
-  }
-
-  if (fs.existsSync(localPath)) {
-    return fs.readFileSync(localPath)
-  }
-
-  throw new Error(`不支持的背景图格式或路径不存在: ${rawUrl}`)
 }

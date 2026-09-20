@@ -1,6 +1,7 @@
 import type { Context, Session } from 'koishi'
 import type { Config, JrysData } from '../types'
-import { generateFortuneHTML, getImageBuffer } from './render'
+import { bufferToDataUrl } from './image'
+import { generateFortuneHTML } from './render'
 
 async function waitForCaptureReady(page: Awaited<ReturnType<NonNullable<Context['puppeteer']>['page']>>): Promise<void> {
   await page.evaluate(async () => {
@@ -20,32 +21,20 @@ async function waitForCaptureReady(page: Awaited<ReturnType<NonNullable<Context[
   })
 }
 
-function bufferToDataUrl(buffer: Buffer, rawUrl: string): string {
-  const cleanUrl = rawUrl.split('?')[0].toLowerCase()
-  const mimeType = cleanUrl.endsWith('.jpg') || cleanUrl.endsWith('.jpeg')
-    ? 'image/jpeg'
-    : cleanUrl.endsWith('.webp')
-      ? 'image/webp'
-      : cleanUrl.endsWith('.gif')
-        ? 'image/gif'
-        : 'image/png'
-  return `data:${mimeType};base64,${buffer.toString('base64')}`
-}
-
 export async function renderFortuneCardImage(
   ctx: Context,
   session: Session,
   config: Config,
   dJson: JrysData,
-  backgroundUrl: string,
+  backgroundBuffer: Buffer,
+  backgroundMimeType: string,
   logInfo: (...args: any[]) => void,
 ): Promise<Buffer> {
   if (!ctx.puppeteer) {
     throw new Error('puppeteer service not available')
   }
 
-  const backgroundBuffer = await getImageBuffer(ctx, backgroundUrl)
-  const backgroundDataUrl = bufferToDataUrl(backgroundBuffer, backgroundUrl)
+  const backgroundDataUrl = bufferToDataUrl(backgroundBuffer, backgroundMimeType)
   const html = await generateFortuneHTML(ctx, session, config, dJson, backgroundDataUrl, logInfo)
 
   const page = await ctx.puppeteer.page()
