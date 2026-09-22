@@ -6,7 +6,7 @@ import { getUserCurrency, updateUserCurrency } from "./currency"
 import { getAgnesConfig } from "./agnes"
 import { resolveApiModeForInput } from "./mode"
 import { resolveApiParamsForMode } from "./params"
-import { getImageSize, resolveDynamicImageParams, resolveFallbackSize } from "./image-size"
+import { getImageSize, resolveSizeParams } from "./image-size"
 import { downloadFileWithTimeout } from "./http"
 import { prepareImageForApi } from "./media"
 
@@ -114,31 +114,27 @@ export async function generateImage(
       return false
     }
 
-    if (files.length > 0) {
-      const imageSize = getImageSize(Buffer.from(files[0].data))
-      if (imageSize) {
-        const dynamic = resolveDynamicImageParams(apiParams.size || "", imageSize.width, imageSize.height, config.agnesMode)
-        apiParams = {
-          ...apiParams,
-          size: dynamic.size,
-          ...(dynamic.ratio ? { ratio: dynamic.ratio } : {}),
-        }
-        log.info("根据输入图片动态设置尺寸:", {
-          width: imageSize.width,
-          height: imageSize.height,
-          ...dynamic,
-        })
-      } else {
-        log.warn("无法解析输入图片尺寸，使用默认尺寸")
-      }
+    // 尺寸决策：提示词里写明的画面比例 > 输入图片比例 > 配置值
+    // 无论配置是 {{dynamic_size}} 还是 auto，都统一在这里算出一个明确的尺寸
+    const imageSize = files.length > 0 ? getImageSize(Buffer.from(files[0].data)) : null
+    const dynamic = resolveSizeParams({
+      configuredSize: apiParams.size || "",
+      prompt,
+      width: imageSize?.width,
+      height: imageSize?.height,
+      agnesMode: config.agnesMode,
+    })
+    apiParams = {
+      ...apiParams,
+      size: dynamic.size,
+      ...(dynamic.ratio ? { ratio: dynamic.ratio } : {}),
     }
-
-    if (apiParams.size === "{{dynamic_size}}") {
-      apiParams = {
-        ...apiParams,
-        size: resolveFallbackSize(apiParams.size, config.agnesMode),
-      }
-    }
+    log.info("最终请求尺寸:", {
+      configured: apiParams.size,
+      inputWidth: imageSize?.width,
+      inputHeight: imageSize?.height,
+      ...dynamic,
+    })
 
     const result = await callImageApi(ctx, files, prompt, {
       apiUrl,

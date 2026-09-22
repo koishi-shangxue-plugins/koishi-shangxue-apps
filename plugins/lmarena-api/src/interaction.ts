@@ -19,22 +19,36 @@ export interface ParentInput {
   prompt: string
 }
 
+// 合并消息里的图片、avatar 图片与调用方传入的预收集图片
+async function collectSessionImages(
+  session: Session,
+  extraContent: string,
+  presetImages: string[] = [],
+): Promise<string[]> {
+  const images = [...presetImages]
+  images.push(...extractImagesFromSession(session))
+  images.push(...await resolveAvatarImages(session, session.stripped.content))
+  if (session.quote) {
+    images.push(...await resolveAvatarImages(session, session.quote.content))
+  }
+  if (extraContent) {
+    images.push(...extractImagesFromMessage(extraContent))
+    images.push(...await resolveAvatarImages(session, extraContent))
+  }
+  return [...new Set(images)]
+}
+
 // 先收集当前消息或交互回复中的图片；text 用于子命令固定提示词场景
 export async function collectImages(
   session: Session,
   extraContent: string,
   config: Config,
   log: AppLogger,
+  presetImages: string[] = [],
 ): Promise<ImageCollection | null> {
-  const images = extractImagesFromSession(session)
-  images.push(...await resolveAvatarImages(session, session.stripped.content))
-  if (session.quote) {
-    images.push(...await resolveAvatarImages(session, session.quote.content))
-  }
+  const images = await collectSessionImages(session, extraContent, presetImages)
   const textParts: string[] = []
   if (extraContent) {
-    images.push(...extractImagesFromMessage(extraContent))
-    images.push(...await resolveAvatarImages(session, extraContent))
     textParts.push(extractTextFromMessage(extraContent))
   }
   let text = textParts.filter(Boolean).join(" ").trim()
@@ -139,14 +153,9 @@ export async function collectParentInput(
   extraContent: string,
   config: Config,
   log: AppLogger,
+  presetImages: string[] = [],
 ): Promise<ParentInput | null> {
-  const initialImages = [
-    ...extractImagesFromSession(session),
-    ...extractImagesFromMessage(extraContent),
-    ...await resolveAvatarImages(session, session.stripped.content),
-    ...await resolveAvatarImages(session, extraContent),
-  ]
-  const images = [...new Set(initialImages)]
+  const images = await collectSessionImages(session, extraContent, presetImages)
   let prompt = extractTextFromMessage(extraContent).trim()
 
   if (!prompt) {
@@ -173,11 +182,7 @@ export async function collectParentInput(
 
   if (images.length === 0) {
     const mode = resolveApiModeForInput(config, false)
-    if (mode === "edits") {
-      const collection = await collectImages(session, "", config, log)
-      if (!collection) return null
-      images.push(...collection.images)
-    } else if (shouldAskOptionalImage(config)) {
+    if (mode === "edits" || shouldAskOptionalImage(config)) {
       const collection = await collectImages(session, "", config, log)
       if (!collection) return null
       images.push(...collection.images)

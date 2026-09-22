@@ -1,44 +1,130 @@
-import { Context, h, type Session } from "koishi"
+import { Context, h, type Session, type Argv } from "koishi"
 import type { Config } from "./config"
 import type { AppLogger } from "./logger"
 import { collectDirectPrompt, collectImages, collectParentInput } from "./interaction"
+import {
+  CUSTOM_SUBCOMMAND_DECL,
+  INPUT_OPTION_DESC,
+  INPUT_OPTION_SPEC,
+  PRESET_SUBCOMMAND_DECL,
+  collectCommandInput,
+  fallbackPrompt,
+} from "./args"
 import { checkCurrency, generateImage } from "./generator"
 import { resolveApiModeForInput } from "./mode"
 import { AGENT_VIDEO_COMMAND, generateVideo } from "./video"
+
+// -d 模式跳过图片输入，直接进行纯文本文生图
+async function runDirectDrawing(
+  ctx: Context,
+  session: Session,
+  extraContent: string,
+  config: Config,
+  log: AppLogger,
+  imagesNumber: number | undefined,
+): Promise<void> {
+  if (resolveApiModeForInput(config, false) !== "generations") {
+    await session.send(h.text(session.text(`commands.${config.basename}.messages.directOnlyGenerations`)))
+    return
+  }
+
+  const prompt = await collectDirectPrompt(session, extraContent, config, log)
+  if (!prompt) return
+  await generateImage(ctx, session, [], prompt, config, log, imagesNumber)
+}
 
 // 父级自定义绘图与“自定义”子指令共用的流程
 async function runCustomDrawing(
   ctx: Context,
   session: Session,
-  options: { d?: boolean; n?: string | number },
+  argv: Argv,
+  inputOption: unknown,
   promptArgs: string[],
   config: Config,
   log: AppLogger,
 ): Promise<void> {
   if (!(await checkCurrency(ctx, session, config, log))) return
 
-  const extraContent = promptArgs.join(" ")
+  const options = readOptions(argv)
+  // 贪婪参数会把空格吃进参数里，这里统一按行拆开还原成完整提示词
+  const input = collectCommandInput(session, inputOption, promptArgs)
+  input.promptArgs = normalizePromptArgs(input.promptArgs)
+  const extraContent = input.promptArgs.join("\n").trim()
   const imagesNumber = resolveImagesNumber(options.n)
 
-  // -d 模式：跳过图片输入，直接进行纯文本文生图
   if (options.d) {
-    if (resolveApiModeForInput(config, false) !== "generations") {
-      await session.send(h.text(session.text(`commands.${config.basename}.messages.directOnlyGenerations`)))
-      return
-    }
-    const prompt = await collectDirectPrompt(session, extraContent, config, log)
-    if (!prompt) return
-    await generateImage(ctx, session, [], prompt, config, log, imagesNumber)
+    await runDirectDrawing(ctx, session, extraContent, config, log, imagesNumber)
     return
   }
 
-  const input = await collectParentInput(session, extraContent, config, log)
-  if (!input) return
+  const parentInput = await collectParentInput(session, extraContent, config, log, input.images)
+  if (!parentInput) return
 
-  await generateImage(ctx, session, input.images, input.prompt, config, log, imagesNumber)
+  await generateImage(ctx, session, parentInput.images, parentInput.prompt, config, log, imagesNumber)
 }
 
-function resolveImagesNumber(value: string | number | undefined): number | undefined {
+// 视频指令：与父级绘图共用提示词/图片收集流程，只替换文案与时长档位
+async function runVideoGeneration(
+  ctx: Context,
+  session: Session,
+  argv: Argv,
+  inputOption: unknown,
+  promptArgs: string[],
+  config: Config,
+  log: AppLogger,
+): Promise<void> {
+  if (!(await checkCurrency(ctx, session, config, log))) return
+
+  // 复用绘图指令的提示词/图片收集流程，只替换文案和 Agnes 图片模式开关
+  const videoConfig: Config = {
+    ...config,
+    agnesMode: true,
+    basename: AGENT_VIDEO_COMMAND,
+  }
+
+  const options = readOptions(argv)
+  const input = collectCommandInput(session, inputOption, promptArgs)
+  input.promptArgs = normalizePromptArgs(input.promptArgs)
+  const extraContent = input.promptArgs.join("\n").trim()
+
+  if (options.d) {
+    const prompt = await collectDirectPrompt(session, extraContent, videoConfig, log)
+    if (!prompt) return
+    await generateVideo(ctx, session, [], prompt, config, log, options.s)
+    return
+  }
+
+  const parentInput = await collectParentInput(session, extraContent, videoConfig, log, input.images)
+  if (!parentInput) return
+  await generateVideo(ctx, session, parentInput.images, parentInput.prompt, config, log, options.s)
+}
+
+// 指令选项的可读类型：d 为布尔开关，其余为贪婪文本
+interface ParsedOptions {
+  d?: boolean
+  n?: string | number
+  s?: string | number
+  input?: string | string[]
+}
+
+// koishi 解析失败时会跳过 action 直接提示，这里兜底把原始内容当成提示词，避免丢失输入
+function isParseFailed(argv: Argv): boolean {
+  return !argv.command || argv.error === "internal.redunant-arguments"
+}
+
+// 贪婪参数有时会把 -d / -n 这类选项一起吞进提示词里，这里做一次清理
+function normalizePromptArgs(promptArgs: string[]): string[] {
+  return promptArgs
+    .map(line => line.trim())
+    .filter(Boolean)
+}
+
+// 选项在指令链上会退化成 unknown，这里做一次显式断言，避免 as any
+function readOptions(argv: Argv): ParsedOptions {
+  return (argv.options ?? {}) as ParsedOptions
+}
+
+function resolveImagesNumber(value: unknown): number | undefined {
   if (value === undefined) return undefined
   const parsed = typeof value === "number" ? value : Number(value)
   if (!Number.isFinite(parsed) || parsed < 1) return 1
@@ -116,45 +202,61 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
 
     // 父级指令：交互收集图片和自定义提示词后绘图
     if (config.parentCommandEnabled) {
+      // input 选项使用贪婪文本，可承接“父级指令没有匹配到子指令”时的整段提示词
       parent
+        .option(INPUT_OPTION_SPEC, INPUT_OPTION_DESC, { type: "text" })
         .option("d", "-d 直接按文字提示词生成，跳过图片输入（仅文生图模式）")
         .option("n", "-n <count> 指定返回图片数量，默认 1")
         .userFields(["id"])
-        .action(async ({ session, options }, ...promptArgs: string[]) => {
+        .action(async (argv, ...promptArgs: string[]) => {
+          const { session } = argv
           if (!session) return
-          await runCustomDrawing(ctx, session, options, promptArgs, config, log)
+          // 参数解析失败（提示词里的空格被当成多余参数）时，直接用原始消息兜底
+          if (isParseFailed(argv) && !promptArgs.length) {
+            promptArgs = [fallbackPrompt(session)]
+          }
+          await runCustomDrawing(ctx, session, argv, readOptions(argv).input, promptArgs, config, log)
         })
 
       // 自定义子指令：与直接调用父级指令的自定义提示词流程保持一致
-      ctx.command(`${config.basename}.自定义 [...args]`, "自定义提示词绘画", {
+      ctx.command(`${config.basename}.${CUSTOM_SUBCOMMAND_DECL}`, "自定义提示词绘画", {
         authority: config.commandAuthority,
       })
         .usage("自定义提示词绘画")
+        .option(INPUT_OPTION_SPEC, INPUT_OPTION_DESC, { type: "text" })
         .option("d", "-d 直接按文字提示词生成，跳过图片输入（仅文生图模式）")
         .option("n", "-n <count> 指定返回图片数量，默认 1")
         .userFields(["id"])
-        .action(async ({ session, options }, ...args: string[]) => {
+        .action(async (argv, ...promptArgs: string[]) => {
+          const { session } = argv
           if (!session) return
-          await runCustomDrawing(ctx, session, options, args, config, log)
+          if (isParseFailed(argv) && !promptArgs.length) {
+            promptArgs = [fallbackPrompt(session)]
+          }
+          await runCustomDrawing(ctx, session, argv, readOptions(argv).input, promptArgs, config, log)
         })
     }
 
     for (const cmdConfig of config.customCommands) {
       if (!cmdConfig.enabled) continue
 
-      ctx.command(`${config.basename}.${cmdConfig.name} [...args]`, `${cmdConfig.name} 风格绘画`, {
+      ctx.command(`${config.basename}.${PRESET_SUBCOMMAND_DECL(cmdConfig.name)}`, `${cmdConfig.name} 风格绘画`, {
         authority: config.commandAuthority,
       })
         .usage(`${cmdConfig.name} 处理图片`)
+        .option(INPUT_OPTION_SPEC, INPUT_OPTION_DESC, { type: "text" })
         .option("n", "-n <count> 指定返回图片数量，默认 1")
         .userFields(["id"])
-        .action(async ({ session, options }, ...args: string[]) => {
+        .action(async (argv, ...promptArgs: string[]) => {
+          const { session } = argv
           if (!session) return
           if (!(await checkCurrency(ctx, session, config, log))) return
 
-          const extraContent = args.join(" ")
-          const imagesNumber = resolveImagesNumber(options.n)
-          const images = await collectImages(session, extraContent, config, log)
+          const input = collectCommandInput(session, readOptions(argv).input, promptArgs)
+          input.promptArgs = normalizePromptArgs(input.promptArgs)
+          const extraContent = input.promptArgs.join("\n").trim()
+          const imagesNumber = resolveImagesNumber(readOptions(argv).n)
+          const images = await collectImages(session, extraContent, config, log, input.images)
           if (!images) return
 
           // 子命令固定使用配置里的预设提示词
@@ -163,36 +265,22 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
     }
 
     if (config.agnesVideoEnabled) {
-      // 复用绘图指令的提示词/图片收集流程，只替换文案和 Agnes 图片模式开关
-      const videoConfig = {
-        ...config,
-        agnesMode: true,
-        basename: AGENT_VIDEO_COMMAND,
-      }
-
-      const videoCommand = ctx.command(`${AGENT_VIDEO_COMMAND} [...args]`, "AI 视频生成", {
+      const videoCommand = ctx.command(`${AGENT_VIDEO_COMMAND} [input:text]`, "AI 视频生成", {
         authority: config.commandAuthority,
       })
         .usage("生成视频：使用 -d 可直接输入提示词，-s 指定目标秒数（自动按当前模型可用时长取档）；也可以附带参考图片后输入动作提示词")
+        .option(INPUT_OPTION_SPEC, INPUT_OPTION_DESC, { type: "text" })
         .option("d", "-d 直接按文字提示词生成，跳过图片输入")
         .option("s", "-s <seconds> 指定目标秒数（自动按当前模型可用时长取档）")
       videoCommand.removeOption("n")
       videoCommand.userFields(["id"])
-        .action(async ({ session, options }, ...args: string[]) => {
+        .action(async (argv, ...promptArgs: string[]) => {
+          const { session } = argv
           if (!session) return
-          if (!(await checkCurrency(ctx, session, config, log))) return
-
-          const extraContent = args.join(" ")
-          if (options.d) {
-            const prompt = await collectDirectPrompt(session, extraContent, videoConfig, log)
-            if (!prompt) return
-            await generateVideo(ctx, session, [], prompt, config, log, options.s)
-            return
+          if (isParseFailed(argv) && !promptArgs.length) {
+            promptArgs = [fallbackPrompt(session)]
           }
-
-          const input = await collectParentInput(session, extraContent, videoConfig, log)
-          if (!input) return
-          await generateVideo(ctx, session, input.images, input.prompt, config, log, options.s)
+          await runVideoGeneration(ctx, session, argv, readOptions(argv).input, promptArgs, config, log)
         })
     }
   })
