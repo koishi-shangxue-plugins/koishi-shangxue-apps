@@ -50,21 +50,50 @@ function imagesFromContent(content: string): string[] {
   return images
 }
 
-// 收集本次调用涉及的所有消息片段：当前消息、引用消息、贪婪参数、--input 选项
+// 判断 text 是否已被 collected 里的某一段覆盖，覆盖了就说明是同一段输入的重复来源
+function isCovered(text: string, collected: string[]): boolean {
+  return collected.some(existing => existing.includes(text))
+}
+
+// 去掉文本开头残留的指令名，例如兜底参数里带进来的 "imagen.手办化 提示词"
+function stripCommandName(text: string, commandNames: string[]): string {
+  for (const name of commandNames) {
+    if (!name || !text.startsWith(name)) continue
+    const rest = text.slice(name.length)
+    // 只有后面紧跟空白才是指令名，避免把 "imagen绘制" 这种词也砍掉
+    if (!rest || /^\s/.test(rest)) return rest.trim()
+  }
+  return text
+}
+
+// 收集本次调用涉及的所有消息片段：贪婪参数、--input 选项、当前消息、引用消息
+// 注意：koishi 的贪婪参数本身就是从 session.content 里切出来的，两者内容会重叠，
+// 直接拼接会让同一条提示词出现两次，所以这里按包含关系去重。
 export function collectCommandInput(
   session: Session,
   inputOption: unknown,
   promptArgs: string[],
+  commandNames: string[],
 ): CommandInput {
-  const sources = [session.content, session.quote?.content ?? ""]
-  sources.push(...toArray(inputOption), ...promptArgs)
+  const sources = [
+    ...promptArgs,
+    ...toArray(inputOption),
+    session.content,
+    session.quote?.content ?? "",
+  ]
 
   const prompts: string[] = []
   const images: string[] = []
   for (const source of sources) {
-    const text = textFromContent(source)
-    if (text) prompts.push(text)
     images.push(...imagesFromContent(source))
+    const raw = textFromContent(source)
+    if (!raw) continue
+    const text = stripCommandName(raw, commandNames)
+    if (!text || isCovered(text, prompts)) continue
+    // 更完整的片段优先：新片段覆盖旧片段时，在原位替换，避免打乱提示词顺序
+    const covered = prompts.findIndex(existing => text.includes(existing))
+    if (covered !== -1) prompts[covered] = text
+    else prompts.push(text)
   }
 
   return {

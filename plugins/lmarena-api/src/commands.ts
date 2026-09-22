@@ -40,14 +40,15 @@ async function runCustomDrawing(
   argv: Argv,
   inputOption: unknown,
   promptArgs: string[],
+  commandNames: string[],
   config: Config,
   log: AppLogger,
 ): Promise<void> {
   if (!(await checkCurrency(ctx, session, config, log))) return
 
   const options = readOptions(argv)
-  // 贪婪参数会把空格吃进参数里，这里统一按行拆开还原成完整提示词
-  const input = collectCommandInput(session, inputOption, promptArgs)
+  // 贪婪参数与 session.content 会重复覆盖同一段提示词，这里统一去重还原
+  const input = collectCommandInput(session, inputOption, promptArgs, commandNames)
   input.promptArgs = normalizePromptArgs(input.promptArgs)
   const extraContent = input.promptArgs.join("\n").trim()
   const imagesNumber = resolveImagesNumber(options.n)
@@ -70,6 +71,7 @@ async function runVideoGeneration(
   argv: Argv,
   inputOption: unknown,
   promptArgs: string[],
+  commandNames: string[],
   config: Config,
   log: AppLogger,
 ): Promise<void> {
@@ -83,7 +85,7 @@ async function runVideoGeneration(
   }
 
   const options = readOptions(argv)
-  const input = collectCommandInput(session, inputOption, promptArgs)
+  const input = collectCommandInput(session, inputOption, promptArgs, commandNames)
   input.promptArgs = normalizePromptArgs(input.promptArgs)
   const extraContent = input.promptArgs.join("\n").trim()
 
@@ -215,7 +217,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
           if (isParseFailed(argv) && !promptArgs.length) {
             promptArgs = [fallbackPrompt(session)]
           }
-          await runCustomDrawing(ctx, session, argv, readOptions(argv).input, promptArgs, config, log)
+          await runCustomDrawing(ctx, session, argv, readOptions(argv).input, promptArgs, [config.basename], config, log)
         })
 
       // 自定义子指令：与直接调用父级指令的自定义提示词流程保持一致
@@ -233,7 +235,8 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
           if (isParseFailed(argv) && !promptArgs.length) {
             promptArgs = [fallbackPrompt(session)]
           }
-          await runCustomDrawing(ctx, session, argv, readOptions(argv).input, promptArgs, config, log)
+          const commandName = `${config.basename}.自定义`
+          await runCustomDrawing(ctx, session, argv, readOptions(argv).input, promptArgs, [commandName, config.basename], config, log)
         })
     }
 
@@ -252,7 +255,8 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
           if (!session) return
           if (!(await checkCurrency(ctx, session, config, log))) return
 
-          const input = collectCommandInput(session, readOptions(argv).input, promptArgs)
+          const commandName = `${config.basename}.${cmdConfig.name}`
+          const input = collectCommandInput(session, readOptions(argv).input, promptArgs, [commandName, config.basename])
           input.promptArgs = normalizePromptArgs(input.promptArgs)
           const extraContent = input.promptArgs.join("\n").trim()
           const imagesNumber = resolveImagesNumber(readOptions(argv).n)
@@ -280,7 +284,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
           if (isParseFailed(argv) && !promptArgs.length) {
             promptArgs = [fallbackPrompt(session)]
           }
-          await runVideoGeneration(ctx, session, argv, readOptions(argv).input, promptArgs, config, log)
+          await runVideoGeneration(ctx, session, argv, readOptions(argv).input, promptArgs, [AGENT_VIDEO_COMMAND], config, log)
         })
     }
   })
