@@ -182,7 +182,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
       noImagesInPrompt: "未检测到图片或文字，请稍后重新交互。",
       videoTaskIdMissing: "未能获取到视频任务 ID，请稍后重试。",
       videoNoUrl: "视频任务未返回有效结果地址，请稍后重试。",
-      videoTooManyImages: "当前视频模型最多支持 5 张参考图片。",
+      videoTooManyImages: "当前视频模型参考图片过多：标准模型最多 8 张，Flash 最多 5 张。",
     }
 
     const commandLocales: Record<string, {

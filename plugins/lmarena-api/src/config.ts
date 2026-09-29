@@ -27,7 +27,7 @@ export interface Config {
   commandAuthority: number
   agnesMode: boolean
   agnesRegion: "cn" | "intl"
-  agnesModel: "agnes-image-2.0-flash" | "agnes-image-2.1-flash"
+  agnesModel: "agnes-image-2.5-flash" | "agnes-image-2.1-flash" | "agnes-image-2.0-flash"
   agnesAPIkey: string | null
   agnesVideoEnabled: boolean
   agnesVideoModel: AgnesVideoModel
@@ -79,12 +79,12 @@ export const Config: Schema<Config> = Schema.intersect([
 
   Schema.object({
     agnesMode: Schema.boolean().default(false).description("切换到 Agnes 内置模型<br>开启后忽略上方 New API 地址和 Key，固定使用内置 Agnes 接口"),
-    agnesAPIkey: Schema.string().role("secret").default(null).description("API Key（留空使用所选地区的内置 Key）"),
+    agnesAPIkey: Schema.string().role("secret").default("").description("API Key（必填）<br>不再提供内置 Key，留空会在调用时失败。请勿共用 Key，否则可能触发免费用户 10 RPM / 企业用户 20 RPM 限流。<br>注册：<a href=\"https://platform.agnes-ai.cn/\" target=\"_blank\">国际站</a>；<a href=\"https://platform.agnes-ai.com/\" target=\"_blank\">中国站</a>"),
     agnesRegion: Schema.union([
       Schema.const('cn').description('api.agnes-ai.cn（国内站）'),
       Schema.const('intl').description('apihub.agnes-ai.com（国外站）'),
     ]).default("intl").role("radio").description("agnes 站点地区"),
-    agnesModel: Schema.union(["agnes-image-2.0-flash", "agnes-image-2.1-flash"] as const).default("agnes-image-2.1-flash").role("radio").description("agnes 模型版本"),
+    agnesModel: Schema.union(["agnes-image-2.5-flash", "agnes-image-2.1-flash", "agnes-image-2.0-flash"] as const).default("agnes-image-2.5-flash").role("radio").description("agnes 图像模型版本"),
   }).description("Agnes站点设置"),
 
   Schema.object({

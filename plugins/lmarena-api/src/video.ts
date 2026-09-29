@@ -9,10 +9,11 @@ import type { AppLogger } from "./logger"
 import { prepareImageForApi } from "./media"
 
 export const AGENT_VIDEO_COMMAND = "Agent视频生成"
-export const VIDEO_SECONDS_V2 = [3, 5, 10, 18] as const
-export const VIDEO_SECONDS_FLASH = [5, 10, 12] as const
 
+const MAX_STANDARD_REFERENCE_IMAGES = 8
 const MAX_FLASH_REFERENCE_IMAGES = 5
+const VIDEO_SECONDS_MIN = 4
+const VIDEO_SECONDS_MAX = 12
 // 状态接口存在查询限流，轮询保持低频，并在 429/rate limit 时继续退避
 const VIDEO_POLL_INTERVAL_MS = 10_000
 const VIDEO_RATE_LIMIT_BASE_DELAY_MS = 20_000
@@ -88,7 +89,7 @@ export async function generateVideo(
       config.agnesVideoModel,
     )
     const resolvedImages = await prepareVideoImages(ctx, images, config, log)
-    const seconds = resolveVideoSeconds(videoSeconds, config.agnesVideoModel)
+    const seconds = resolveVideoSeconds(videoSeconds)
     const requestBody = buildVideoRequestBody(
       config.agnesVideoModel,
       prompt,
@@ -164,8 +165,10 @@ async function prepareVideoImages(
   config: Config,
   log: AppLogger,
 ): Promise<string[]> {
-  if (config.agnesVideoModel === "agnes-video-2.5-flash"
-    && sources.length > MAX_FLASH_REFERENCE_IMAGES) {
+  const maxReferenceImages = config.agnesVideoModel === "agnes-video-2.5-flash"
+    ? MAX_FLASH_REFERENCE_IMAGES
+    : MAX_STANDARD_REFERENCE_IMAGES
+  if (sources.length > maxReferenceImages) {
     throw new VideoCommandError("videoTooManyImages")
   }
 
@@ -214,49 +217,27 @@ function buildVideoRequestBody(
   images: string[],
   seconds: number,
 ): Record<string, unknown> {
-  if (model === "agnes-video-2.5-flash") {
-    const body: Record<string, unknown> = {
-      model,
-      prompt,
-      seconds: String(seconds),
-      mode: "text",
-      size: "720P",
-      aspect_ratio: "16:9",
-      n: 1,
-    }
-
-    if (images.length === 1) {
-      body.mode = "keyframe"
-      body.first_frame = images[0]
-    } else if (images.length === 2) {
-      body.mode = "keyframe"
-      body.first_frame = images[0]
-      body.last_frame = images[1]
-    } else if (images.length > 2) {
-      body.mode = "reference"
-      body.prompt = buildReferencePrompt(prompt, images.length)
-      body.images = images
-    }
-
-    return body
-  }
-
   const body: Record<string, unknown> = {
     model,
     prompt,
-    num_frames: secondsToFrameCount(seconds),
-    frame_rate: 24,
-    width: 1152,
-    height: 768,
+    seconds: String(seconds),
+    mode: "text",
+    size: "720P",
+    aspect_ratio: "16:9",
+    n: 1,
   }
 
   if (images.length === 1) {
-    body.image = images[0]
-  } else if (images.length > 1) {
-    body.extra_body = {
-      image: images,
-      mode: "keyframes",
-    }
+    body.mode = "keyframe"
+    body.first_frame = images[0]
+  } else if (images.length === 2) {
+    body.mode = "keyframe"
+    body.first_frame = images[0]
+    body.last_frame = images[1]
+  } else if (images.length > 2) {
+    body.mode = "reference"
+    body.prompt = buildReferencePrompt(prompt, images.length)
+    body.images = images
   }
 
   return body
@@ -264,31 +245,10 @@ function buildVideoRequestBody(
 
 export function resolveVideoSeconds(
   value: string | number | undefined,
-  model: AgnesVideoModel,
 ): number {
   const parsed = Number(value)
   const requested = Number.isFinite(parsed) ? parsed : 5
-  const presets = model === "agnes-video-v2.0"
-    ? [...VIDEO_SECONDS_V2]
-    : [...VIDEO_SECONDS_FLASH]
-
-  let result = presets[0]
-  for (const preset of presets) {
-    if (Math.abs(requested - preset) < Math.abs(requested - result)) {
-      result = preset
-    }
-  }
-  return result
-}
-
-function secondsToFrameCount(seconds: number): number {
-  const frameCounts: Record<number, number> = {
-    3: 81,
-    5: 121,
-    10: 241,
-    18: 441,
-  }
-  return frameCounts[seconds] ?? 121
+  return Math.min(VIDEO_SECONDS_MAX, Math.max(VIDEO_SECONDS_MIN, Math.round(requested)))
 }
 
 function buildReferencePrompt(prompt: string, count: number): string {
