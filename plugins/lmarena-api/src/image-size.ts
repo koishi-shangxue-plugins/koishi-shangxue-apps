@@ -48,7 +48,7 @@ const OPENAI_SIZE_TABLE: Record<string, { landscape: string; portrait: string }>
 }
 
 // 从提示词里识别用户显式写明的画面比例，例如“画面比例9:16”“aspect ratio 16:9”
-function extractRatioFromPrompt(prompt: string): string | undefined {
+export function extractRatioFromPrompt(prompt: string): string | undefined {
   if (!prompt) return undefined
 
   // 只在比例关键词附近找数字，避免把“3:2 构图，17:45 拍摄”这类无关数字当成比例
@@ -69,21 +69,28 @@ function extractRatioFromPrompt(prompt: string): string | undefined {
 }
 
 // 从提示词里识别用户显式写明的像素尺寸，例如“尺寸：1024x1536”“2048×2048”
-function extractSizeFromPrompt(prompt: string): string | undefined {
+export function extractSizeFromPrompt(prompt: string): string | undefined {
   if (!prompt) return undefined
   const matched = /(\d{2,5})\s*[x×*]\s*(\d{2,5})/i.exec(prompt)
   if (!matched) return undefined
   return `${matched[1]}x${matched[2]}`
 }
 
+// 配置里写 auto 时，提示词与参考图都没给出尺寸时的兜底档位（正方形）
+const AUTO_FALLBACK_SIZE = "1024x1024"
+
 // 综合提示词、配置与输入图片，决定本次请求最终使用的尺寸参数
-// 说明：配置项里写的 `auto` 不再直接透传。OpenAI 兼容接口的 auto 只会按参考图比例出图，
-// 结果就是“提示词里写明了 9:16，返回的却不是 9:16”；这里统一算成明确的尺寸参数。
+// 尺寸优先级（配置为 auto 或 {{dynamic_size}} 时生效）：
+//   1. 提示词里写明的像素尺寸，原样透传
+//   2. 提示词里写明的画面比例，换算成同方向标准档位
+//   3. 参考图片的横竖方向
+//   4. 没有额外线索时，文生图保留 auto，图生图使用自动方向兜底
 export function resolveSizeParams(options: {
   configuredSize: string
   prompt: string
   width?: number
   height?: number
+  hasInputImage: boolean
   agnesMode: boolean
 }): DynamicImageParams {
   const hasImageSize = Boolean(options.width && options.height && options.height > 0)
@@ -99,32 +106,45 @@ export function resolveSizeParams(options: {
     return { size, ratio: ratioLabel }
   }
 
-  // 1. 提示词里写了像素尺寸时最优先，直接透传
+  // 无额外尺寸线索时，固定尺寸保持不变，auto 在文生图中原样交给 New API
+  const fallback = () => ({
+    size: resolveFallbackSize(options.configuredSize, false, options.hasInputImage),
+  })
+
+  // 1. 提示词里写了像素尺寸时最优先，原样透传
   const promptSize = extractSizeFromPrompt(options.prompt)
   if (promptSize) return { size: promptSize }
 
-  // 2. 提示词里写了画面比例时，换算成同方向的标准尺寸档位
+  // 2. 提示词里写了画面比例时，换算成同方向的标准档位
   const promptRatio = extractRatioFromPrompt(options.prompt)
   if (promptRatio) {
     const landscape = (KNOWN_RATIOS.find(item => item.label === promptRatio)?.value ?? 1) >= 1
     return { size: pickOpenAiSize(promptRatio, landscape) }
   }
 
-  // 3. 没有提示词约束时，按输入图片比例推断
-  if (ratio !== undefined) {
-    return { size: pickOpenAiSize("", ratio >= 1) }
-  }
+  // 3. 提示词没写尺寸，但配置是固定尺寸时，固定尺寸优先于参考图方向
+  if (!isAutoSize(options.configuredSize)) return fallback()
 
-  // 4. 都没有就沿用配置值，配置为 dynamic_size 时再走兜底
-  return { size: resolveFallbackSize(options.configuredSize, false) }
+  // 4. auto 模式下按参考图横竖方向挑标准档位
+  if (ratio !== undefined) return { size: resolveImageDirectionSize(ratio) }
+
+  // 5. 提示词与参考图都没有时，用 auto 的兜底档位
+  return fallback()
 }
 
-export function resolveFallbackSize(configuredSize: string, agnesMode: boolean): string {
-  if (agnesMode) {
-    return /^[1-4]K$/i.test(configuredSize.trim()) ? configuredSize.trim() : "1K"
-  }
+// 配置里的 size 是否表示“由插件按优先级自动决定尺寸”
+export function isAutoSize(configuredSize: string): boolean {
+  const trimmed = configuredSize.trim().toLowerCase()
+  return !trimmed || trimmed === "auto" || trimmed === "{{dynamic_size}}"
+}
+
+export function resolveFallbackSize(configuredSize: string, agnesMode: boolean, hasInputImage = true): string {
   const trimmed = configuredSize.trim()
-  return trimmed && trimmed !== "{{dynamic_size}}" ? trimmed : "1024x1024"
+  if (agnesMode) {
+    return /^[1-4]K$/i.test(trimmed) ? trimmed : "1K"
+  }
+  if (!isAutoSize(trimmed)) return trimmed
+  return hasInputImage ? AUTO_FALLBACK_SIZE : "auto"
 }
 
 const AGNES_RATIOS: Array<{ label: string; value: number }> = [
@@ -154,10 +174,17 @@ function findClosestAgnesRatio(ratio: number): string {
 }
 
 // 按比例挑一个标准尺寸档位；比例不在映射表里时按横竖方向给默认档位
+// 空标签表示由调用方给出的横竖方向兜底，此时纵向统一给竖版档位
 function pickOpenAiSize(ratioLabel: string, landscape: boolean): string {
   const entry = OPENAI_SIZE_TABLE[ratioLabel]
   if (!entry) return landscape ? "1536x1024" : "1024x1536"
   return landscape ? entry.landscape : entry.portrait
+}
+
+// 参考图近乎正方形时（长宽比在 1:1 容差内）给正方形档位，避免把方图硬掰成竖版
+function resolveImageDirectionSize(ratio: number): string {
+  if (Math.abs(ratio - 1) <= 0.12) return OPENAI_SIZE_TABLE["1:1"].portrait
+  return pickOpenAiSize("", ratio >= 1)
 }
 
 // 找出文本里所有形如 a:b 的比例候选

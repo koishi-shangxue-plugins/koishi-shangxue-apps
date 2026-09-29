@@ -18,7 +18,7 @@ export const usage = `
 
 通过调用API实现文生图、图生图、文生视频、图生视频的功能。
 
-推荐模型：\`gpt-image-2\`
+推荐模型：\`gpt-image-2.5-sunburst\`
 
 配置项里的默认站点为： https://moyuu.cc/ ，欢迎注册使用喵~~
 

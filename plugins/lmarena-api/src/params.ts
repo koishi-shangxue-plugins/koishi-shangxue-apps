@@ -3,17 +3,17 @@ import type { ResolvedApiMode } from "./mode"
 
 // OpenAI 兼容协议的默认文生图参数
 export const DEFAULT_GENERATIONS_PARAMS: Record<string, string> = {
-  model: "gpt-image-2",
+  model: "gpt-image-2.5-sunburst",
   prompt: "{{prompt}}",
-  size: "{{dynamic_size}}",
+  size: "auto",
   n: "{{images_number}}",
   response_format: "b64_json",
 }
 
 // OpenAI 兼容协议的默认图生图参数
 export const DEFAULT_EDITS_PARAMS: Record<string, string> = {
-  model: "gpt-image-2",
-  images: "{{inputimage}}",
+  model: "gpt-image-2.5-sunburst",
+  image: "{{inputimage}}",
   prompt: "{{prompt}}",
   size: "{{dynamic_size}}",
   n: "{{images_number}}",

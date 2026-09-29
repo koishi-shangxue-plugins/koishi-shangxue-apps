@@ -42,20 +42,23 @@ interface ApiErrorResponse {
   }
 }
 
-// 文生图和图生图统一使用 JSON 协议
+// 统一构建请求参数；图生图使用 multipart，其他模式序列化为 JSON
 export async function callImageApi(ctx: Context, files: ImageFile[], prompt: string, options: ImageApiOptions): Promise<string[] | string | null> {
   const mode = options.apiMode
   const resolvedUrl = resolveApiUrl(options.apiUrl, mode)
-  const requestBody = buildJsonBody(files, prompt, options.apiParams, options.agnesMode, options.imagesNumber)
+  const requestBody = buildRequestParams(files, prompt, options.apiParams, options.agnesMode, options.imagesNumber)
+  const useMultipart = mode === "edits" && !options.agnesMode
 
   logRequest(options, mode, resolvedUrl, requestBody)
-  const body = JSON.stringify(requestBody)
+  const body = useMultipart
+    ? buildMultipartBody(requestBody, files)
+    : JSON.stringify(requestBody)
 
   try {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${options.apiKey}`,
     }
-    headers["Content-Type"] = "application/json"
+    if (!useMultipart) headers["Content-Type"] = "application/json"
 
     const response = await fetchWithTimeout(ctx, resolvedUrl, {
       method: "POST",
@@ -114,8 +117,8 @@ function resolveApiUrl(apiUrl: string, mode: "edits" | "generations"): string {
   }
 }
 
-// 文生图和图生图都要求 JSON body；agnesMode 下按 agnes 文档把 image/response_format 放入 extra_body
-function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>, agnesMode: boolean, imagesNumber: number): Record<string, unknown> {
+// 统一构建参数字段；agnesMode 下按 agnes 文档把 image/response_format 放入 extra_body
+function buildRequestParams(files: ImageFile[], prompt: string, apiParams: Record<string, string>, agnesMode: boolean, imagesNumber: number): Record<string, unknown> {
   const body: Record<string, unknown> = {}
   const extraBody: Record<string, unknown> = {}
 
@@ -128,8 +131,8 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
         if (agnesMode) {
           extraBody.image = files.map(file => toDataUri(file))
         } else {
-          // OpenAI 兼容图生图统一使用 images[{ image_url }]
-          body.images = files.map(file => ({ image_url: toDataUri(file) }))
+          // 图片编辑 JSON 协议使用 image 字符串数组；兼容旧配置中的 images 字段
+          body[key === "images" ? "image" : key] = files.map(file => toDataUri(file))
         }
       }
       continue
@@ -163,6 +166,32 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
   }
 
   return body
+}
+
+// OpenAI 标准图片编辑接口要求 multipart/form-data，boundary 由 fetch 自动生成
+function buildMultipartBody(body: Record<string, unknown>, files: ImageFile[]): FormData {
+  const form = new FormData()
+
+  for (const [key, value] of Object.entries(body)) {
+    if (key === "image") {
+      for (const file of files) {
+        form.append(key, new Blob([file.data], { type: file.mime }), file.filename || "image")
+      }
+      continue
+    }
+    appendMultipartValue(form, key, value)
+  }
+
+  return form
+}
+
+function appendMultipartValue(form: FormData, key: string, value: unknown): void {
+  if (value === undefined || value === null) return
+  if (Array.isArray(value)) {
+    for (const item of value) appendMultipartValue(form, key, item)
+    return
+  }
+  form.append(key, String(value))
 }
 
 // JSON 数字/布尔参数尽量转成对应类型，避免字符串被部分服务端拒绝

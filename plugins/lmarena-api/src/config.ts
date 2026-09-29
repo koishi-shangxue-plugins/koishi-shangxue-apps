@@ -45,11 +45,11 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("基础配置"),
 
   Schema.object({
-    apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>填入地址：`https://域名/v1`，需要兼容openai协议。"),
+    apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("New API 服务地址<br>填入地址：`https://域名/v1`。"),
     apiKey: Schema.string().role("secret").default(null).description("API 密钥"),
     apiTimeout: Schema.number().default(180).max(600).min(10).step(1).description("API 请求超时时间（秒）"),
-    apiParams_generations: Schema.dict(String).role('table').description("文生图接口请求参数<br>POST请求的参数<br>size 支持 `{{dynamic_size}}`（按提示词或输入图片比例自动决定）和 `auto`（同样会按上面两种比例算出真实尺寸，因为 OpenAI 兼容接口的 auto 只按参考图比例出图，会让提示词里写明的画面比例失效）").default(DEFAULT_GENERATIONS_PARAMS),
-    apiParams_edits: Schema.dict(String).role('table').description("图生图接口请求参数<br>POST请求的参数<br>OpenAI 兼容图生图默认使用 `images: {{inputimage}}`；size 与文生图一致，支持 `{{dynamic_size}}` 和 `auto`").default(DEFAULT_EDITS_PARAMS),
+    apiParams_generations: Schema.dict(String).role('table').description("New API 文生图请求参数<br>默认使用标准 JSON 协议；`size: auto` 表示服务端自动尺寸，提示词明确尺寸或比例时由插件换算。").default(DEFAULT_GENERATIONS_PARAMS),
+    apiParams_edits: Schema.dict(String).role('table').description("New API 图生图请求参数<br>默认使用标准 `multipart/form-data`，`image: {{inputimage}}` 支持多图上传。").default(DEFAULT_EDITS_PARAMS),
   }).description("API配置"),
 
   Schema.object({
@@ -78,7 +78,7 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("完整指令配置"),
 
   Schema.object({
-    agnesMode: Schema.boolean().default(false).description("是否一键开启 agnes 站点模式<br>开启后忽略上方 API 地址和 Key，固定使用 agnes 接口"),
+    agnesMode: Schema.boolean().default(false).description("切换到 Agnes 内置模型<br>开启后忽略上方 New API 地址和 Key，固定使用内置 Agnes 接口"),
     agnesAPIkey: Schema.string().role("secret").default(null).description("API Key（留空使用所选地区的内置 Key）"),
     agnesRegion: Schema.union([
       Schema.const('cn').description('api.agnes-ai.cn（国内站）'),

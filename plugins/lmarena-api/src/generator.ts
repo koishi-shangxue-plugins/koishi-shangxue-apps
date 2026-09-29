@@ -6,7 +6,7 @@ import { getUserCurrency, updateUserCurrency } from "./currency"
 import { getAgnesConfig } from "./agnes"
 import { resolveApiModeForInput } from "./mode"
 import { resolveApiParamsForMode } from "./params"
-import { getImageSize, resolveSizeParams } from "./image-size"
+import { extractRatioFromPrompt, extractSizeFromPrompt, getImageSize, isAutoSize, resolveSizeParams } from "./image-size"
 import { downloadFileWithTimeout } from "./http"
 import { prepareImageForApi } from "./media"
 
@@ -114,14 +114,16 @@ export async function generateImage(
       return false
     }
 
-    // 尺寸决策：提示词里写明的画面比例 > 输入图片比例 > 配置值
-    // 无论配置是 {{dynamic_size}} 还是 auto，都统一在这里算出一个明确的尺寸
+    // 尺寸决策优先级：提示词像素尺寸 > 提示词画面比例 > 参考图方向 > 配置值
+    // 文生图没有额外尺寸线索时保留 auto，避免把 New API 的服务端自动尺寸误算成固定方图。
     const imageSize = files.length > 0 ? getImageSize(Buffer.from(files[0].data)) : null
+    const configuredSize = apiParams.size || ""
     const dynamic = resolveSizeParams({
-      configuredSize: apiParams.size || "",
+      configuredSize,
       prompt,
       width: imageSize?.width,
       height: imageSize?.height,
+      hasInputImage: files.length > 0,
       agnesMode: config.agnesMode,
     })
     apiParams = {
@@ -129,8 +131,12 @@ export async function generateImage(
       size: dynamic.size,
       ...(dynamic.ratio ? { ratio: dynamic.ratio } : {}),
     }
+    // 注意：apiParams.size 此时已被覆盖，configured 必须用提前保存的原值，否则日志会误导排查
     log.info("最终请求尺寸:", {
-      configured: apiParams.size,
+      configured: configuredSize,
+      auto: isAutoSize(configuredSize),
+      promptRatio: extractRatioFromPrompt(prompt) || "无",
+      promptSize: extractSizeFromPrompt(prompt) || "无",
       inputWidth: imageSize?.width,
       inputHeight: imageSize?.height,
       ...dynamic,

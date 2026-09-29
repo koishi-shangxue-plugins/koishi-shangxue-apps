@@ -2,8 +2,6 @@ import { h, type Session } from "koishi"
 
 // 多段提示词按行拼接时使用的分隔符，避免中文上下句被空格割裂
 const PROMPT_JOINER = "\n"
-// h 转纯文本时保留换行，便于还原用户输入的多行提示词
-const TEXT_TRANSFORM_OPTIONS = { text: true, newline: "\n" as const }
 
 // 指令级的 input 选项：每个提示词片段前加 --input，值为贪婪文本
 export const INPUT_OPTION_SPEC = "input"
@@ -26,74 +24,92 @@ function toArray(value: unknown): string[] {
   return [String(value)]
 }
 
-// 从消息元素里提取文本，保留换行并按行拼接
+// 贪婪参数会把带空格的元素标签切成多个片段，同样一个 <img src="..."/> 可能变成
+// ["<img", "src=\"...\"/>"]。这里先按空格切碎再逐个把片段还原成元素，
+// 这样单独一片 "<img" 也能被识别成图片元素，不会作为文本混进提示词。
+function parseElements(content: string): h[] {
+  if (!content) return []
+  const elements: h[] = []
+  const nested = h.parse(content)
+  // 整段就能解析出非文本元素时说明结构完整，直接使用，避免再切碎丢信息
+  if (nested.some(element => element.type !== "text")) return nested
+  for (const fragment of content.split(" ")) {
+    if (fragment === "") continue
+    elements.push(...h.parse(fragment))
+  }
+  return elements
+}
+
+// 从消息元素里提取纯文本，保留换行并按行拼接
+// 只取 text 元素：h.transform 会把 img 等元素原样保留成标签文本，
+// 会让 "<img src=.../>" 混进提示词发给接口。
 function textFromContent(content: string): string {
-  if (!content) return ""
-  // 直接传字符串，命中 h.transform 的 string -> string 重载（传 Element[] 会返回 Element[]）
-  return h.transform(content, TEXT_TRANSFORM_OPTIONS)
+  const parts: string[] = []
+  for (const element of parseElements(content)) {
+    if (element.type !== "text") continue
+    const text = element.attrs.content
+    if (typeof text === "string") parts.push(text)
+  }
+  return parts
+    .join(PROMPT_JOINER)
     .split("\n")
     .map(line => line.trim())
     .filter(Boolean)
     .join(PROMPT_JOINER)
+    .trim()
 }
 
-// 从消息元素里提取图片地址
+// 图片地址可能在整段或某个片段里，两种粒度都要扫一遍
 function imagesFromContent(content: string): string[] {
-  if (!content) return []
   const images: string[] = []
-  for (const img of h.select(content, "img")) {
-    if (img.attrs.src) images.push(img.attrs.src)
-  }
-  for (const mface of h.select(content, "mface")) {
-    if (mface.attrs.url) images.push(mface.attrs.url)
+  const sources = [content, ...content.split(" ")]
+  for (const source of sources) {
+    for (const element of h.parse(source)) {
+      if (element.type === "img" && element.attrs.src) images.push(element.attrs.src)
+      if (element.type === "mface" && element.attrs.url) images.push(element.attrs.url)
+    }
   }
   return images
 }
 
-// 判断 text 是否已被 collected 里的某一段覆盖，覆盖了就说明是同一段输入的重复来源
-function isCovered(text: string, collected: string[]): boolean {
-  return collected.some(existing => existing.includes(text))
-}
-
-// 去掉文本开头残留的指令名，例如兜底参数里带进来的 "imagen.手办化 提示词"
+// 引用消息的 content 是完整原文（如 "imagen 提示词"），需要把指令名去掉再当提示词
 function stripCommandName(text: string, commandNames: string[]): string {
   for (const name of commandNames) {
     if (!name || !text.startsWith(name)) continue
     const rest = text.slice(name.length)
-    // 只有后面紧跟空白才是指令名，避免把 "imagen绘制" 这种词也砍掉
+    // 只有后面紧跟空白（或整段就是指令名）时才是指令名，避免误砍 "imagen绘制" 这类词
     if (!rest || /^\s/.test(rest)) return rest.trim()
   }
   return text
 }
 
-// 收集本次调用涉及的所有消息片段：贪婪参数、--input 选项、当前消息、引用消息
-// 注意：koishi 的贪婪参数本身就是从 session.content 里切出来的，两者内容会重叠，
-// 直接拼接会让同一条提示词出现两次，所以这里按包含关系去重。
+// 收集本次调用涉及的输入
+// 提示词优先取 koishi 解析后的贪婪参数与 --input 选项：它们已经去掉了指令名和选项标记，
+// 是用户真正想表达的内容。session.content 是完整原文（含 "imagen -d 提示词" 这类标记），
+// 只从里面取图片，不再取文本，否则标记会混进提示词、也会和贪婪参数重复拼一遍。
 export function collectCommandInput(
   session: Session,
   inputOption: unknown,
   promptArgs: string[],
-  commandNames: string[],
+  commandNames: string[] = [],
 ): CommandInput {
-  const sources = [
-    ...promptArgs,
-    ...toArray(inputOption),
+  const promptSources = [...promptArgs, ...toArray(inputOption)]
+  const imageSources = [
+    ...promptSources,
     session.content,
+    session.stripped.content,
     session.quote?.content ?? "",
   ]
 
   const prompts: string[] = []
   const images: string[] = []
-  for (const source of sources) {
+  for (const source of imageSources) {
     images.push(...imagesFromContent(source))
-    const raw = textFromContent(source)
-    if (!raw) continue
-    const text = stripCommandName(raw, commandNames)
-    if (!text || isCovered(text, prompts)) continue
-    // 更完整的片段优先：新片段覆盖旧片段时，在原位替换，避免打乱提示词顺序
-    const covered = prompts.findIndex(existing => text.includes(existing))
-    if (covered !== -1) prompts[covered] = text
-    else prompts.push(text)
+  }
+  for (const source of promptSources) {
+    const text = stripCommandName(textFromContent(source), commandNames)
+    if (!text || prompts.includes(text)) continue
+    prompts.push(text)
   }
 
   return {
