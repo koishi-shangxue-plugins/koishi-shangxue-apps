@@ -49,29 +49,23 @@ export async function initHeadshots(ctx: Context) {
   ctx.logger.info(`数据库中共有 ${allSteamUsers.length} 个 Steam 用户`);
 
   if (allSteamUsers.length > 0) {
-    // Steam API 一次最多查询 100 个用户，这里每批最多处理 99 个用户，预留 1 个名额
-    const batchSize = 99;
+    // 分批查询逻辑已统一在 getSteamUserInfoByDatabase 中处理
     let totalProcessed = 0;
     let totalDownloaded = 0;
 
-    for (let i = 0; i < allSteamUsers.length; i += batchSize) {
-      const batch = allSteamUsers.slice(i, i + batchSize);
-      ctx.logger.info(`处理第 ${Math.floor(i / batchSize) + 1} 批用户 (${i + 1}-${Math.min(i + batchSize, allSteamUsers.length)}/${allSteamUsers.length})...`);
+    // 批量获取用户信息（内部按 Steam 限制自动分批）
+    const steamUserInfo = await getSteamUserInfoByDatabase(ctx, allSteamUsers, ctx.config.SteamApiKey);
 
-      // 批量获取用户信息
-      const steamUserInfo = await getSteamUserInfoByDatabase(ctx, batch, ctx.config.SteamApiKey);
+    if (steamUserInfo && steamUserInfo.response && steamUserInfo.response.players) {
+      for (const player of steamUserInfo.response.players) {
+        const localAvatarPath = path.join(imgpath, `steamuser${player.steamid}.jpg`);
 
-      if (steamUserInfo && steamUserInfo.response && steamUserInfo.response.players) {
-        for (const player of steamUserInfo.response.players) {
-          const localAvatarPath = path.join(imgpath, `steamuser${player.steamid}.jpg`);
-
-          // 如果本地不存在头像，下载
-          if (!fs.existsSync(localAvatarPath)) {
-            await downloadAvatar(ctx, player.avatarmedium, player.steamid);
-            totalDownloaded++;
-          }
-          totalProcessed++;
+        // 如果本地不存在头像，下载
+        if (!fs.existsSync(localAvatarPath)) {
+          await downloadAvatar(ctx, player.avatarmedium, player.steamid);
+          totalDownloaded++;
         }
+        totalProcessed++;
       }
     }
 

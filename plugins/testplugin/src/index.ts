@@ -27,7 +27,8 @@ export const Config: Schema<Config> =
   ]);
 
 
-export function apply(ctx: Context) {
+export function apply(ctx: Context)
+{
   // 发送云湖 A2UI 语音测试消息
   ctx.command('A2UI消息测试', '发送云湖 A2UI 语音测试消息')
     .action(async ({ session }) =>
@@ -73,14 +74,16 @@ export function apply(ctx: Context) {
 
   const command = ctx.command(commandName);
 
-  ctx.platform("yunhu").on('guild-role-updated', async (session) => {
+  ctx.platform("yunhu").on('guild-role-updated', async (session) =>
+  {
     ctx.logger.info(session);
 
   });
 
   command
     .subcommand('.selfrole')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       // @ts-ignore
@@ -91,7 +94,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.下班提醒')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       if (session.platform !== 'onebot') return;
@@ -101,7 +105,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.上班提醒')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       if (session.platform !== 'onebot') return;
@@ -111,7 +116,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.updatedrole')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.bot.updateGuildRole(`${session.guildId}`, 'koishi测试2', { name: 'SVIP' });
@@ -126,7 +132,8 @@ export function apply(ctx: Context) {
   // 加入房间（建立持久 WS，开始接收消息）
   cmd.subcommand('.join <roomId:number>', '加入聊天室')
     .example('room.join 6')
-    .action(async ({ session }, roomId) => {
+    .action(async ({ session }, roomId) =>
+    {
 
       if (!session) return;
       if (!roomId) return '请输入房间 ID';
@@ -137,7 +144,8 @@ export function apply(ctx: Context) {
   // 离开房间（断开 WS）
   cmd.subcommand('.leave <roomId:number>', '离开聊天室')
     .example('room.leave 6')
-    .action(async ({ session }, roomId) => {
+    .action(async ({ session }, roomId) =>
+    {
 
       if (!session) return;
       if (!roomId) return '请输入房间 ID';
@@ -163,7 +171,8 @@ export function apply(ctx: Context) {
 
   // 列出所有房间
   cmd.subcommand('.list', '列出所有聊天室')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const list = await session.bot.getGuildList();
@@ -175,13 +184,15 @@ export function apply(ctx: Context) {
   // 查看某个房间的历史消息（最近 10 条）
   cmd.subcommand('.history <roomId:number>', '查看聊天室历史消息')
     .example('room.history 6')
-    .action(async ({ session }, roomId) => {
+    .action(async ({ session }, roomId) =>
+    {
 
       if (!session) return;
       if (!roomId) return '请输入房间 ID';
       const list = await session.bot.getMessageList(`room:${roomId}`);
       if (!list.data.length) return '暂无历史消息';
-      const lines = list.data.slice(-10).map((m) => {
+      const lines = list.data.slice(-10).map((m) =>
+      {
         const who = m.user?.name ?? m.user?.id ?? '?';
         return `[${who}] ${m.content}`;
       });
@@ -191,7 +202,8 @@ export function apply(ctx: Context) {
   // 创建新聊天室
   cmd.subcommand('.create <name:text>', '创建聊天室')
     .example('room.create 新房间')
-    .action(async ({ session }, name) => {
+    .action(async ({ session }, name) =>
+    {
 
       if (!session) return;
       if (!name) return '请输入房间名称';
@@ -203,7 +215,8 @@ export function apply(ctx: Context) {
   // 向指定房间发消息（无需加入）
   cmd.subcommand('.send <roomId:number> <content:text>', '向聊天室发送消息（无需加入）')
     .example('room.send 6 你好')
-    .action(async ({ session }, roomId, content) => {
+    .action(async ({ session }, roomId, content) =>
+    {
 
       if (!session) return;
       if (!roomId || !content) return '请输入房间 ID 和消息内容';
@@ -221,13 +234,15 @@ export function apply(ctx: Context) {
   //   })
 
   ctx.command('test-timeout', '测试页面渲染超时')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send('开始测试，页面将在1分钟后渲染完成...');
 
       const page = await ctx.puppeteer.page();
-      try {
+      try
+      {
         const html = `
         <!DOCTYPE html>
         <html>
@@ -245,8 +260,10 @@ export function apply(ctx: Context) {
         await page.setContent(html);
 
         // 使用 waitForFunction 等待1分钟
-        await page.waitForFunction(() => {
-          return new Promise(resolve => {
+        await page.waitForFunction(() =>
+        {
+          return new Promise(resolve =>
+          {
             setTimeout(() => resolve(true), 60000);
           });
         });
@@ -254,12 +271,14 @@ export function apply(ctx: Context) {
         const screenshot = await page.screenshot();
         await session.send(h.image(screenshot, 'image/png'));
         return '✅ 测试完成';
-      } catch (error) {
+      } catch (error)
+      {
         // catch 里的错误默认是 unknown，需要先做类型收窄
         ctx.logger.info(error);
         const message = error instanceof Error ? error.message : String(error);
         return `❌ 测试失败: ${message}`;
-      } finally {
+      } finally
+      {
         await page.close();
       }
     });
@@ -277,18 +296,22 @@ export function apply(ctx: Context) {
   //   ctx.logger.info(session);
   // });
 
-  ctx.platform('qq').on("message", async (session) => {
+  ctx.platform('qq').on("message", async (session) =>
+  {
     ctx.logger.info("quote内容： ", session.quote);
   });
 
-  ctx.platform('qq').on('guild-member-request', async (session) => {
+  ctx.platform('qq').on('guild-member-request', async (session) =>
+  {
     if (!session.messageId) return;
 
-    try {
+    try
+    {
       // 自动同意入群申请
       await session.bot.handleGuildMemberRequest(session.messageId, true);
       ctx.logger.info('已自动同意入群申请: %s', session.messageId);
-    } catch (error) {
+    } catch (error)
+    {
       ctx.logger.warn('自动同意入群申请失败: %o', error);
     }
   });
@@ -304,14 +327,17 @@ export function apply(ctx: Context) {
 
 
 
-  ctx.platform('qq').on('guild-member-added', async (session) => {
+  ctx.platform('qq').on('guild-member-added', async (session) =>
+  {
     ctx.logger.info('[guild-member-added] %o', JSON.stringify(session));
     //  await session.send(h.text("欢迎新成员！"));
   });
-  ctx.platform('qq').on("guild-added", async (session) => {
+  ctx.platform('qq').on("guild-added", async (session) =>
+  {
     ctx.logger.info('[guild-added] %o', JSON.stringify(session));
   });
-  ctx.platform('bilibili').on("message", async (session) => {
+  ctx.platform('bilibili').on("message", async (session) =>
+  {
     ctx.logger.info('[message] %o', JSON.stringify(session));
   });
   // ctx.platform('qq').on('guild-member-updated', async (session) => {
@@ -375,7 +401,8 @@ export function apply(ctx: Context) {
 
 
   ctx.command('这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令', "这是一个超级长的测试指令这是一个超级长的测试指令这是一个超级长的测试指令这一个超级长的测试指令")
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       ctx.assets.transform("");
@@ -384,7 +411,8 @@ export function apply(ctx: Context) {
     });
   command
     .subcommand('.按钮2')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("qq:button", {
@@ -406,7 +434,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.canvas')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = await ctx.canvas.loadImage("file://D:/Pictures/koishi/moving_square_loop.webp");
@@ -417,7 +446,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.按钮')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send([
@@ -428,37 +458,44 @@ export function apply(ctx: Context) {
       return;
     });
 
-  async function sendMenuMessage(session: Session, message: unknown): Promise<void> {
+  async function sendMenuMessage(session: Session, message: unknown): Promise<void>
+  {
     const sess = session as any;
     const guildId = sess.event.guild?.id;
     const userId = sess.event.user?.id;
 
-    if (guildId) {
-      if (sess.qq) {
+    if (guildId)
+    {
+      if (sess.qq)
+      {
         await sess.qq.sendMessage(sess.channelId, message);
         return;
       }
 
-      if (sess.qqguild) {
+      if (sess.qqguild)
+      {
         await sess.qqguild.sendMessage(sess.channelId, message);
         return;
       }
     }
 
-    if (userId && sess.qq) {
+    if (userId && sess.qq)
+    {
       await sess.qq.sendPrivateMessage(userId, message);
       return;
     }
 
     throw new Error('当前会话没有可用的发送目标。');
   }
-  ctx.on('interaction/button', async (session: Session) => {
+  ctx.on('interaction/button', async (session: Session) =>
+  {
     ctx.logger.info(`接收到回调按钮内容： `, session);
   });
 
   command
     .subcommand('.QQ回调按钮')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session) return 'no session';
       if (session.platform !== 'qq') return 'only qq';
 
@@ -500,7 +537,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.fork')
-    .action(async ({ session }, id) => {
+    .action(async ({ session }, id) =>
+    {
 
       if (!session) return;
       // 手动创建一个新对象，复制 session 的主要属性
@@ -522,7 +560,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.rea')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       // channelId 也可能为空，这里单独收窄
@@ -536,7 +575,8 @@ export function apply(ctx: Context) {
       let reactionId: number;
 
       // 判断是评论还是 Issue/PR 本身
-      if (session.messageId !== 'issue' && session.messageId !== 'pull' && session.messageId !== 'discussion') {
+      if (session.messageId !== 'issue' && session.messageId !== 'pull' && session.messageId !== 'discussion')
+      {
         // 评论消息的 messageId 需要先确认存在
         const messageId = session.messageId;
         if (!messageId) return;
@@ -558,7 +598,8 @@ export function apply(ctx: Context) {
         );
 
         return `已删除反应 ID: ${reactionId}`;
-      } else {
+      } else
+      {
         // 这是 Issue/PR 本身
         reactionId = await session.bot.internal.createIssueReaction(
           owner, repo, issueNumber, '+1'
@@ -581,7 +622,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('logger')
-    .action(async ({ session }, id) => {
+    .action(async ({ session }, id) =>
+    {
 
       if (!session) return;
       logger.info("123123");
@@ -590,7 +632,8 @@ export function apply(ctx: Context) {
     });
 
   ctx.command('trans')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       ctx.assets.transform("");
@@ -600,7 +643,8 @@ export function apply(ctx: Context) {
 
   ctx.command('aauth')
     .userFields(["authority"])
-    .action(async ({ session }: { session?: Session<'authority'>; }) => {
+    .action(async ({ session }: { session?: Session<'authority'>; }) =>
+    {
       // 这里的 session 需要显式声明 authority 字段，并处理可空类型
       if (!session) return;
       const user = session.user;
@@ -613,7 +657,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.prompt [id]')
-    .action(async ({ session }, id) => {
+    .action(async ({ session }, id) =>
+    {
 
       if (!session) return;
       const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg");
@@ -632,7 +677,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.base [id]')
-    .action(async ({ session }, id) => {
+    .action(async ({ session }, id) =>
+    {
 
       if (!session) return;
       const file = await ctx.http.file("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg");
@@ -645,7 +691,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.bot [id]')
-    .action(async ({ session }, id) => {
+    .action(async ({ session }, id) =>
+    {
 
       if (!session) return;
       const guildId = session.guildId;
@@ -657,7 +704,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.sendPrivateMessage [id]')
-    .action(async ({ session }, id) => {
+    .action(async ({ session }, id) =>
+    {
 
       if (!session) return;
       const userId = session.userId;
@@ -669,7 +717,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.撤回')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = await session.send("即将执行撤回。。。");
@@ -683,7 +732,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.getGuild')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const channelId = session.channelId;
@@ -696,7 +746,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.编辑消息.md')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = await session.send(h.text("你好，这是编辑之前的消息。"));
@@ -710,7 +761,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.编辑消息.图片')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = await session.send(h.text("你好，这是编辑之前的消息。"));
@@ -724,7 +776,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.编辑消息.文字')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = await session.send(h.text("你好，这是编辑之前的消息。"));
@@ -738,7 +791,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.html')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("yunhu:html", "<h1>你好</h1>"));
@@ -748,7 +802,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.a')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("a", "https://iirose.com/"));
@@ -757,7 +812,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.del')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("del", "你好这是del"));
@@ -766,7 +822,8 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.sharp')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send([
@@ -778,10 +835,12 @@ export function apply(ctx: Context) {
 
   command
     .subcommand('.md [text:text]')
-    .action(async ({ session }, text) => {
+    .action(async ({ session }, text) =>
+    {
 
       if (!session) return;
-      if (!text) {
+      if (!text)
+      {
         /*
 [蓝字按钮](mqqapi://aio/inlinecmd?command=消息 md&enter=false&reply=false)
 [点我私聊](https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%2Fopen%3Fuin%3D2854197108)
@@ -793,7 +852,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 `,
           stream: true,
         }));
-      } else {
+      } else
+      {
         await session.send(h("markdown", text));
       }
       return;
@@ -801,7 +861,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.ark24')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const msg = h('qq:ark24', {
@@ -818,7 +879,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.name')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(session.username);
@@ -831,7 +893,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.username')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session) return;
       const rawData = session.username;
       ctx.logger.info(rawData);
@@ -841,7 +904,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.按钮')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send([
@@ -855,7 +919,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.quote')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       await session.send(h.quote(session.messageId ?? '') + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！");
       return;
     });
@@ -863,7 +928,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.session')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       ctx.logger.info(session);
       await session.send("已经打印！");
       return;
@@ -872,20 +938,24 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.元素 [text:text]')
-    .action(async ({ session }, text) => {
+    .action(async ({ session }, text) =>
+    {
 
       if (!session) return;
-      if (text) {
+      if (text)
+      {
         ctx.logger.info("直接输入", h.parse(text));
         await session.send("已经打印！");
         return;
       }
-      if (session.quote) {
+      if (session.quote)
+      {
         ctx.logger.info("引用输入", session.quote.elements);
         await session.send("已经打印！");
         return;
       }
-      if (!text) {
+      if (!text)
+      {
         await session.send("请发送元素：");
         const aaa = await session.prompt(30 * 1000);
         ctx.logger.info("交互输入", h.parse(aaa));
@@ -923,7 +993,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.log')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       ctx.logger.info("测试打印！！！");
@@ -935,12 +1006,13 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.引用')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const messageId = session.messageId;
       if (!messageId) return;
-      const quotemessage  = h.quote(messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！";
+      const quotemessage = h.quote(messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！";
       ctx.logger.info(quotemessage);
       await session.send(quotemessage);
       const quotemessage2 = h("message", h.quote(messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！");
@@ -950,7 +1022,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.剧透')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("spl", "你好啊"));
@@ -958,7 +1031,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.粗体')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("b", "这是粗体文本"));
@@ -966,7 +1040,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.斜体')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("i", "这是斜体文本"));
@@ -974,7 +1049,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.下划线')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("u", "这是下划线文本"));
@@ -983,7 +1059,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.删除线')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("s", "这是删除线文本"));
@@ -991,7 +1068,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.代码')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("code", "console.log('Hello World')"));
@@ -999,7 +1077,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.上标')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("sup", "2"));
@@ -1007,7 +1086,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.下标')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h("sub", "2"));
@@ -1015,7 +1095,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.换行')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send([
@@ -1028,7 +1109,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.段落')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send([
@@ -1040,7 +1122,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.assets.视频')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -1054,7 +1137,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.assets.大视频')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -1069,7 +1153,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.assets.音频')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -1082,7 +1167,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.assets.图片')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -1096,20 +1182,24 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.合并转发')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
+      // 指定发送者 ID（改成你要测试的用户/机器人 ID）
+      const authorId = '5546917';
       await session.send(`<message forward>` +
-        h("message", [h.text("你好啊"), h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg")])
-        + h("message", [h.text("第二条消息")])
-        + h("message", [h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg")])
+        h("message", { id: authorId }, [h.text("你好啊"), h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg")])
+        + h("message", { id: authorId }, [h.text("第二条消息")])
+        + h("message", { id: authorId }, [h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg")])
         + `</message>`);
       return;
     });
 
   command
     .subcommand('.合并转发测试')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const imageUrl = "file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg";
@@ -1141,7 +1231,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.音频')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -1151,7 +1242,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.视频')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -1161,7 +1253,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.文件')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(`正在处理中...`);
@@ -1171,7 +1264,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.文件名称')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const url = "file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.zip";
@@ -1185,7 +1279,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.语音')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h.audio("https://api.injahow.cn/meting/?type=url&id=2748727454"));
@@ -1193,7 +1288,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.本地语音')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       await session.send(h.audio("file:///D:/Music/%E4%B8%8D%E5%86%8D%E6%9B%BC%E6%B3%A2.mp3"));
@@ -1201,7 +1297,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
   command
     .subcommand('.回显')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = await session.send(`你好哦`);
@@ -1213,7 +1310,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.图文')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg");
@@ -1225,7 +1323,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.图片')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg");
@@ -1236,7 +1335,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.网络图片')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = h.image("https://koishi.chat/logo.png");
@@ -1247,7 +1347,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.html视频')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = h("yunhu:html", `
@@ -1261,7 +1362,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.html语音')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = h("yunhu:html", `
@@ -1275,7 +1377,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.文本')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = h.text("123");
@@ -1284,7 +1387,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       return;
     })
 
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = h.text("456");
@@ -1295,14 +1399,17 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.消息 [type]')
-    .action(async ({ session }, type) => {
+    .action(async ({ session }, type) =>
+    {
 
       if (!session) return;
-      if (type === "user") {
+      if (type === "user")
+      {
         const userId = session.userId;
         if (!userId) return;
         await session.bot.sendPrivateMessage(userId, "怎么了嘛");
-      } else {
+      } else
+      {
         const channelId = session.channelId;
         if (!channelId) return;
         await session.bot.sendMessage(channelId, "怎么了嘛");
@@ -1312,7 +1419,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.att [id]')
-    .action(async ({ session }, id) => {
+    .action(async ({ session }, id) =>
+    {
 
       if (!session) return;
       await session.send(h.at("679A51F1D4893"));
@@ -1321,7 +1429,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.回显')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       const aaa = await session.send(`你好哦`);
@@ -1331,22 +1440,27 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.禁言')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       // 只处理群聊场景
-      if (!session?.guildId || !session.userId) {
+      if (!session?.guildId || !session.userId)
+      {
         return '请先在群聊中使用';
       }
 
-      try {
+      try
+      {
         await session.bot.muteGuildMember(session.guildId, session.userId, 30_000);
         return '已禁言 30 秒';
-      } catch (error) {
+      } catch (error)
+      {
         return `禁言失败：${error.message}`;
       }
     });
   command
     .subcommand('.at [...at]')
-    .action(async ({ session }, ...at) => {
+    .action(async ({ session }, ...at) =>
+    {
 
       if (!session) return;
       const userId = session.userId;
@@ -1362,7 +1476,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('.emoji')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       ctx.logger.info(session);
@@ -1375,7 +1490,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
   // yunhu platform
   command
     .subcommand('这是直接发的指令')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
 
       if (!session) return;
       ctx.logger.info(session);
@@ -1384,7 +1500,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('这是普通指令 [...args]')
-    .action(async ({ session }, ...args) => {
+    .action(async ({ session }, ...args) =>
+    {
 
       if (!session) return;
       ctx.logger.info('用户输入的参数为：', args);
@@ -1393,7 +1510,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   command
     .subcommand('这是自定义输入指令 [jsoninput]')
-    .action(async ({ session }, jsoninput) => {
+    .action(async ({ session }, jsoninput) =>
+    {
 
       if (!session) return;
       ctx.logger.info('用户输入的json表单内容为：', jsoninput);
@@ -1405,7 +1523,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.join <roomId:text> [password:text]')
-    .action(async ({ session }, roomId, password) => {
+    .action(async ({ session }, roomId, password) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!roomId) return '请输入 roomId';
       await session.bot.internal.joinRoom({ roomId, roomPassword: password });
@@ -1414,7 +1533,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.move <roomId:text> [password:text]')
-    .action(async ({ session }, roomId, password) => {
+    .action(async ({ session }, roomId, password) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!roomId) return '请输入 roomId';
       await session.bot.internal.moveRoom(roomId, password);
@@ -1423,7 +1543,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.requestUserList')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       session.bot.internal.requestUserList();
       return '已请求用户列表';
@@ -1431,7 +1552,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.self')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getSelfInfo();
       return data ? JSON.stringify(data, null, 2) : '未获取到自身信息';
@@ -1439,7 +1561,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getUserByName <name:text>')
-    .action(async ({ session }, name) => {
+    .action(async ({ session }, name) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!name) return '请输入用户名';
       const user = await session.bot.internal.getUserByName(name);
@@ -1448,7 +1571,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getProfile <name:text>')
-    .action(async ({ session }, name) => {
+    .action(async ({ session }, name) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!name) return '请输入用户名';
       const data = await session.bot.internal.getUserProfileByName(name);
@@ -1457,7 +1581,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getFullProfile <name:text>')
-    .action(async ({ session }, name) => {
+    .action(async ({ session }, name) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!name) return '请输入用户名';
       const data = await session.bot.internal.getFullUserProfileByName(name);
@@ -1466,7 +1591,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getUserList')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getUserListFile();
       return data ? JSON.stringify(data, null, 2) : '用户列表为空';
@@ -1474,14 +1600,16 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getRoomId')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       return session.bot.internal.getRoomId();
     });
 
   iiroseCmd
     .subcommand('.getRoomList')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getRoomList();
       return data ? JSON.stringify(data, null, 2) : '房间列表为空';
@@ -1489,7 +1617,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getRoomState')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getRoomStateFile();
       return data ? JSON.stringify(data, null, 2) : '房间状态为空';
@@ -1497,7 +1626,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.broadcast <message:text>')
-    .action(async ({ session }, message) => {
+    .action(async ({ session }, message) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!message) return '请输入广播内容';
       session.bot.internal.broadcast({ message, color: 'ffffff' });
@@ -1506,7 +1636,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.sendLike <uid:text> [message:text]')
-    .action(async ({ session }, uid, message) => {
+    .action(async ({ session }, uid, message) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!uid) return '请输入 uid';
       session.bot.internal.sendLike(uid, message);
@@ -1515,7 +1646,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.follow <uid:text>')
-    .action(async ({ session }, uid) => {
+    .action(async ({ session }, uid) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!uid) return '请输入 uid';
       session.bot.internal.followUser(uid);
@@ -1524,7 +1656,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.grade <uid:text> <score:number>')
-    .action(async ({ session }, uid, score) => {
+    .action(async ({ session }, uid, score) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!uid || !score) return '请输入 uid 和分数';
       const data = await session.bot.internal.gradeUser(uid, score);
@@ -1533,7 +1666,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getBalance')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getBalance();
       return data === null ? '余额为空' : `余额: ${data}`;
@@ -1541,7 +1675,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.stock')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.stockGet();
       return data ? JSON.stringify(data, null, 2) : '股票信息为空';
@@ -1549,7 +1684,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.bank')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.bankGet();
       return data ? JSON.stringify(data, null, 2) : '银行信息为空';
@@ -1557,7 +1693,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getForum')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getForum();
       return data ? JSON.stringify(data, null, 2) : '论坛信息为空';
@@ -1565,7 +1702,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getTasks')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getTasks();
       return data ? JSON.stringify(data, null, 2) : '任务信息为空';
@@ -1573,7 +1711,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getMoments')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getMoments();
       return data ? JSON.stringify(data, null, 2) : '动态信息为空';
@@ -1581,7 +1720,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getLeaderboard')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getLeaderboard();
       return data ? JSON.stringify(data, null, 2) : '排行榜为空';
@@ -1589,7 +1729,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getStore')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getStore();
       return data ? JSON.stringify(data, null, 2) : '商店信息为空';
@@ -1597,7 +1738,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getSellerCenter')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getSellerCenter();
       return data ? JSON.stringify(data, null, 2) : '卖家中心为空';
@@ -1605,7 +1747,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getMusicList')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getMusicList();
       return data ? JSON.stringify(data, null, 2) : '歌单为空';
@@ -1613,7 +1756,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.summonDice <diceId:number>')
-    .action(async ({ session }, diceId) => {
+    .action(async ({ session }, diceId) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       session.bot.internal.summonDice(diceId);
       return `已投掷骰子: ${diceId}`;
@@ -1621,7 +1765,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getChangelog')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getChangelog();
       return data ? JSON.stringify(data, null, 2) : '更新日志为空';
@@ -1629,7 +1774,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.subscribe <roomId:text>')
-    .action(async ({ session }, roomId) => {
+    .action(async ({ session }, roomId) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!roomId) return '请输入 roomId';
       session.bot.internal.subscribeRoom(roomId);
@@ -1638,7 +1784,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.unsubscribe <roomId:text>')
-    .action(async ({ session }, roomId) => {
+    .action(async ({ session }, roomId) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!roomId) return '请输入 roomId';
       session.bot.internal.unsubscribeRoom(roomId);
@@ -1647,7 +1794,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getMediaWhitelist')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getMediaWhitelist();
       return data ? JSON.stringify(data, null, 2) : '媒体白名单为空';
@@ -1655,7 +1803,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getMuteList')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getMuteList();
       return data ? JSON.stringify(data, null, 2) : '禁言列表为空';
@@ -1663,7 +1812,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.getBlacklist')
-    .action(async ({ session }) => {
+    .action(async ({ session }) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       const data = await session.bot.internal.getBlacklist();
       return data ? JSON.stringify(data, null, 2) : '黑名单为空';
@@ -1671,7 +1821,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.mute <userId:text> [duration:number] [reason:text]')
-    .action(async ({ session }, userId, duration, reason) => {
+    .action(async ({ session }, userId, duration, reason) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!userId) return '请输入 userId';
       if (!session.guildId) return '缺少 guildId';
@@ -1684,7 +1835,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.whitelist <username:text> [duration:number] [intro:text]')
-    .action(async ({ session }, username, duration, intro) => {
+    .action(async ({ session }, username, duration, intro) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!username) return '请输入用户名';
       session.bot.internal.whiteList({
@@ -1697,7 +1849,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.blacklist <username:text> [duration:number] [intro:text]')
-    .action(async ({ session }, username, duration, intro) => {
+    .action(async ({ session }, username, duration, intro) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!username) return '请输入用户名';
       await session.bot.internal.addBlacklist(
@@ -1710,7 +1863,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.mediaWhitelist <username:text> [duration:number] [intro:text]')
-    .action(async ({ session }, username, duration, intro) => {
+    .action(async ({ session }, username, duration, intro) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!username) return '请输入用户名';
       await session.bot.internal.addMediaWhitelist(
@@ -1723,7 +1877,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
 
   iiroseCmd
     .subcommand('.call <method:text> [...args:text]')
-    .action(async ({ session }, method, ...args) => {
+    .action(async ({ session }, method, ...args) =>
+    {
       if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
       if (!method) return '请输入方法名';
 
@@ -1731,10 +1886,13 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       const fn = internal[method];
       if (typeof fn !== 'function') return `未找到方法: ${method}`;
 
-      const parsed = args.map((arg) => {
-        try {
+      const parsed = args.map((arg) =>
+      {
+        try
+        {
           return JSON.parse(arg);
-        } catch {
+        } catch
+        {
           return arg;
         }
       });

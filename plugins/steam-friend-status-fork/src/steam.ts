@@ -8,6 +8,9 @@ const STEAM_ID_OFFSET = 76561197960265728;
 const STEAM_WEB_API_URL =
   "http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/";
 
+// Steam 官方限制：GetPlayerSummaries 单次最多查询 100 个 Steam ID
+const MAX_STEAM_IDS_PER_REQUEST = 100;
+
 /**
  * 将 Steam 好友码转换为 Steam64 ID
  * @param steamIdOrFriendCode 用户的 SteamID 或好友码
@@ -60,10 +63,11 @@ export async function getSteamUserInfo(
 
 /**
  * 通过 Steam Web API 批量获取多个用户的信息
+ * 由于 Steam 单次最多查询 100 个 ID，这里自动分批请求并合并结果
  * @param ctx Koishi context
  * @param steamusers 包含 SteamUser 对象的数组
  * @param steamApiKey Steam Web API Key
- * @returns 返回包含多个玩家信息的 Promise
+ * @returns 返回合并后的玩家信息
  */
 export async function getSteamUserInfoByDatabase(
   ctx: Context,
@@ -73,28 +77,45 @@ export async function getSteamUserInfoByDatabase(
   if (!steamusers || steamusers.length === 0) {
     return undefined;
   }
-  try {
-    const steamIds = steamusers.map((user) => user.steamId);
-    const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${steamIds.join(",")}`;
+
+  // 去重并过滤空值，避免重复 ID 占用单次请求名额
+  const steamIds = [
+    ...new Set(steamusers.map((user) => user.steamId).filter((id) => !!id)),
+  ];
+  if (steamIds.length === 0) {
+    return undefined;
+  }
+
+  // 逐批请求，超过 100 人的部分也能正常查询
+  const players: SteamUserInfo["response"]["players"] = [];
+  for (let i = 0; i < steamIds.length; i += MAX_STEAM_IDS_PER_REQUEST) {
+    const batch = steamIds.slice(i, i + MAX_STEAM_IDS_PER_REQUEST);
+    const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${batch.join(",")}`;
     const config = {
       useProxy: ctx.config.useProxy,
       proxyUrl: ctx.config.proxyUrl,
-      maxRetries: ctx.config.maxRetries
+      maxRetries: ctx.config.maxRetries,
     };
-    const response = await fetchJson<SteamUserInfo>(ctx, requestUrl, config);
-    if (
-      !response ||
-      !response.response ||
-      response.response.players.length === 0
-    ) {
-      ctx.logger.warn("在 API 响应中没有找到玩家数据。");
-      return undefined;
+    try {
+      const response = await fetchJson<SteamUserInfo>(ctx, requestUrl, config);
+      if (response && response.response && response.response.players) {
+        players.push(...response.response.players);
+      }
+    } catch (error) {
+      // 单批失败不影响其他批次，继续查询剩余用户
+      ctx.logger.error(
+        `批量获取 Steam 用户信息时出错 (第 ${Math.floor(i / MAX_STEAM_IDS_PER_REQUEST) + 1} 批):`,
+        error,
+      );
     }
-    return response;
-  } catch (error) {
-    ctx.logger.error("批量获取 Steam 用户信息时出错:", error);
+  }
+
+  if (players.length === 0) {
+    ctx.logger.warn("在 API 响应中没有找到玩家数据。");
     return undefined;
   }
+
+  return { response: { players } };
 }
 import { RecentlyPlayedGamesInfo, SteamProfile } from "./types";
 
