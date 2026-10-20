@@ -8,6 +8,7 @@ import { targetFromResolvedUrl } from './link-parser'
 import { sendParsedMessages } from './message-sender'
 import type { BlockReason, VideoRateLimiter } from './rate-limiter'
 import { buildVideoMessages, hasVideoPlaceholder } from './video-formatter'
+import { createVideoElement } from './video-file'
 
 interface SessionTask {
   session: Session
@@ -210,7 +211,7 @@ export class VideoParseService {
     if (hasVideoPlaceholder(this.config, source) && view.videoUrl) {
       const video = await this.api.downloadVideo(view.videoUrl, this.config.MaximumFileSizeMB)
       if (video) {
-        videoElement = h.video(video.data, video.type)
+        videoElement = createVideoElement(video.data, video.type, view.title)
       }
     }
     if (this.disposed) return false
