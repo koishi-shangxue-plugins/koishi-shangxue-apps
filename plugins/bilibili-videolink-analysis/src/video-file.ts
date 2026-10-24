@@ -31,8 +31,8 @@ function createFileName(title: string, type: string): string {
   return `${stem || 'video'}.${extension}`
 }
 
-// 同时传入 name 和 filename，兼容 OneBot 与 QQ 适配器
+// 官方 QQ 适配器读取 title，OneBot 与 QQ crack 适配器可读取 name/filename
 export function createVideoElement(data: Buffer, type: string, title: string): h {
   const name = createFileName(title, type)
-  return h.video(data, type, { name, filename: name })
+  return h.video(data, type, { title: name, name, filename: name })
 }
