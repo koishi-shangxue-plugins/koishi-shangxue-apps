@@ -1012,10 +1012,10 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       if (!session) return;
       const messageId = session.messageId;
       if (!messageId) return;
-      const quotemessage = h.quote(messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！";
+      const quotemessage = h.quote(messageId) + h.at(session.userId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！";
       ctx.logger.info(quotemessage);
       await session.send(quotemessage);
-      const quotemessage2 = h("message", h.quote(messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！");
+      const quotemessage2 = h("message", h.quote(messageId) + h.at(session.userId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！");
       ctx.logger.info(`${quotemessage2}`);
       await session.send(quotemessage2);
       return;

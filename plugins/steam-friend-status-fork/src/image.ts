@@ -1,9 +1,10 @@
 // src/image.ts
 import { Context, h } from "koishi";
-import { SteamUserInfo } from "./types";
+import { GameChangeInfo, SteamUserInfo } from "./types";
 import { fetchArrayBuffer } from "./fetch";
 import { downloadAvatar } from "./database";
 import { getSteamUserInfoByDatabase } from "./steam";
+import { getPluginLogger } from "./logger";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as URL from "node:url";
@@ -12,7 +13,10 @@ import * as URL from "node:url";
  * 初始化机器人和群组的头像缓存
  * @param ctx Koishi context
  */
-export async function initHeadshots(ctx: Context) {
+export async function initHeadshots(
+  ctx: Context,
+  shouldStop: () => boolean = () => false,
+) {
   const sourcepath = path.join(ctx.baseDir, `data/steam-friend-status`);
   const imgpath = path.join(sourcepath, "img");
 
@@ -23,30 +27,34 @@ export async function initHeadshots(ctx: Context) {
     fs.mkdirSync(imgpath);
   }
 
+  const allSteamUsers = await ctx.database.select("SteamUser").execute();
+  const steamGroupIds = new Set(
+    allSteamUsers.flatMap((user) => user.effectGroups),
+  );
   const channels = await ctx.database.get("channel", {});
   const botsToProcess = new Set<string>();
 
-  // 获取群组和机器人头像
+  // 只为存在 Steam 绑定用户的群组缓存头像
   for (const channel of channels) {
+    if (shouldStop()) return;
     const platforms = ["onebot", "red", "chronocat"];
     if (platforms.includes(channel.platform)) {
       botsToProcess.add(channel.assignee);
-      if (channel.usingSteam) {
+      if (steamGroupIds.has(channel.id)) {
         await getGroupHeadshot(ctx, channel.id, channel.assignee);
       }
     }
   }
 
   for (const botId of botsToProcess) {
+    if (shouldStop()) return;
     await getBotHeadshot(ctx, botId);
   }
 
   // 获取所有 Steam 用户头像
-  ctx.logger.info('开始初始化 Steam 用户头像...');
-  // 使用 select 方法获取所有记录，不受默认限制
-  const allSteamUsers = await ctx.database.select("SteamUser").execute();
+  getPluginLogger().info("开始初始化 Steam 用户头像...");
 
-  ctx.logger.info(`数据库中共有 ${allSteamUsers.length} 个 Steam 用户`);
+  getPluginLogger().info(`数据库中共有 ${allSteamUsers.length} 个 Steam 用户`);
 
   if (allSteamUsers.length > 0) {
     // 分批查询逻辑已统一在 getSteamUserInfoByDatabase 中处理
@@ -55,9 +63,11 @@ export async function initHeadshots(ctx: Context) {
 
     // 批量获取用户信息（内部按 Steam 限制自动分批）
     const steamUserInfo = await getSteamUserInfoByDatabase(ctx, allSteamUsers, ctx.config.SteamApiKey);
+    if (shouldStop()) return;
 
     if (steamUserInfo && steamUserInfo.response && steamUserInfo.response.players) {
       for (const player of steamUserInfo.response.players) {
+        if (shouldStop()) return;
         const localAvatarPath = path.join(imgpath, `steamuser${player.steamid}.jpg`);
 
         // 如果本地不存在头像，下载
@@ -69,7 +79,9 @@ export async function initHeadshots(ctx: Context) {
       }
     }
 
-    ctx.logger.info(`Steam 用户头像初始化完成，共处理 ${totalProcessed} 个用户，下载了 ${totalDownloaded} 个新头像`);
+    getPluginLogger().info(
+      `Steam 用户头像初始化完成，共处理 ${totalProcessed} 个用户，下载了 ${totalDownloaded} 个新头像`,
+    );
   }
 }
 
@@ -109,7 +121,10 @@ export async function getGroupHeadshot(
         const guild = await bot.getGuild(groupid);
         avatarUrl = guild?.avatar;
       } catch (error) {
-        ctx.logger.warn(`通过 bot API 获取群组 ${groupid} 信息失败:`, error);
+        getPluginLogger().warn(
+          `通过 bot API 获取群组 ${groupid} 信息失败:`,
+          error,
+        );
       }
     }
 
@@ -120,19 +135,20 @@ export async function getGroupHeadshot(
 
     // 如果没有获取到头像 URL，跳过
     if (!avatarUrl) {
-      ctx.logger.warn(`无法获取群组 ${groupid} 的头像 URL`);
+      getPluginLogger().warn(`无法获取群组 ${groupid} 的头像 URL`);
       return;
     }
 
     const config = {
       useProxy: ctx.config.useProxy,
       proxyUrl: ctx.config.proxyUrl,
+      useApifoxProxy: ctx.config.useApifoxProxy,
       maxRetries: ctx.config.maxRetries
     };
     const groupheadshot = await fetchArrayBuffer(ctx, avatarUrl, config);
     fs.writeFileSync(filepath, Buffer.from(groupheadshot));
   } catch (error) {
-    ctx.logger.error(`获取群组 ${groupid} 头像失败:`, error);
+    getPluginLogger().error(`获取群组 ${groupid} 头像失败:`, error);
   }
 }
 
@@ -166,19 +182,20 @@ export async function getBotHeadshot(ctx: Context, botId: string) {
 
     // 如果没有获取到头像 URL，跳过
     if (!avatarUrl) {
-      ctx.logger.warn(`无法获取机器人 ${botId} 的头像 URL`);
+      getPluginLogger().warn(`无法获取机器人 ${botId} 的头像 URL`);
       return;
     }
 
     const config = {
       useProxy: ctx.config.useProxy,
       proxyUrl: ctx.config.proxyUrl,
+      useApifoxProxy: ctx.config.useApifoxProxy,
       maxRetries: ctx.config.maxRetries
     };
     const userheadshot = await fetchArrayBuffer(ctx, avatarUrl, config);
     fs.writeFileSync(filepath, Buffer.from(userheadshot));
   } catch (error) {
-    ctx.logger.error(`获取机器人 ${botId} 头像失败:`, error);
+    getPluginLogger().error(`获取机器人 ${botId} 头像失败:`, error);
   }
 }
 
@@ -467,7 +484,7 @@ export async function getSteamProfileImg(
       avatarBase64 = `data:image/jpeg;base64,${unknownAvatarBuffer.toString("base64")}`;
     }
   } catch (error) {
-    ctx.logger.error("读取 Steam 个人资料头像失败:", error);
+    getPluginLogger().error("读取 Steam 个人资料头像失败:", error);
     // 使用默认头像
     const unknownAvatarPath = path.resolve(
       __dirname,
@@ -543,14 +560,6 @@ export async function getSteamProfileImg(
  * @param message 播报消息
  * @returns 返回一个 h.image 元素
  */
-// 定义传入的数据结构，与 index.ts 中保持一致
-interface GameChangeInfo {
-  userName: string;
-  status: "start" | "stop" | "change";
-  oldGame?: string;
-  newGame?: string;
-}
-
 /**
  * 生成游戏状态变化播报的图片 (新版)
  * @param ctx Koishi context
@@ -589,7 +598,9 @@ export async function getGameChangeImg(
     avatarBase64 = `data:image/jpeg;base64,${localAvatarBase64}`;
   } else {
     // 本地没有头像，尝试下载
-    ctx.logger.info(`本地未找到用户 ${playerInfo.steamid} 的头像，尝试下载...`);
+    getPluginLogger().info(
+      `本地未找到用户 ${playerInfo.steamid} 的头像，尝试下载...`,
+    );
     const downloadSuccess = await downloadAvatar(ctx, playerInfo.avatarmedium, playerInfo.steamid);
 
     if (downloadSuccess && fs.existsSync(localAvatarPath)) {
@@ -597,7 +608,9 @@ export async function getGameChangeImg(
       avatarBase64 = `data:image/jpeg;base64,${localAvatarBase64}`;
     } else {
       // 下载失败，使用默认头像
-      ctx.logger.warn(`下载用户 ${playerInfo.steamid} 头像失败，使用默认头像`);
+      getPluginLogger().warn(
+        `下载用户 ${playerInfo.steamid} 头像失败，使用默认头像`,
+      );
       const unknownAvatarPath = path.resolve(
         __dirname,
         "..",
@@ -651,31 +664,33 @@ export async function getGameChangeImg(
 
   // 4. 使用 Puppeteer 截图
   const page = await ctx.puppeteer.page();
-  await page.setContent(htmlContent);
+  try {
+    await page.setContent(htmlContent);
 
-  const clip = await page.evaluate(() => {
-    const element = document.querySelector(".card");
-    if (!element) return null;
-    const { width, height, top, left } = element.getBoundingClientRect();
-    return { width, height, x: left, y: top };
-  });
+    const clip = await page.evaluate(() => {
+      const element = document.querySelector(".card");
+      if (!element) return null;
+      const { width, height, top, left } = element.getBoundingClientRect();
+      return { width, height, x: left, y: top };
+    });
 
-  if (!clip) {
+    if (!clip) {
+      return "无法生成播报图片。";
+    }
+
+    await page.setViewport({
+      width: Math.ceil(clip.width),
+      height: Math.ceil(clip.height),
+    });
+
+    const image = await page.screenshot({
+      clip,
+      type: "png",
+      encoding: "binary",
+    });
+
+    return h.image(image, "image/png");
+  } finally {
     await page.close();
-    return "无法生成播-报图片。";
   }
-
-  await page.setViewport({
-    width: Math.ceil(clip.width),
-    height: Math.ceil(clip.height),
-  });
-
-  const image = await page.screenshot({
-    clip,
-    type: "png",
-    encoding: "binary",
-  });
-
-  await page.close();
-  return h.image(image, "image/png");
 }

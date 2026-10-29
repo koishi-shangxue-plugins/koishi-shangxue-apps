@@ -5,6 +5,7 @@ import { request as httpsRequest } from "node:https";
 import { URL } from "node:url";
 import * as tls from "node:tls";
 import * as net from "node:net";
+import { getPluginLogger } from "./logger";
 
 /**
  * 封装的 fetch 配置接口
@@ -13,7 +14,13 @@ export interface FetchConfig {
   useProxy: boolean;
   proxyUrl: string;
   maxRetries: number;
+  useApifoxProxy: boolean;
 }
+
+const APIFOX_PROXY_URL = "https://web-proxy.apifox.cn/api/v1/request";
+const APIFOX_TARGET_TIMEOUT_MS = 15_000;
+const APIFOX_REQUEST_TIMEOUT_MS = 20_000;
+const DIRECT_REQUEST_TIMEOUT_MS = 15_000;
 
 // ─── 熔断器（Circuit Breaker）─────────────────────────────────────────────────
 // 用于防止网络不通时大量请求堆积导致内存暴涨
@@ -99,9 +106,12 @@ export async function fetchWithProxy(
   ctx: Context,
   url: string,
   options: RequestInit = {},
-  config: FetchConfig
+  config: FetchConfig,
+  allowApifox = false,
 ): Promise<Response> {
-  const { useProxy, proxyUrl, maxRetries } = config;
+  const { useProxy, proxyUrl, maxRetries, useApifoxProxy } = config;
+  const safeUrl = maskSensitiveUrl(url);
+  const apifoxEnabled = useApifoxProxy !== false;
 
   // 提取 host 用于熔断器隔离
   let host: string;
@@ -116,45 +126,145 @@ export async function fetchWithProxy(
     throw new Error(`[熔断器] ${host} 当前处于熔断状态，跳过请求以保护内存。将在 ${RECOVERY_TIMEOUT_MS / 1000}s 后自动恢复。`);
   }
 
-  // 重试逻辑
-  let lastError: Error;
+  // 允许多次尝试：自定义代理、直连、APIFOX 兜底
+  let lastError: Error | undefined;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      let response: Response;
-
-      // 如果启用代理，使用代理请求
-      if (useProxy && proxyUrl) {
-        try {
-          response = await fetchViaProxy(url, proxyUrl, options);
-        } catch (proxyError) {
-          ctx.logger.warn('代理请求失败，尝试直连:', proxyError);
-          response = await fetch(url, options);
+    if (useProxy && proxyUrl) {
+      try {
+        const response = await fetchViaProxy(ctx, url, proxyUrl, options);
+        if (response.ok) {
+          recordSuccess(host);
+          return response;
         }
-      } else {
-        response = await fetch(url, options);
+        lastError = new Error(`自定义代理返回 HTTP ${response.status}`);
+      } catch (error) {
+        lastError = toError(error);
+        getPluginLogger().warn("自定义代理请求失败，尝试直连:", error);
       }
+    }
 
-      if (!response.ok && attempt < maxRetries) {
-        ctx.logger.warn(`请求失败 (${response.status}), 重试 ${attempt + 1}/${maxRetries}: ${url}`);
-        continue;
+    try {
+      const response = await fetchDirect(ctx, url, options);
+      if (response.ok) {
+        recordSuccess(host);
+        return response;
       }
-
-      // 请求成功，重置熔断器
-      recordSuccess(host);
-      return response;
+      lastError = new Error(`直连返回 HTTP ${response.status}`);
     } catch (error) {
-      lastError = error as Error;
-      if (attempt < maxRetries) {
-        ctx.logger.warn(`请求出错, 重试 ${attempt + 1}/${maxRetries}: ${url}`, error);
-        // 使用 koishi 的 sleep 替代原生 setTimeout，避免游离 Promise 堆积
-        await sleep(1000 * (attempt + 1));
+      lastError = toError(error);
+    }
+
+    if (allowApifox && apifoxEnabled) {
+      try {
+        const response = await fetchViaApifox(ctx, url, options);
+        if (response.ok) {
+          recordSuccess(host);
+          return response;
+        }
+        lastError = new Error(`APIFOX 代理返回 HTTP ${response.status}`);
+      } catch (error) {
+        lastError = toError(error);
+        getPluginLogger().warn(
+          `APIFOX 代理请求失败，重试 ${attempt + 1}/${maxRetries}: ${safeUrl}`,
+          error,
+        );
       }
+    }
+
+    if (attempt < maxRetries) {
+      getPluginLogger().warn(
+        `请求失败，重试 ${attempt + 1}/${maxRetries}: ${safeUrl}`,
+        lastError,
+      );
+      // 使用 koishi 的 sleep 替代原生 setTimeout，避免游离 Promise 堆积
+      await sleep(1000 * (attempt + 1));
     }
   }
 
   // 所有重试均失败，记录失败并可能触发熔断
   recordFailure(host);
-  throw lastError || new Error(`请求失败: ${url}`);
+  throw lastError || new Error(`请求失败: ${safeUrl}`);
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+// 直连也设置超时，避免单次轮询无限挂起
+async function fetchDirect(
+  ctx: Context,
+  url: string,
+  options: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  const disposeTimeout = ctx.setTimeout(() => {
+    controller.abort("direct-request-timeout");
+  }, DIRECT_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    disposeTimeout();
+  }
+}
+
+// 日志中隐藏 API Key 等敏感参数
+function maskSensitiveUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    for (const key of ["key", "token", "access_token"]) {
+      if (parsed.searchParams.has(key)) {
+        parsed.searchParams.set(key, "***");
+      }
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+// 通过 APIFOX 公共网关转发 Steam API 请求
+async function fetchViaApifox(
+  ctx: Context,
+  targetUrl: string,
+  options: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  const disposeTimeout = ctx.setTimeout(() => {
+    controller.abort("apifox-request-timeout");
+  }, APIFOX_REQUEST_TIMEOUT_MS);
+
+  try {
+    const method = options.method || "GET";
+    const response = await fetch(APIFOX_PROXY_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "api-u": targetUrl,
+        "api-o0": `method=${method}, timings=true, timeout=${APIFOX_TARGET_TIMEOUT_MS}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+
+    if (!response.ok) {
+      throw new Error(`APIFOX 网关返回 HTTP ${response.status}`);
+    }
+
+    // 网关会以 200 返回目标站点的错误 HTML，需要显式识别
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.toLowerCase().includes("text/html")) {
+      await response.body?.cancel();
+      throw new Error("APIFOX 目标站点返回了 HTML 错误页");
+    }
+
+    return response;
+  } finally {
+    disposeTimeout();
+  }
 }
 
 /**
@@ -165,6 +275,7 @@ export async function fetchWithProxy(
  * @returns 返回 Response 对象
  */
 async function fetchViaProxy(
+  ctx: Context,
   targetUrl: string,
   proxyUrl: string,
   options: RequestInit = {}
@@ -174,10 +285,18 @@ async function fetchViaProxy(
 
   // SOCKS5 代理
   if (proxy.protocol === 'socks5:' || proxy.protocol === 'socks5h:') {
-    return fetchViaSocks5(targetUrl, proxyUrl, options);
+    return fetchViaSocks5(ctx, targetUrl, proxyUrl, options);
   }
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    let disposeTimeout: (() => void) | undefined;
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      disposeTimeout?.();
+      callback();
+    };
     const requestOptions = {
       host: proxy.hostname,
       port: proxy.port || (proxy.protocol === 'https:' ? 443 : 80),
@@ -192,6 +311,7 @@ async function fetchViaProxy(
     const req = (proxy.protocol === 'https:' ? httpsRequest : request)(requestOptions, (res) => {
       const chunks: Buffer[] = [];
       res.on('data', (chunk) => chunks.push(chunk));
+      res.on('error', (error) => settle(() => reject(error)));
       res.on('end', () => {
         const buffer = Buffer.concat(chunks);
         const response = new Response(buffer, {
@@ -199,11 +319,14 @@ async function fetchViaProxy(
           statusText: res.statusMessage,
           headers: res.headers as HeadersInit
         });
-        resolve(response);
+        settle(() => resolve(response));
       });
     });
 
-    req.on('error', reject);
+    disposeTimeout = ctx.setTimeout(() => {
+      req.destroy(new Error('自定义代理请求超时'));
+    }, DIRECT_REQUEST_TIMEOUT_MS);
+    req.on('error', (error) => settle(() => reject(error)));
     req.end();
   });
 }
@@ -212,6 +335,7 @@ async function fetchViaProxy(
  * 通过 SOCKS5 代理发送请求
  */
 async function fetchViaSocks5(
+  ctx: Context,
   targetUrl: string,
   proxyUrl: string,
   options: RequestInit = {}
@@ -227,10 +351,25 @@ async function fetchViaSocks5(
   // 1. 连接代理
   const socket = new net.Socket();
   await new Promise<void>((resolve, reject) => {
-    socket.setTimeout(10000);
-    socket.on('connect', () => { socket.setTimeout(0); resolve(); });
-    socket.on('error', reject);
-    socket.on('timeout', () => { socket.destroy(); reject(new Error('连接代理超时')); });
+    let disposeTimeout: (() => void) | undefined;
+    const onConnect = () => {
+      disposeTimeout?.();
+      socket.removeListener('error', onError);
+      resolve();
+    };
+    const onError = (error: Error) => {
+      disposeTimeout?.();
+      socket.removeListener('connect', onConnect);
+      reject(error);
+    };
+    disposeTimeout = ctx.setTimeout(() => {
+      socket.removeListener('connect', onConnect);
+      socket.removeListener('error', onError);
+      socket.destroy();
+      reject(new Error('连接代理超时'));
+    }, 10000);
+    socket.once('connect', onConnect);
+    socket.once('error', onError);
     socket.connect(proxyPort, proxy.hostname);
   });
 
@@ -244,26 +383,48 @@ async function fetchViaSocks5(
   // 读取精确 N 字节
   async function readN(n: number, timeout = 10000): Promise<Buffer> {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        reject(new Error(`SOCKS5 读取超时 (期望 ${n} 字节)`));
-      }, timeout);
+      let disposeTimeout: (() => void) | undefined;
+      let settled = false;
+
+      const cleanup = () => {
+        disposeTimeout?.();
+        socket.removeListener('data', tryRead);
+        socket.removeListener('error', onError);
+        socket.removeListener('close', onClose);
+      };
+
+      const finish = (error?: Error, result?: Buffer) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      };
 
       const tryRead = () => {
         if (readBuf.length >= n) {
-          clearTimeout(timer);
           const result = readBuf.subarray(0, n);
           readBuf = readBuf.subarray(n);
-          resolve(result);
+          finish(undefined, result);
           return;
         }
-        // 数据不够，等下一次 data 事件
-        socket.once('data', tryRead);
       };
 
-      socket.once('error', (err) => { clearTimeout(timer); reject(err); });
-      socket.once('close', () => { clearTimeout(timer); reject(new Error('SOCKS5 连接关闭')); });
+      const onError = (error: Error) => finish(error);
+      const onClose = () => finish(new Error('SOCKS5 连接关闭'));
 
-      tryRead(); // 先检查缓冲区是否已有足够数据
+      disposeTimeout = ctx.setTimeout(() => {
+        finish(new Error(`SOCKS5 读取超时 (期望 ${n} 字节)`));
+      }, timeout);
+      socket.on('data', tryRead);
+      socket.once('error', onError);
+      socket.once('close', onClose);
+
+      // 先检查缓冲区是否已有足够数据
+      tryRead();
     });
   }
 
@@ -325,11 +486,11 @@ async function fetchViaSocks5(
         tlsSocket.once('error', reject);
       });
       tlsSocket.write(Buffer.from(httpReq, 'utf-8'));
-      const chunks = await readAllData(tlsSocket);
+      const chunks = await readAllData(ctx, tlsSocket);
       return parseHttpResponse(chunks);
     } else {
       socket.write(Buffer.from(httpReq, 'utf-8'));
-      const chunks = await readAllData(socket);
+      const chunks = await readAllData(ctx, socket);
       return parseHttpResponse(chunks);
     }
   } finally {
@@ -338,13 +499,35 @@ async function fetchViaSocks5(
 }
 
 /** 读取所有数据直到连接关闭 */
-function readAllData(socket: net.Socket | tls.TLSSocket): Promise<Buffer[]> {
+function readAllData(
+  ctx: Context,
+  socket: net.Socket | tls.TLSSocket,
+): Promise<Buffer[]> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = [];
-    socket.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-    socket.on('end', () => resolve(chunks));
-    socket.on('close', () => resolve(chunks));
-    socket.on('error', () => resolve(chunks));
+    let settled = false;
+    let disposeTimeout: (() => void) | undefined;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      disposeTimeout?.();
+      socket.removeListener('data', onData);
+      socket.removeListener('end', finish);
+      socket.removeListener('close', finish);
+      socket.removeListener('error', finish);
+      resolve(chunks);
+    };
+    const onData = (chunk: Buffer) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    };
+    disposeTimeout = ctx.setTimeout(() => {
+      socket.destroy();
+      finish();
+    }, 60000);
+    socket.on('data', onData);
+    socket.once('end', finish);
+    socket.once('close', finish);
+    socket.once('error', finish);
   });
 }
 
@@ -376,12 +559,12 @@ function parseHttpResponse(chunks: Buffer[]): Response {
  * @param config 代理和重试配置
  * @returns 返回解析后的 JSON 对象
  */
-export async function fetchJson<T = any>(
+export async function fetchJson<T = unknown>(
   ctx: Context,
   url: string,
   config: FetchConfig
 ): Promise<T> {
-  const response = await fetchWithProxy(ctx, url, {}, config);
+  const response = await fetchWithProxy(ctx, url, {}, config, true);
   return await response.json();
 }
 

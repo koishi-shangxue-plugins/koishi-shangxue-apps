@@ -22,6 +22,16 @@ export interface SteamUser {
   lastUpdateTime: string;
 }
 
+// 游戏状态变化，用于检测和播报
+export interface GameChangeInfo {
+  userId: string;
+  userName: string;
+  status: "start" | "stop" | "change";
+  oldGame?: string;
+  newGame?: string;
+  playTime?: string;
+}
+
 // Steam Web API 返回的玩家信息结构
 export interface SteamUserInfo {
   response: {

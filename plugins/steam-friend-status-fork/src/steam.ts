@@ -1,15 +1,25 @@
 // src/steam.ts
 import { Context } from "koishi";
-import { SteamUserInfo, SteamUser } from "./types";
+import {
+  RecentlyPlayedGamesInfo,
+  SteamProfile,
+  SteamUser,
+  SteamUserInfo,
+} from "./types";
 import { fetchJson } from "./fetch";
+import { getPluginLogger } from "./logger";
 
 // 从配置文件或默认值中获取常量
 const STEAM_ID_OFFSET = 76561197960265728;
 const STEAM_WEB_API_URL =
-  "http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/";
+  "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/";
 
 // Steam 官方限制：GetPlayerSummaries 单次最多查询 100 个 Steam ID
 const MAX_STEAM_IDS_PER_REQUEST = 100;
+
+interface RecentlyPlayedGamesResponse {
+  response: RecentlyPlayedGamesInfo;
+}
 
 /**
  * 将 Steam 好友码转换为 Steam64 ID
@@ -39,11 +49,12 @@ export async function getSteamUserInfo(
   steamApiKey: string,
   steamid: string,
 ): Promise<SteamUserInfo> {
-  const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${steamid}`;
+  const requestUrl = `${getPlayerSummariesUrl(ctx)}?key=${steamApiKey}&steamids=${steamid}`;
   try {
     const config = {
       useProxy: ctx.config.useProxy,
       proxyUrl: ctx.config.proxyUrl,
+      useApifoxProxy: ctx.config.useApifoxProxy,
       maxRetries: ctx.config.maxRetries
     };
     const response = await fetchJson<SteamUserInfo>(ctx, requestUrl, config);
@@ -56,7 +67,7 @@ export async function getSteamUserInfo(
     }
     return response;
   } catch (error) {
-    ctx.logger.error("获取 Steam 用户信息时出错:", error);
+    getPluginLogger().error("获取 Steam 用户信息时出错:", error);
     return undefined;
   }
 }
@@ -90,10 +101,11 @@ export async function getSteamUserInfoByDatabase(
   const players: SteamUserInfo["response"]["players"] = [];
   for (let i = 0; i < steamIds.length; i += MAX_STEAM_IDS_PER_REQUEST) {
     const batch = steamIds.slice(i, i + MAX_STEAM_IDS_PER_REQUEST);
-    const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${batch.join(",")}`;
+    const requestUrl = `${getPlayerSummariesUrl(ctx)}?key=${steamApiKey}&steamids=${batch.join(",")}`;
     const config = {
       useProxy: ctx.config.useProxy,
       proxyUrl: ctx.config.proxyUrl,
+      useApifoxProxy: ctx.config.useApifoxProxy,
       maxRetries: ctx.config.maxRetries,
     };
     try {
@@ -103,7 +115,7 @@ export async function getSteamUserInfoByDatabase(
       }
     } catch (error) {
       // 单批失败不影响其他批次，继续查询剩余用户
-      ctx.logger.error(
+      getPluginLogger().error(
         `批量获取 Steam 用户信息时出错 (第 ${Math.floor(i / MAX_STEAM_IDS_PER_REQUEST) + 1} 批):`,
         error,
       );
@@ -111,13 +123,18 @@ export async function getSteamUserInfoByDatabase(
   }
 
   if (players.length === 0) {
-    ctx.logger.warn("在 API 响应中没有找到玩家数据。");
+    getPluginLogger().warn("在 API 响应中没有找到玩家数据。");
     return undefined;
   }
 
   return { response: { players } };
 }
-import { RecentlyPlayedGamesInfo, SteamProfile } from "./types";
+function getPlayerSummariesUrl(ctx: Context): string {
+  const configured = ctx.config.steamWebApiUrl;
+  return typeof configured === "string" && configured.trim()
+    ? configured.trim()
+    : STEAM_WEB_API_URL;
+}
 
 /**
  * 使用 Puppeteer 抓取用户的 Steam 个人主页信息
@@ -184,7 +201,10 @@ export async function getSteamProfile(
 
     return profile;
   } catch (error) {
-    ctx.logger.error(`抓取 Steam 个人主页失败 (SteamID: ${steamId}):`, error);
+    getPluginLogger().error(
+      `抓取 Steam 个人主页失败 (SteamID: ${steamId}):`,
+      error,
+    );
     return null;
   } finally {
     await page.close();
@@ -203,20 +223,25 @@ export async function getRecentlyPlayedGames(
   apiKey: string,
   steamId: string,
 ): Promise<RecentlyPlayedGamesInfo> {
-  const url = `http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json`;
+  const url = `https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json`;
   try {
     const config = {
       useProxy: ctx.config.useProxy,
       proxyUrl: ctx.config.proxyUrl,
+      useApifoxProxy: ctx.config.useApifoxProxy,
       maxRetries: ctx.config.maxRetries
     };
-    const response = await fetchJson<any>(ctx, url, config);
+    const response = await fetchJson<RecentlyPlayedGamesResponse>(
+      ctx,
+      url,
+      config,
+    );
     if (response && response.response && response.response.games) {
       return response.response;
     }
     return { total_count: 0, games: [] };
   } catch (error) {
-    ctx.logger.error(
+    getPluginLogger().error(
       `获取最近玩过的游戏失败 (SteamID: ${steamId}):`,
       error,
     );

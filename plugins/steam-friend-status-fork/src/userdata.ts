@@ -2,6 +2,7 @@
 import { Context } from "koishi";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { getPluginLogger } from "./logger";
 
 // 用户游戏会话数据结构
 interface GameSession {
@@ -73,7 +74,7 @@ async function loadGameSessionsLocked(ctx: Context): Promise<GameSessionsData> {
       return JSON.parse(data);
     }
   } catch (error) {
-    ctx.logger.warn("读取游戏会话数据失败:", error);
+    getPluginLogger().warn("读取游戏会话数据失败:", error);
   }
   return {};
 }
@@ -88,7 +89,7 @@ async function saveGameSessionsLocked(ctx: Context, data: GameSessionsData): Pro
   try {
     fs.writeFileSync(filepath, JSON.stringify(data, null, 2), "utf-8");
   } catch (error) {
-    ctx.logger.error("保存游戏会话数据失败:", error);
+    getPluginLogger().error("保存游戏会话数据失败:", error);
   } finally {
     releaseLock();
   }
@@ -146,7 +147,7 @@ async function loadUserNicknamesLocked(ctx: Context): Promise<UserNicknamesData>
       return JSON.parse(data);
     }
   } catch (error) {
-    ctx.logger.warn("读取用户昵称数据失败:", error);
+    getPluginLogger().warn("读取用户昵称数据失败:", error);
   }
   return {};
 }
@@ -161,7 +162,7 @@ async function saveUserNicknamesLocked(ctx: Context, data: UserNicknamesData): P
   try {
     fs.writeFileSync(filepath, JSON.stringify(data, null, 2), "utf-8");
   } catch (error) {
-    ctx.logger.error("保存用户昵称数据失败:", error);
+    getPluginLogger().error("保存用户昵称数据失败:", error);
   } finally {
     releaseLock();
   }

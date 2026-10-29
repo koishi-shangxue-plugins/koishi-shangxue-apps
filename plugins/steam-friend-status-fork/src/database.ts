@@ -4,8 +4,17 @@ import { SteamUser } from "./types";
 import { getSteamId, getSteamUserInfo } from "./steam";
 import { deleteUserNickname, deleteAllUserNicknames } from "./userdata";
 import { fetchArrayBuffer } from "./fetch";
+import { getPluginLogger } from "./logger";
 import * as fs from "node:fs";
 import * as path from "node:path";
+
+// 筛选绑定到指定群组的用户
+export function selectUsersByGroup(
+  steamusers: SteamUser[],
+  groupid: string,
+): SteamUser[] {
+  return steamusers.filter((user) => user.effectGroups.includes(groupid));
+}
 
 /**
  * 绑定 Steam 账号到用户
@@ -63,7 +72,7 @@ export async function bindPlayer(
         const userInfo = await session.bot.getUser(userid);
         userName = userInfo?.name || userInfo?.username || userid;
       } catch (error) {
-        ctx.logger.warn(`获取用户 ${userid} 信息失败:`, error);
+        getPluginLogger().warn(`获取用户 ${userid} 信息失败:`, error);
         userName = userid;
       }
     } else if (!userName) {
@@ -204,13 +213,14 @@ export async function downloadAvatar(ctx: Context, url: string, steamId: string)
     const config = {
       useProxy: ctx.config.useProxy,
       proxyUrl: ctx.config.proxyUrl,
+      useApifoxProxy: ctx.config.useApifoxProxy,
       maxRetries: ctx.config.maxRetries
     };
     const headshot = await fetchArrayBuffer(ctx, url, config);
     fs.writeFileSync(filepath, Buffer.from(headshot));
     return true;
   } catch (error) {
-    ctx.logger.error("下载头像出错:", error);
+    getPluginLogger().error("下载头像出错:", error);
     return false;
   }
 }
@@ -227,7 +237,7 @@ async function removeAvatar(ctx: Context, steamId: string) {
   if (fs.existsSync(filepath)) {
     fs.unlink(filepath, (err) => {
       if (err) {
-        ctx.logger.error("删除头像出错:", err);
+        getPluginLogger().error("删除头像出错:", err);
       }
     });
   }

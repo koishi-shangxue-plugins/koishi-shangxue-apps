@@ -1,26 +1,27 @@
 import { Context, Schema, h } from "koishi";
 import { } from "koishi-plugin-puppeteer";
-import { SteamUser, SteamUserInfo } from "./types";
 import {
   getSteamUserInfoByDatabase,
   getSteamProfile,
   getSteamId,
 } from "./steam";
-import { bindPlayer, unbindPlayer, unbindAll, downloadAvatar } from "./database";
+import {
+  bindPlayer,
+  unbindPlayer,
+  unbindAll,
+  selectUsersByGroup,
+} from "./database";
 import {
   getFriendStatusImg,
   initHeadshots,
   getGroupHeadshot,
   getSteamProfileImg,
-  getGameChangeImg,
 } from "./image";
 import {
-  startGameSession,
-  endGameSession,
-  formatPlayTime,
   setUserNickname,
-  getUserNickname,
 } from "./userdata";
+import { initializePluginLogger } from "./logger";
+import { pollSteamBroadcast, updatePlayerHeadshots } from "./broadcast";
 
 export const name = "steam-friend-status-fork";
 
@@ -48,12 +49,6 @@ export const usage = `
   <li><code>steam-friend-status.更新steam</code> - 更新所有用户的头像信息</li>
 </ul>
 
-<h4>⚙️ 群组设置</h4>
-<ul>
-  <li><code>steam-friend-status.steam群报 on</code> - 开启群内游戏状态播报（需要管理员权限）</li>
-  <li><code>steam-friend-status.steam群报 off</code> - 关闭群内游戏状态播报（需要管理员权限）</li>
-</ul>
-
 ---
 
 `;
@@ -66,7 +61,10 @@ export const Config = Schema.intersect([
       )
       .role("secret")
       .required(),
-    interval: Schema.number().default(300).description("查询间隔,单位：秒"),
+    interval: Schema.number()
+      .default(300)
+      .min(10)
+      .description("查询间隔,单位：秒"),
     useSteamName: Schema.boolean()
       .default(true)
       .description("使用Steam昵称,关闭时使用的QQ昵称"),
@@ -82,6 +80,11 @@ export const Config = Schema.intersect([
     proxyUrl: Schema.string()
       .default("http://localhost:7897")
       .description("代理地址（支持 http/https/socks5/socks5h 协议）"),
+    useApifoxProxy: Schema.boolean()
+      .default(true)
+      .description(
+        "Steam API 直连失败时使用 APIFOX 公共代理兜底（请求 URL 会发送给代理）",
+      ),
     maxRetries: Schema.number()
       .default(3)
       .min(1)
@@ -127,7 +130,7 @@ export const Config = Schema.intersect([
     steamWebApiUrl: Schema.string()
       .description("steam 的 Web Api 请求地址")
       .default(
-        "http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/",
+        "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/",
       )
       .role("link")
       .experimental(),
@@ -148,8 +151,30 @@ export const Config = Schema.intersect([
   }).description("开发者设置"),
 ]);
 
-export function apply(ctx: Context, config) {
-  // 扩展数据库和频道模型
+export interface PluginConfig {
+  SteamApiKey: string;
+  interval: number;
+  useSteamName: boolean;
+  broadcastWithImage: boolean;
+  useProxy: boolean;
+  proxyUrl: string;
+  useApifoxProxy: boolean;
+  maxRetries: number;
+  showcardmode: "1" | "2";
+  showuserIdorsteamId: boolean;
+  showOfflineFriends: boolean;
+  botname?: string;
+  databasemaxlength: number;
+  steamIdOffset: number;
+  steamWebApiUrl: string;
+  steamstatus: Record<string, string>;
+  loggerinfo: boolean;
+}
+
+export function apply(ctx: Context, config: PluginConfig) {
+  const logger = initializePluginLogger(ctx, config.loggerinfo);
+
+  // 保留旧字段以兼容已有数据库，播报逻辑不再依赖该开关
   ctx.model.extend("channel", {
     usingSteam: { type: "boolean", initial: false, nullable: false },
     channelName: { type: "string", initial: null, nullable: true },
@@ -169,9 +194,51 @@ export function apply(ctx: Context, config) {
     { primary: "userId" },
   );
 
+  let disposed = false;
+  let polling = false;
+  let disposeInterval: (() => void) | undefined;
+
+  // 避免慢请求与下一轮轮询叠加
+  const runPoll = () => {
+    if (disposed) return;
+    if (polling) {
+      logger.debug("上一轮 Steam 查询尚未结束，跳过本轮");
+      return;
+    }
+
+    polling = true;
+    void pollSteamBroadcast(
+      ctx,
+      config,
+      logger,
+      () => disposed,
+    )
+      .catch((error) => {
+        logger.error("Steam 状态轮询失败:", error);
+      })
+      .finally(() => {
+        polling = false;
+      });
+  };
+
   ctx.on("ready", () => {
-    initHeadshots(ctx);
-    ctx.setInterval(() => steamInterval(ctx, config), config.interval * 1000);
+    void initHeadshots(ctx, () => disposed).catch((error) => {
+      logger.error("初始化 Steam 头像失败:", error);
+    });
+
+    // 启动后立即查询一次，避免 HMR 或重启后空等一个轮询周期
+    ctx.setTimeout(runPoll, 1000);
+    disposeInterval = ctx.setInterval(
+      runPoll,
+      Math.max(config.interval, 10) * 1000,
+    );
+  });
+
+  ctx.on("dispose", () => {
+    disposed = true;
+    polling = false;
+    disposeInterval?.();
+    disposeInterval = undefined;
   });
 
   // 指令注册
@@ -248,33 +315,6 @@ export function apply(ctx: Context, config) {
     });
 
   ctx
-    .command("steam-friend-status.steam群报 <word:text>", "开启或关闭群通报")
-    .channelFields(["usingSteam"])
-    .userFields(["authority"])
-    .action(async ({ session }, text) => {
-      const hasPermission =
-        session.user.authority > 1 ||
-        session.event.member?.roles?.some((role) =>
-          ["admin", "owner"].includes(String(role)),
-        );
-      if (!hasPermission) {
-        return "您没有权限执行此操作";
-      }
-      switch (text) {
-        case "on":
-        case "开启":
-          session.channel.usingSteam = true;
-          return "开启成功";
-        case "off":
-        case "关闭":
-          session.channel.usingSteam = false;
-          return "关闭成功";
-        default:
-          return "无效指令，请使用指令【steam-friend-status.steam群报 on】或者【steam-friend-status.steam群报 off】";
-      }
-    });
-
-  ctx
     .command("steam-friend-status.更新steam", "更新绑定的steam用户的头像")
     .action(async ({ session }) => {
       // 更新指令调用者在当前群组的昵称
@@ -282,7 +322,7 @@ export function apply(ctx: Context, config) {
         await setUserNickname(ctx, session.userId, session.channelId, session.username);
       }
 
-      await updataPlayerHeadshots(ctx, config.SteamApiKey);
+      await updatePlayerHeadshots(ctx, config, logger);
       const image = await session.execute("steam-friend-status.看看steam", true)
       await session.send("更新成功");
       await session.send(image);
@@ -306,7 +346,7 @@ export function apply(ctx: Context, config) {
           channelName = guild.name;
           await ctx.database.set("channel", { id: channelId }, { channelName });
         } catch (error) {
-          ctx.logger.warn("获取群组名称失败:", error);
+          logger.warn("获取群组名称失败:", error);
         }
       }
 
@@ -325,7 +365,7 @@ export function apply(ctx: Context, config) {
         return "获取 Steam 用户信息失败，请稍后再试。";
       }
 
-      logInfo(data);
+      logger.debug("看看steam 查询结果:", data);
       if (config.showcardmode === "1") {
         return await getFriendStatusImg(ctx, data, session.selfId);
       } else {
@@ -385,215 +425,8 @@ export function apply(ctx: Context, config) {
         const profileImg = await getSteamProfileImg(ctx, profileData, steamID);
         await session.send(profileImg);
       } else {
-        ctx.logger.warn(`无法获取 Steam 个人主页信息: ${steamID}`);
+        logger.warn(`无法获取 Steam 个人主页信息: ${steamID}`);
       }
     });
 
-  // 循环检测玩家状态
-  async function steamInterval(ctx: Context, config) {
-    const allUserData = await ctx.database.get("SteamUser", {});
-    const userdata = await getSteamUserInfoByDatabase(
-      ctx,
-      allUserData,
-      config.SteamApiKey,
-    );
-    if (!userdata) return;
-
-    const changeMessage = await getUserStatusChanged(
-      ctx,
-      userdata,
-      config.useSteamName,
-    );
-    if (!changeMessage || Object.keys(changeMessage).length === 0) {
-      return;
-    }
-
-    const supportPlatform = ["onebot", "red", "chronocat"];
-    const channels = await ctx.database.get("channel", {
-      usingSteam: true,
-      platform: { $in: supportPlatform },
-    });
-
-    for (const channel of channels) {
-      const groupMessage: GameChangeInfo[] = [];
-      for (const user of allUserData) {
-        if (
-          user.effectGroups.includes(channel.id) &&
-          changeMessage[user.userId]
-        ) {
-          groupMessage.push(changeMessage[user.userId]);
-        }
-      }
-
-      if (groupMessage.length > 0) {
-        const bot = ctx.bots[`${channel.platform}:${channel.assignee}`];
-        if (bot) {
-          for (const changeInfo of groupMessage) {
-            const user = allUserData.find((u) => u.userId === changeInfo.userId);
-            if (user) {
-              const playerInfo = userdata.response.players.find(
-                (p) => p.steamid === user.steamId,
-              );
-
-              // 获取用户在当前群组的昵称
-              const channelNickname = await getUserNickname(ctx, changeInfo.userId, channel.id);
-              const displayName = channelNickname || changeInfo.userName;
-
-              // 重新构建文本消息
-              let textMessage = "";
-              if (changeInfo.status === "start") {
-                textMessage = `${displayName} 开始玩 ${changeInfo.newGame} 了`;
-              } else if (changeInfo.status === "stop") {
-                // 如果有游玩时长，添加到消息中
-                if (changeInfo.playTime) {
-                  textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了，玩了 ${changeInfo.playTime}`;
-                } else {
-                  textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了`;
-                }
-              } else if (changeInfo.status === "change") {
-                // 如果有游玩时长，添加到消息中
-                if (changeInfo.playTime) {
-                  textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了，玩了 ${changeInfo.playTime}，开始玩 ${changeInfo.newGame} 了`;
-                } else {
-                  textMessage = `${displayName} 不玩 ${changeInfo.oldGame} 了，开始玩 ${changeInfo.newGame} 了`;
-                }
-              }
-
-              // 捕获发送消息的错误，避免一个群发送失败影响其他群
-              try {
-                if (playerInfo && config.broadcastWithImage) {
-                  const image = await getGameChangeImg(ctx, playerInfo, changeInfo);
-                  await bot.sendMessage(channel.id, [h.text(textMessage), image]);
-                } else {
-                  await bot.sendMessage(channel.id, textMessage);
-                }
-              } catch (error) {
-                ctx.logger.warn(`向群组 ${channel.id} 发送消息失败:`, error);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // 更新所有绑定用户的头像
-  async function updataPlayerHeadshots(ctx: Context, apiKey: string) {
-    const allUserData = await ctx.database.get("SteamUser", {});
-    const userdata = await getSteamUserInfoByDatabase(ctx, allUserData, apiKey);
-    if (!userdata) return;
-
-    for (const player of userdata.response.players) {
-      const success = await downloadAvatar(ctx, player.avatarmedium, player.steamid);
-      if (!success) {
-        ctx.logger.error(`更新头像失败 (SteamID: ${player.steamid})`);
-      }
-    }
-  }
-
-
-  // 筛选在特定群组中的用户
-  function selectUsersByGroup(
-    steamusers: SteamUser[],
-    groupid: string,
-  ): SteamUser[] {
-    return steamusers.filter((user) => user.effectGroups.includes(groupid));
-  }
-
-  // 检查玩家状态是否变化
-  // 定义游戏状态变化的数据结构
-  interface GameChangeInfo {
-    userId: string;
-    userName: string;
-    status: "start" | "stop" | "change";
-    oldGame?: string;
-    newGame?: string;
-    playTime?: string; // 游玩时长（格式化后的字符串）
-  }
-
-  // 检查玩家状态是否变化，返回结构化数据
-  async function getUserStatusChanged(
-    ctx: Context,
-    steamUserInfo: SteamUserInfo,
-    usingSteamName: boolean,
-  ): Promise<{ [key: string]: GameChangeInfo }> {
-    if (!steamUserInfo) return {};
-    const changes: { [key: string]: GameChangeInfo } = {};
-    for (const player of steamUserInfo.response.players) {
-      const userData = (
-        await ctx.database.get("SteamUser", { steamId: player.steamid })
-      )[0];
-      if (!userData) continue;
-
-      if (userData.steamName !== player.personaname) {
-        await ctx.database.set(
-          "SteamUser",
-          { steamId: player.steamid },
-          { steamName: player.personaname },
-        );
-      }
-
-      const userName = usingSteamName ? player.personaname : userData.userName;
-      // 对正在玩的游戏名称进行 trim 操作，防止因为空格导致重复播报
-      const newGame = player.gameextrainfo?.trim();
-      const oldGame = userData.lastPlayedGame;
-      // 同时对新旧游戏名称进行 trim 操作，确保比较的准确性
-      const trimmedOldGame = oldGame?.trim();
-
-      let changeInfo: GameChangeInfo = null;
-      if (newGame && !trimmedOldGame) {
-        // 开始玩游戏
-        changeInfo = {
-          userId: userData.userId,
-          userName,
-          status: "start",
-          newGame,
-        };
-        // 记录游戏开始时间
-        await startGameSession(ctx, userData.userId, newGame);
-      } else if (newGame && trimmedOldGame && newGame !== trimmedOldGame) {
-        // 切换游戏
-        // 结束旧游戏会话并获取游玩时长
-        const playTimeMinutes = await endGameSession(ctx, userData.userId);
-        changeInfo = {
-          userId: userData.userId,
-          userName,
-          status: "change",
-          oldGame: trimmedOldGame,
-          newGame,
-          playTime: playTimeMinutes ? formatPlayTime(playTimeMinutes) : undefined,
-        };
-        // 开始新游戏会话
-        await startGameSession(ctx, userData.userId, newGame);
-      } else if (!newGame && trimmedOldGame) {
-        // 停止玩游戏
-        const playTimeMinutes = await endGameSession(ctx, userData.userId);
-        changeInfo = {
-          userId: userData.userId,
-          userName,
-          status: "stop",
-          oldGame: trimmedOldGame,
-          playTime: playTimeMinutes ? formatPlayTime(playTimeMinutes) : undefined,
-        };
-      }
-
-      if (changeInfo) {
-        changes[userData.userId] = changeInfo;
-      }
-
-      await ctx.database.set(
-        "SteamUser",
-        { steamId: userData.steamId },
-        { lastPlayedGame: newGame || "" },
-      );
-    }
-    return changes;
-  }
-
-  // 日志记录
-  function logInfo(...args: any[]) {
-    if (config.loggerinfo) {
-      (ctx.logger.info as (...args: any[]) => void)(...args);
-    }
-  }
 }
