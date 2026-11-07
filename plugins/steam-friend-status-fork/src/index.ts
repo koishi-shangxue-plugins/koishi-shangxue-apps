@@ -22,6 +22,7 @@ import {
 } from "./userdata";
 import { initializePluginLogger } from "./logger";
 import { pollSteamBroadcast, updatePlayerHeadshots } from "./broadcast";
+import { toggleChannelBroadcast } from "./channel-settings";
 
 export const name = "steam-friend-status-fork";
 
@@ -49,6 +50,11 @@ export const usage = `
   <li><code>steam-friend-status.更新steam</code> - 更新所有用户的头像信息</li>
 </ul>
 
+<h4>⚙️ 群组设置</h4>
+<ul>
+  <li><code>steam-friend-status.steam群报</code> - 切换当前群的游戏状态播报（需要管理员权限）</li>
+</ul>
+
 ---
 
 `;
@@ -62,7 +68,7 @@ export const Config = Schema.intersect([
       .role("secret")
       .required(),
     interval: Schema.number()
-      .default(300)
+      .default(60)
       .min(10)
       .description("查询间隔,单位：秒"),
     useSteamName: Schema.boolean()
@@ -74,19 +80,13 @@ export const Config = Schema.intersect([
   }).description("基础设置"),
 
   Schema.object({
-    useProxy: Schema.boolean()
-      .default(false)
-      .description("是否使用代理"),
-    proxyUrl: Schema.string()
-      .default("http://localhost:7897")
-      .description("代理地址（支持 http/https/socks5/socks5h 协议）"),
     useApifoxProxy: Schema.boolean()
       .default(true)
       .description(
         "Steam API 直连失败时使用 APIFOX 公共代理兜底（请求 URL 会发送给代理）",
       ),
     maxRetries: Schema.number()
-      .default(3)
+      .default(5)
       .min(1)
       .step(1)
       .description("网络请求最大重试次数"),
@@ -118,22 +118,19 @@ export const Config = Schema.intersect([
   ]),
 
   Schema.object({
-    databasemaxlength: Schema.number()
-      .default(500)
-      .description(
-        "数据表 允许绑定的数据条数上限<br>绑定达到上限时会提示：`该Bot已达到绑定玩家数量上限`",
-      ),
     steamIdOffset: Schema.number()
       .default(76561197960265728)
       .description("steamIdOffset")
-      .experimental(),
+      .experimental()
+      .disabled(),
     steamWebApiUrl: Schema.string()
       .description("steam 的 Web Api 请求地址")
       .default(
         "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/",
       )
       .role("link")
-      .experimental(),
+      .experimental()
+      .disabled(),
     steamstatus: Schema.dict(String)
       .role("table")
       .default({
@@ -146,7 +143,8 @@ export const Config = Schema.intersect([
         "6": "🎮 想玩",
       })
       .description("steamstatus")
-      .experimental(),
+      .experimental()
+      .disabled(),
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("开发者设置"),
 ]);
@@ -156,15 +154,12 @@ export interface PluginConfig {
   interval: number;
   useSteamName: boolean;
   broadcastWithImage: boolean;
-  useProxy: boolean;
-  proxyUrl: string;
   useApifoxProxy: boolean;
   maxRetries: number;
   showcardmode: "1" | "2";
   showuserIdorsteamId: boolean;
   showOfflineFriends: boolean;
   botname?: string;
-  databasemaxlength: number;
   steamIdOffset: number;
   steamWebApiUrl: string;
   steamstatus: Record<string, string>;
@@ -312,6 +307,17 @@ export function apply(ctx: Context, config: PluginConfig) {
     .command("steam-friend-status.解绑全部steam", "解绑当前频道所有用户的steam账号")
     .action(async ({ session }) => {
       return await unbindAll(ctx, session.channelId);
+    });
+
+  ctx
+    .command(
+      "steam-friend-status.steam群报 [word:text]",
+      "切换当前群的 Steam 播报开关",
+    )
+    .channelFields(["usingSteam"])
+    .userFields(["authority"])
+    .action(({ session }, word) => {
+      return toggleChannelBroadcast(logger, session, word);
     });
 
   ctx

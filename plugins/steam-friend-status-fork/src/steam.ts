@@ -52,10 +52,8 @@ export async function getSteamUserInfo(
   const requestUrl = `${getPlayerSummariesUrl(ctx)}?key=${steamApiKey}&steamids=${steamid}`;
   try {
     const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
       useApifoxProxy: ctx.config.useApifoxProxy,
-      maxRetries: ctx.config.maxRetries
+      maxRetries: ctx.config.maxRetries,
     };
     const response = await fetchJson<SteamUserInfo>(ctx, requestUrl, config);
     if (
@@ -103,8 +101,6 @@ export async function getSteamUserInfoByDatabase(
     const batch = steamIds.slice(i, i + MAX_STEAM_IDS_PER_REQUEST);
     const requestUrl = `${getPlayerSummariesUrl(ctx)}?key=${steamApiKey}&steamids=${batch.join(",")}`;
     const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
       useApifoxProxy: ctx.config.useApifoxProxy,
       maxRetries: ctx.config.maxRetries,
     };
@@ -226,10 +222,8 @@ export async function getRecentlyPlayedGames(
   const url = `https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json`;
   try {
     const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
       useApifoxProxy: ctx.config.useApifoxProxy,
-      maxRetries: ctx.config.maxRetries
+      maxRetries: ctx.config.maxRetries,
     };
     const response = await fetchJson<RecentlyPlayedGamesResponse>(
       ctx,

@@ -140,10 +140,8 @@ export async function getGroupHeadshot(
     }
 
     const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
       useApifoxProxy: ctx.config.useApifoxProxy,
-      maxRetries: ctx.config.maxRetries
+      maxRetries: ctx.config.maxRetries,
     };
     const groupheadshot = await fetchArrayBuffer(ctx, avatarUrl, config);
     fs.writeFileSync(filepath, Buffer.from(groupheadshot));
@@ -187,10 +185,8 @@ export async function getBotHeadshot(ctx: Context, botId: string) {
     }
 
     const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
       useApifoxProxy: ctx.config.useApifoxProxy,
-      maxRetries: ctx.config.maxRetries
+      maxRetries: ctx.config.maxRetries,
     };
     const userheadshot = await fetchArrayBuffer(ctx, avatarUrl, config);
     fs.writeFileSync(filepath, Buffer.from(userheadshot));

@@ -27,11 +27,26 @@ export async function pollSteamBroadcast(
   logger: PluginLogger,
   shouldStop: () => boolean,
 ): Promise<void> {
-  const allUserData = await ctx.database.select("SteamUser").execute();
-  if (allUserData.length === 0) {
-    logger.debug("没有已绑定的 Steam 用户，跳过本轮轮询");
+  // 先读取开启播报的频道，全部关闭时不发送任何 Steam 请求
+  const channels = await ctx.database.get("channel", { usingSteam: true });
+  if (channels.length === 0) {
+    logger.debug("没有开启 Steam 群播报的频道，跳过本轮轮询");
     return;
   }
+  if (shouldStop()) return;
+
+  // 只查询仍有关联群组开启播报的用户
+  const enabledChannelIds = new Set(channels.map((channel) => channel.id));
+  const allUserData = (
+    await ctx.database.select("SteamUser").execute()
+  ).filter((user) =>
+    user.effectGroups.some((channelId) => enabledChannelIds.has(channelId)),
+  );
+  if (allUserData.length === 0) {
+    logger.debug("开启播报的群组中没有已绑定的 Steam 用户，跳过本轮轮询");
+    return;
+  }
+  if (shouldStop()) return;
 
   const steamUserInfo = await getSteamUserInfoByDatabase(
     ctx,
@@ -42,6 +57,7 @@ export async function pollSteamBroadcast(
     logger.warn("Steam 用户状态获取失败，本轮保留上次播报状态");
     return;
   }
+  if (shouldStop()) return;
 
   const changes = await detectGameChanges(
     ctx,
@@ -49,13 +65,13 @@ export async function pollSteamBroadcast(
     steamUserInfo,
     config.useSteamName,
     logger,
+    shouldStop,
   );
   if (Object.keys(changes).length === 0) {
     logger.debug("本轮没有检测到游戏状态变化");
     return;
   }
 
-  const channels = await ctx.database.select("channel").execute();
   for (const changeInfo of Object.values(changes)) {
     if (shouldStop()) return;
 
@@ -165,6 +181,7 @@ async function detectGameChanges(
   steamUserInfo: SteamUserInfo,
   useSteamName: boolean,
   logger: PluginLogger,
+  shouldStop: () => boolean,
 ): Promise<Record<string, GameChangeInfo>> {
   const players = new Map(
     steamUserInfo.response.players.map((player) => [player.steamid, player]),
@@ -172,6 +189,8 @@ async function detectGameChanges(
   const changes: Record<string, GameChangeInfo> = {};
 
   for (const userData of allUserData) {
+    if (shouldStop()) break;
+
     const player = players.get(userData.steamId);
     if (!player) {
       logger.debug(`Steam API 未返回用户 ${userData.steamId} 的信息`);

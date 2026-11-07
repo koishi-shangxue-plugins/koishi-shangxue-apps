@@ -40,11 +40,6 @@ export async function bindPlayer(
     return "未检测到用户ID或群ID";
   }
 
-  const database = await ctx.database.get("SteamUser", {});
-  if (database.length >= (ctx.config.databasemaxlength || 500)) {
-    return "该Bot已达到绑定玩家数量上限";
-  }
-
   const steamId = getSteamId(friendcodeOrId);
   if (!steamId) {
     return "无效的 SteamID 或好友码";
@@ -211,10 +206,8 @@ export async function downloadAvatar(ctx: Context, url: string, steamId: string)
   const filepath = path.join(resourcePath, `steamuser${steamId}.jpg`);
   try {
     const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
       useApifoxProxy: ctx.config.useApifoxProxy,
-      maxRetries: ctx.config.maxRetries
+      maxRetries: ctx.config.maxRetries,
     };
     const headshot = await fetchArrayBuffer(ctx, url, config);
     fs.writeFileSync(filepath, Buffer.from(headshot));
